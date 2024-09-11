@@ -1,19 +1,29 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Northwind.Mvc.Models;
+using EShop.Shared;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal; // Include extension method
+using Microsoft.AspNetCore.Authorization; // [Authorize]
+
 
 namespace Northwind.Mvc.Controllers;
 
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
+    private readonly NorthwindContext db;
+    private readonly IHttpClientFactory clientFactory;
 
-    public HomeController(ILogger<HomeController> logger)
+    public HomeController(ILogger<HomeController> logger, NorthwindContext injectedContext, IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
+        db = injectedContext;
+        clientFactory = httpClientFactory;
     }
+    [ResponseCache(Duration = 10, Location = ResponseCacheLocation.Any)]
 
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
         return View();
     }
