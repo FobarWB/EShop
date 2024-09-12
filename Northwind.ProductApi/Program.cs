@@ -40,7 +40,40 @@ c.SwaggerDoc("v1", new()
 { Title = "Northwind Product API", Version = "v1" });
 });
 
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields = HttpLoggingFields.All;
+    options.RequestBodyLogLimit = 4096; // default is 32k
+    options.ResponseBodyLogLimit = 4096; // default is 32k
+});
+
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+
 var app = builder.Build();
+
+app.UseHttpLogging();
+
+app.UseCors(configurePolicy: options =>
+{
+  options.WithMethods("GET", "POST", "PUT", "DELETE");
+  options.WithOrigins(
+    "https://localhost:5002" // allow requests from the MVC client
+  );
+});
+
+if (builder.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json",
+         "Northwind Service API Version 1");
+        c.SupportedSubmitMethods(new[] {
+         SubmitMethod.Get, SubmitMethod.Post,
+         SubmitMethod.Put, SubmitMethod.Delete });
+    });
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -48,8 +81,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseHttpLogging();
+
+app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.UseMiddleware<SecurityHeaders>();
 
 app.MapControllers();
 
