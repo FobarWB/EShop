@@ -1,8 +1,24 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@using EShop.Shared
+@using Northwind.Mvc
+@using System
+@{
+ViewData["Title"] = "Home Page";
+Category[]? categories = ViewData["categories"] as Category[];
+Product[]? products = ViewData["products"] as Product[];
+string Image = System.Convert.ToBase64String(categories[0].Picture);
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 280px; left: 0;">
+    <ul class="nav nav-pills flex-column mb-auto">
+        @foreach(Category c in categories)
+        {
+        <li class="nav-item">
+            <a asp-controller="Home" asp-action="Test" asp-route-id="@c.CategoryId" class="nav-link link-dark"
+                aria-current="page">
+                <i class="fa-solid fa-user"></i>
+                @c.CategoryName
+            </a>
+        </li>
+        }
+    </ul>
 </div>

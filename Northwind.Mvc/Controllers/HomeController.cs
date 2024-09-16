@@ -21,10 +21,12 @@ public class HomeController : Controller
         db = injectedContext;
         clientFactory = httpClientFactory;
     }
-    [ResponseCache(Duration = 10, Location = ResponseCacheLocation.Any)]
 
+    [ResponseCache(Duration = 10, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> Index()
     {
+        ViewData["categories"] = await db.Categories.ToArrayAsync();
+        ViewData["products"] = await db.Products.ToArrayAsync();
         return View();
     }
 
@@ -37,5 +39,10 @@ public class HomeController : Controller
     public IActionResult Error()
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    }
+
+    public IActionResult Test()
+    {
+        return View();
     }
 }

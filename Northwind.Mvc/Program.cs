@@ -2,8 +2,28 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Northwind.Mvc.Data;
 using EShop.Shared;
+using System.Net.Http.Headers; // MediaTypeWithQualityHeaderValue
+
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient(name: "Northwind.ProductApi",
+    configureClient: options =>
+    {
+        options.BaseAddress = new Uri("https://localhost:5002/");
+        options.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+            "application/json", 1.0));
+    });
+
+builder.Services.AddHttpClient(name: "Northwind.CategoryApi",
+    configureClient: options => 
+    {
+        options.BaseAddress = new Uri("https://localhost:5003/");
+        options.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+            "application/json", 1.0));
+    });
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
