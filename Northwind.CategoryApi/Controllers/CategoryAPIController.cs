@@ -1,11 +1,12 @@
 using EShop.Shared;
 using Northwind.CategoryApi.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 
 namespace Northwind.CategoryApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/categories")]
     public class CategoryAPIController : ControllerBase
     {
         private readonly ICategoryRepository repository;
@@ -20,17 +21,17 @@ namespace Northwind.CategoryApi.Controllers
         // this will always return a list of categories (but it might be empty)
         [HttpGet]
         [ProducesResponseType(200, Type = typeof(IEnumerable<Category>))]
-        public async Task<IEnumerable<Category>> GetCategories(string? categoryName)
+        public async Task<ActionResult<IEnumerable<Category>>> GetCategories(string? categoryName)
         {
+            IEnumerable<Category> categories = await repository.RetrieveAllAsync();
             if (string.IsNullOrWhiteSpace(categoryName))
             {
-                return await repository.RetrieveAllAsync();
+                return Ok(categories);
             }
             else
             {
                 categoryName = categoryName.ToUpper();
-                return (await repository.RetrieveAllAsync())
-                .Where(c => c.CategoryName.ToUpper().Contains(categoryName));
+                return Ok(categories.Where(c => c.CategoryName.ToUpper().Contains(categoryName)));
             }
         }
 
@@ -69,7 +70,7 @@ namespace Northwind.CategoryApi.Controllers
             {
                 return CreatedAtRoute(
                     routeName: nameof(GetCategory),
-                    routeValues: new {id = addedCategory.CategoryId},
+                    routeValues: new { id = addedCategory.CategoryId },
                     value: addedCategory
                 );
             }
@@ -89,7 +90,7 @@ namespace Northwind.CategoryApi.Controllers
             }
 
             Category? existing = await repository.RetrieveAsync(id);
-            
+
             if (existing is null)
             {
                 return NotFound();

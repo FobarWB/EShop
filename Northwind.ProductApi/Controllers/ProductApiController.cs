@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Northwind.ProductApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/products")]
     public class ProductApiController : ControllerBase
     {
         private readonly IProductRepository repository;
@@ -20,16 +20,16 @@ namespace Northwind.ProductApi.Controllers
         // this will always return a list of products (but it might be empty)
         [HttpGet]
         [ProducesResponseType(200, Type = typeof(IEnumerable<Product>))]
-        public async Task<IEnumerable<Product>> GetProducts(int? categoryId)
+        public async Task<ActionResult<IEnumerable<Product>>> GetProducts(int? categoryId)
         {
+            IEnumerable<Product> products = await repository.RetrieveAllAsync();
             if (!categoryId.HasValue)
             {
-                return await repository.RetrieveAllAsync();
+                return Ok(products);
             }
             else
             {
-                return (await repository.RetrieveAllAsync())
-                .Where(p => p.CategoryId == categoryId);
+                return Ok(products.Where(p => p.CategoryId == categoryId));
             }
         }
 
@@ -57,7 +57,7 @@ namespace Northwind.ProductApi.Controllers
             {
                 return BadRequest(); // 400
             }
-            
+
             Product? addedProduct = await repository.CreateAsync(p);
 
             if (addedProduct is null)
@@ -68,7 +68,7 @@ namespace Northwind.ProductApi.Controllers
             {
                 return CreatedAtRoute(  // 201
                     routeName: nameof(GetProduct),
-                    routeValues: new {id = addedProduct.ProductId},
+                    routeValues: new { id = addedProduct.ProductId },
                     value: addedProduct
                 );
             }
@@ -84,7 +84,7 @@ namespace Northwind.ProductApi.Controllers
         {
             if (p is null || p.ProductId != id)
             {
-               return BadRequest(); // 400
+                return BadRequest(); // 400
             }
 
             Product? existing = await repository.RetrieveAsync(id);
@@ -94,7 +94,7 @@ namespace Northwind.ProductApi.Controllers
                 return NotFound(); // 404
             }
 
-            await repository.UpdateAsync(id,p);
+            await repository.UpdateAsync(id, p);
             return new NoContentResult(); //204
         }
 

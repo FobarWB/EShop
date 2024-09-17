@@ -5,7 +5,6 @@
 ViewData["Title"] = "Home Page";
 Category[]? categories = ViewData["categories"] as Category[];
 Product[]? products = ViewData["products"] as Product[];
-string Image = System.Convert.ToBase64String(categories[0].Picture);
 }
 
 <div class="d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 280px; left: 0;">
@@ -15,7 +14,7 @@ string Image = System.Convert.ToBase64String(categories[0].Picture);
         <li class="nav-item">
             <a asp-controller="Home" asp-action="Test" asp-route-id="@c.CategoryId" class="nav-link link-dark"
                 aria-current="page">
-                <i class="fa-solid fa-user"></i>
+                <i class="fa-solid fa-drumstick-bite"></i>
                 @c.CategoryName
             </a>
         </li>

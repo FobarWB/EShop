@@ -25,8 +25,27 @@ public class HomeController : Controller
     [ResponseCache(Duration = 10, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> Index()
     {
-        ViewData["categories"] = await db.Categories.ToArrayAsync();
-        ViewData["products"] = await db.Products.ToArrayAsync();
+        try
+        {
+            HttpClient categoryClient = clientFactory.CreateClient("Northwind.CategoryApi");
+            HttpClient productClient = clientFactory.CreateClient("Northwind.ProductApi");
+
+            HttpRequestMessage categoryRequest = new(HttpMethod.Get, "api/categories");
+            HttpRequestMessage productRequest = new(HttpMethod.Get, "api/products");
+
+            Task<HttpResponseMessage> categoryResponseTask = categoryClient.SendAsync(categoryRequest);
+            Task<HttpResponseMessage> productResponseTask = productClient.SendAsync(productRequest);
+            await Task.WhenAll(categoryResponseTask, productResponseTask);
+
+            await AddDataToViewData<Category>(await categoryResponseTask, "categories");
+            await AddDataToViewData<Product>(await productResponseTask, "products");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning($"Error occurred: {ex.Message}");
+            ViewData["categories"] = Enumerable.Empty<Category>().ToArray();
+            ViewData["products"] = Enumerable.Empty<Product>().ToArray();
+        }
         return View();
     }
 
@@ -44,5 +63,18 @@ public class HomeController : Controller
     public IActionResult Test()
     {
         return View();
+    }
+
+    private async Task AddDataToViewData<T>(HttpResponseMessage responseMessage, string index)
+    {
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            ViewData[index] = await responseMessage.Content.ReadFromJsonAsync<T[]>();
+        }
+        else
+        {
+            _logger.LogWarning("The API service returned an error.");
+            ViewData[index] = Enumerable.Empty<T>().ToArray();
+        }
     }
 }

@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking; // EntityEntry<T>
 using EShop.Shared; // Category
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Northwind.CategoryApi.Repositories
 {
@@ -8,7 +10,7 @@ namespace Northwind.CategoryApi.Repositories
     {
 
         private static ConcurrentDictionary<int, Category>? categoryCache;
-        
+
         private NorthwindContext db;
 
         public CategoryRepository(NorthwindContext injectedContext)
@@ -55,17 +57,17 @@ namespace Northwind.CategoryApi.Repositories
             }
         }
 
-        public Task<IEnumerable<Category>> RetrieveAllAsync()
+        public async Task<IEnumerable<Category>> RetrieveAllAsync()
         {
-            return Task.FromResult(categoryCache is null
+            return await Task.FromResult(categoryCache is null
              ? Enumerable.Empty<Category>() : categoryCache.Values);
         }
 
-        public Task<Category?> RetrieveAsync(int id)
+        public async Task<Category?> RetrieveAsync(int id)
         {
             if (categoryCache is null) return null!;
             categoryCache.TryGetValue(id, out Category? c);
-            return Task.FromResult(c);
+            return await Task.FromResult(c);
         }
 
         public async Task<Category?> UpdateAsync(int id, Category c)
@@ -86,7 +88,7 @@ namespace Northwind.CategoryApi.Repositories
             {
                 if (categoryCache.TryGetValue(id, out old))
                 {
-                    if(categoryCache.TryUpdate(id, c, old))
+                    if (categoryCache.TryUpdate(id, c, old))
                     {
                         return c;
                     }
