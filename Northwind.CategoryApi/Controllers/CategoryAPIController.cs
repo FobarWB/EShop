@@ -35,7 +35,8 @@ namespace Northwind.CategoryApi.Controllers
             }
         }
 
-        [HttpGet("id", Name = nameof(GetCategory))]
+        // GET: api/categories/[id]
+        [HttpGet("{id}", Name = nameof(GetCategory))]
         [ProducesResponseType(200, Type = typeof(Category))]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetCategory(int id)

@@ -33,6 +33,7 @@ namespace Northwind.ProductApi.Controllers
             }
         }
 
+        // GET: api/products/[id]
         [HttpGet("{id}", Name = nameof(GetProduct))]
         [ProducesResponseType(200, Type = typeof(Product))]
         [ProducesResponseType(404)]

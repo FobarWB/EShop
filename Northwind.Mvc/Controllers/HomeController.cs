@@ -28,22 +28,44 @@ public class HomeController : Controller
         try
         {
             HttpClient categoryClient = clientFactory.CreateClient("Northwind.CategoryApi");
-            HttpClient productClient = clientFactory.CreateClient("Northwind.ProductApi");
-
             HttpRequestMessage categoryRequest = new(HttpMethod.Get, "api/categories");
-            HttpRequestMessage productRequest = new(HttpMethod.Get, "api/products");
-
-            Task<HttpResponseMessage> categoryResponseTask = categoryClient.SendAsync(categoryRequest);
-            Task<HttpResponseMessage> productResponseTask = productClient.SendAsync(productRequest);
-            await Task.WhenAll(categoryResponseTask, productResponseTask);
-
-            await AddDataToViewData<Category>(await categoryResponseTask, "categories");
-            await AddDataToViewData<Product>(await productResponseTask, "products");
+            HttpResponseMessage categoryResponse = await categoryClient.SendAsync(categoryRequest);
+            await AddDataToViewData<Category>(categoryResponse, "categories");
         }
         catch (Exception ex)
         {
             _logger.LogWarning($"Error occurred: {ex.Message}");
             ViewData["categories"] = Enumerable.Empty<Category>().ToArray();
+            ViewData["products"] = Enumerable.Empty<Product>().ToArray();
+        }
+        return View();
+    }
+
+    //TODO:Add categoryName verification
+    [HttpGet("{categoryName}")]
+    public async Task<IActionResult> ProductsByCategory(int? id, string categoryName)
+    {
+        string uri;
+        if (!id.HasValue)
+        {
+            ViewData["Title"] = "All products";
+            uri = "api/products/";
+        }
+        else
+        {
+            ViewData["Title"] = $"All products by category {categoryName}";
+            uri = $"api/products/?categoryId={id}";
+        }
+        HttpClient productClient = clientFactory.CreateClient("Northwind.ProductApi");
+        HttpRequestMessage request = new(HttpMethod.Get, uri);
+        HttpResponseMessage response = await productClient.SendAsync(request);
+        IEnumerable<Product>? products = await response.Content.ReadFromJsonAsync<Product[]>();
+        if (products is not null)
+        {
+            ViewData["products"] = products;
+        }
+        else
+        {
             ViewData["products"] = Enumerable.Empty<Product>().ToArray();
         }
         return View();

@@ -1,0 +1,61 @@
+@using EShop.Shared
+@using Northwind.Mvc
+@{
+Product[]? products = ViewData["products"] as Product[];
+}
+
+<div class="py-2 bg-light">
+    <div class="container">
+        <h1 class="pb-3">@ViewData["Title"]</h1>
+        <div class="row flex-nowrap">
+            <div class="col-auto">
+                <div class="d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 280px; left: 0;">
+                    <ul class="nav nav-pills flex-column mb-auto">
+                        <li class="nav-item">
+                            <a class="nav-link link-dark" aria-current="page">
+                                <i class="fa-solid fa-drumstick-bite"></i>
+                                Unit Price
+                            </a>
+                            <a class="nav-link link-dark" aria-current="page">
+                                <i class="fa-solid fa-drumstick-bite"></i>
+                                Unit in Stock
+                            </a>
+                            <a class="nav-link link-dark" aria-current="page">
+                                <i class="fa-solid fa-drumstick-bite"></i>
+                                Discounded
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                    @foreach(Product p in products)
+                    {
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- Product image-->
+                            <img class="card-img-top" src="https://dummyimage.com/450x300/dee2e6/6c757d.jpg" alt="...">
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">@p.ProductName</h5>
+                                    <!-- Product price-->
+                                    @(p.UnitPrice is null ? "zero" : p.UnitPrice.Value.ToString("C"))
+                                </div>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center"><a class="btn btn-outline-dark mt-auto" href="#">View
+                                        options</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
