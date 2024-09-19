@@ -58,9 +58,12 @@ app.UseCors(configurePolicy: options =>
 {
   options.WithMethods("GET", "POST", "PUT", "DELETE");
   options.WithOrigins(
-    "https://localhost:5002" // allow requests from the MVC client
+    "https://localhost:5002", // allow requests from the MVC client
+    "http://localhost:4200" // Angular client
   );
 });
+
+//app.UseCors(policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 
 if (builder.Environment.IsDevelopment())
 {
