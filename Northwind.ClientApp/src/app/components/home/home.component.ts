@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AsyncPipe, NgFor } from '@angular/common';
-import { ProductsService } from '../../services/products.service';
 import { Product } from '../../models/product.model';
+import { CategoryService } from '../../services/categories.service';
+import { Category } from '../../models/category.model';
 
 @Component({
   selector: 'app-home',
@@ -13,14 +14,14 @@ import { Product } from '../../models/product.model';
 })
 export class HomeComponent
 {
-  products$: Product[] = [];
+  categories: Category[] = [];
 
-  constructor(private productService: ProductsService) { }
+  constructor(private categoryService: CategoryService) { }
 
   ngOnInit()
   {
-    this.productService
-      .getProducts("https://localhost:5002/api/products", { page: 0, perPage: 5 })
-      .subscribe((products: Product[]) => this.products$ = products);
+    this.categoryService
+      .getCategories()
+      .subscribe((categories: Category[]) => this.categories = categories);
   }
 }
