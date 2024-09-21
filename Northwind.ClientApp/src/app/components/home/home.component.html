@@ -3,7 +3,7 @@
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
       <div class="col d-flex align-items-stretch" *ngFor="let c of categories">
         <div class="card shadow-sm">
-          <a>
+          <a [routerLink]="['/products/category', c.categoryId]">
             <img
               src="images/category{{ c.categoryId }}.jpeg"
               class="card-img-top"
