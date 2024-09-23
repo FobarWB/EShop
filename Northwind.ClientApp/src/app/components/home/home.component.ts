@@ -25,4 +25,9 @@ export class HomeComponent
       .getCategories()
       .subscribe((categories: Category[]) => this.categories = categories);
   }
+
+  encodeCategoryName(categoryName: string): string
+  {
+    return encodeURIComponent(categoryName);
+  }
 }
