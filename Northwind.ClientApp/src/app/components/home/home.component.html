@@ -2,14 +2,18 @@
   <div class="container">
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
       <div class="col d-flex align-items-stretch" *ngFor="let c of categories">
-        <div class="card shadow-sm">
-          <a [routerLink]="[encodeCategoryName(c.categoryName), c.categoryId]">
-            <img
-              src="images/category{{ c.categoryId }}.jpeg"
-              class="card-img-top"
-              alt="{{ c.categoryName }}"
-            />
-          </a>
+        <div class="card shadow-sm w-100">
+          <div class="div-img">
+            <a
+              [routerLink]="[encodeCategoryName(c.categoryName), c.categoryId]"
+            >
+              <img
+                src="images/category{{ c.categoryId }}.jpeg"
+                class="card-img-top"
+                alt="{{ c.categoryName }}"
+              />
+            </a>
+          </div>
           <div class="card-body d-flex flex-column">
             <p class="card-text">{{ c.description }}</p>
             <div
@@ -26,7 +30,9 @@
       </div>
 
       <div class="col d-flex align-items-stretch">
-        <div class="card shadow-sm w-100 text-center justify-content-center">
+        <div
+          class="card shadow-sm w-100 text-center justify-content-center new-category-card"
+        >
           <i class="fa-solid fa-circle-plus h1"></i>
         </div>
       </div>

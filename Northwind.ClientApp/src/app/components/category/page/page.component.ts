@@ -52,7 +52,7 @@ export class PageComponent
     return new Promise<boolean>((resolve, reject) =>
     {
       this.categoryService
-        .getCategories(this.categoryName)
+        .getCategories()
         .subscribe((categories: Category[]) =>
         {
           for (let c of categories)
