@@ -1,0 +1,54 @@
+<div
+  class="modal fade show"
+  style="display: block"
+  aria-modal="true"
+  role="dialog"
+>
+  <div class="modal-dialog modal-dialog-centered" style="z-index: 1055">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="exampleModalLabel">{{ title }}</h1>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          (click)="close()"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <ng-content></ng-content>
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+          (click)="close()"
+        >
+          Close
+        </button>
+        <button type="button" class="btn btn-primary" (click)="submit()">
+          Submit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop fade show" (click)="close()"></div>
+
+<!-- <div class="modal {{ size }}">
+  <div class="modal-header">
+    {{ title }}
+    <span class="modal-close" (click)="close()">✕</span>
+  </div>
+  <div class="modal-content">
+    <ng-content></ng-content>
+  </div>
+  <div class="modal-footer">
+    <button (click)="submit()">Submit</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" (click)="close()"></div> -->

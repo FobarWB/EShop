@@ -1,3 +1,5 @@
+<app-edit> </app-edit>
+
 <div class="album py-5 bg-light">
   <div class="container">
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
@@ -20,7 +22,19 @@
               class="d-flex justify-content-between align-items-center mt-auto align-self-start"
             >
               <div class="btn-group">
-                <button type="button" class="btn btn-sm btn-outline-secondary">
+                <!-- <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  data-bs-toggle="modal"
+                  data-bs-target="#exampleModal"
+                >
+                  Edit
+                </button> -->
+                <button
+                  (click)="openModal(modalContent)"
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                >
                   Edit
                 </button>
               </div>
@@ -39,3 +53,7 @@
     </div>
   </div>
 </div>
+
+<ng-template #modalContent let-data>
+  <div>This is our custom modal content</div>
+</ng-template>
