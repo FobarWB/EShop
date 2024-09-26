@@ -1,7 +1,5 @@
-import { Component, TemplateRef, ViewContainerRef } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Component } from '@angular/core';
 import { AsyncPipe, NgFor } from '@angular/common';
-import { Product } from '../../models/product.model';
 import { CategoryService } from '../../services/categories.service';
 import { Category } from '../../models/category.model';
 import { RouterModule } from '@angular/router';
@@ -11,7 +9,7 @@ import { ModalService } from '../../services/modal.service';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [AsyncPipe, NgFor, RouterModule, EditComponent],
+  imports: [AsyncPipe, NgFor, RouterModule],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
 })
@@ -21,8 +19,7 @@ export class HomeComponent
 
   constructor(
     private categoryService: CategoryService,
-    private modalService: ModalService,
-    private viewContainerRef: ViewContainerRef) { }
+    private modalService: ModalService) { }
 
   ngOnInit()
   {
@@ -36,13 +33,10 @@ export class HomeComponent
     return encodeURIComponent(categoryName);
   }
 
-  openModal(modalTemplate: TemplateRef<any>)
+  openModal()
   {
     this.modalService
-      .open(this.viewContainerRef, modalTemplate, { size: 'lg', title: 'Foo' })
-      .subscribe(action =>
-      {
-        console.log('modalAction', action);
-      });
+      .open(EditComponent, { title: 'Create/Edit' })
+      .subscribe(console.log);
   }
 }
