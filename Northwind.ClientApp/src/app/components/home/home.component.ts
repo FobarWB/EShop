@@ -37,6 +37,6 @@ export class HomeComponent
   {
     this.modalService
       .open(EditComponent, { title: 'Create/Edit' })
-      .subscribe(console.log);
+      .subscribe((componentRef): EditComponent => componentRef.Submit());
   }
 }

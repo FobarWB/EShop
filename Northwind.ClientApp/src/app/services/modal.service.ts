@@ -8,18 +8,20 @@ import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 })
 export class ModalService
 {
-  private modalRef?: NgbModalRef;
-  private modalNotifier?: Subject<string>;
+  private modalRef!: NgbModalRef;
+  private modalComponent!: ModalComponent;
+  private modalNotifier!: Subject<any>;
+
   constructor(private modalService: NgbModal) { }
 
   open(content: Type<any>, options?: { title?: string; })
   {
     this.modalRef = this.modalService.open(ModalComponent, { centered: true });
-    const modalComponent: ModalComponent = this.modalRef.componentInstance;
-    modalComponent.title = options?.title;
-    modalComponent.content = content;
-    modalComponent.closeEvent.subscribe(() => this.closeModal());
-    modalComponent.submitEvent.subscribe(() => this.submitModal());
+    this.modalComponent = this.modalRef.componentInstance;
+    this.modalComponent.title = options?.title;
+    this.modalComponent.content = content;
+    this.modalComponent.closeEvent.subscribe(() => this.closeModal());
+    this.modalComponent.submitEvent.subscribe(() => this.submitModal());
     this.modalNotifier = new Subject();
     return this.modalNotifier?.asObservable();
   }
@@ -33,7 +35,7 @@ export class ModalService
   submitModal()
   {
     this.modalRef?.close();
-    this.modalNotifier?.next("confirm");
+    this.modalNotifier?.next(this.modalComponent.contentInstance);
     this.closeModal();
   }
 }

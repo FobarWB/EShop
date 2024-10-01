@@ -1,5 +1,5 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component, ElementRef, EventEmitter, Input, Output, Type } from '@angular/core';
+import { Component, EventEmitter, Input, Output, Type, ViewChild } from '@angular/core';
 
 @Component({
   selector: 'app-modal',
@@ -10,13 +10,21 @@ import { Component, ElementRef, EventEmitter, Input, Output, Type } from '@angul
 })
 export class ModalComponent
 {
+  @ViewChild(NgComponentOutlet, { static: true }) private contentOutlet!: NgComponentOutlet;
+
   @Input() content!: Type<any>;
   @Input() title? = 'Modal title';
 
   @Output() closeEvent = new EventEmitter();
   @Output() submitEvent = new EventEmitter();
+  @Output() contentInstance!: any;
 
   constructor() { }
+
+  ngAfterViewInit()
+  {
+    this.contentInstance = this.contentOutlet['_componentRef'].instance;
+  }
 
   close(): void
   {
