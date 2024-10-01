@@ -1,5 +1,6 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component, EventEmitter, Input, Output, Type, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, Output, Type, ViewChild } from '@angular/core';
+import { EditComponent } from '../category/edit/edit.component';
 
 @Component({
   selector: 'app-modal',
@@ -14,16 +15,20 @@ export class ModalComponent
 
   @Input() content!: Type<any>;
   @Input() title? = 'Modal title';
+  @Input() data?: any;
+  disabled? = false;
 
   @Output() closeEvent = new EventEmitter();
   @Output() submitEvent = new EventEmitter();
-  @Output() contentInstance!: any;
+  @Output() contentInstance!: EditComponent;
 
-  constructor() { }
+  constructor(private changeDetectorRef: ChangeDetectorRef) { }
 
   ngAfterViewInit()
   {
     this.contentInstance = this.contentOutlet['_componentRef'].instance;
+    this.contentInstance.data = this.data;
+    this.changeDetectorRef.detectChanges();
   }
 
   close(): void

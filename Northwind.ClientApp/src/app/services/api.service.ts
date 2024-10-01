@@ -13,4 +13,9 @@ export class ApiService
   {
     return this.httpClient.get<T>(url) as Observable<T>;
   }
+
+  put(url: string, body?: any)
+  {
+    this.httpClient.put(url, body).subscribe(console.log);
+  }
 }

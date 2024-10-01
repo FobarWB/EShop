@@ -30,4 +30,10 @@ export class CategoryService
       this.cacheService.set(cacheKey, categories);
     }));
   }
+
+  updateCategory(id?: number, data?: any)
+  {
+    const url = `${this.apiUrl}/${id}`;
+    return this.apiService.put(url, data);
+  }
 }

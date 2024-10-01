@@ -98,7 +98,7 @@ namespace Northwind.CategoryApi.Controllers
             }
 
             await repository.UpdateAsync(id, c);
-            return new NoContentResult();
+            return NoContent();
         }
 
         // DELETE: api/category/[id]
@@ -130,7 +130,7 @@ namespace Northwind.CategoryApi.Controllers
 
             if (deleted.HasValue && deleted.Value)
             {
-                return new NoContentResult();
+                return NoContent();
             }
             else
             {

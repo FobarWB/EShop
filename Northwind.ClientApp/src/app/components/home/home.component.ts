@@ -33,10 +33,10 @@ export class HomeComponent
     return encodeURIComponent(categoryName);
   }
 
-  openModal()
+  openModal(category: Category)
   {
     this.modalService
-      .open(EditComponent, { title: 'Create/Edit' })
-      .subscribe((componentRef): EditComponent => componentRef.Submit());
+      .open(EditComponent, { title: 'Create/Edit', data: category })
+      .subscribe((componentRef): EditComponent => componentRef.submit());
   }
 }

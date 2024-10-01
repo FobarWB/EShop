@@ -1,6 +1,32 @@
-<form [formGroup]="profileForm">
-  <label for="first-name">First Name: </label>
-  <input id="first-name" type="text" formControlName="firstName" />
-  <label for="last-name">Last Name: </label>
-  <input id="last-name" type="text" formControlName="lastName" />
+<form [formGroup]="categoryForm">
+  <div class="mb-3">
+    <label class="form-label">Category Name</label>
+    <input
+      type="text"
+      id="categoryName"
+      class="form-control"
+      formControlName="categoryName"
+    />
+    <div
+      *ngIf="
+        categoryForm.controls['categoryName'].invalid &&
+        categoryForm.controls['categoryName'].touched
+      "
+      class="text-danger"
+    >
+      Category Name is required and must be less than 15 characters
+    </div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Description</label>
+    <textarea
+      id="description"
+      class="form-control"
+      formControlName="description"
+    ></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Picture</label>
+    <input type="file" id="picture" class="form-control" />
+  </div>
 </form>

@@ -20,7 +20,12 @@
   >
     Close
   </button>
-  <button type="button" class="btn btn-primary" (click)="submit()">
+  <button
+    type="button"
+    class="btn btn-primary"
+    (click)="submit()"
+    [disabled]="disabled"
+  >
     Submit
   </button>
 </div>

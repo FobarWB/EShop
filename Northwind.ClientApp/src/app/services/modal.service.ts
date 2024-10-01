@@ -14,11 +14,12 @@ export class ModalService
 
   constructor(private modalService: NgbModal) { }
 
-  open(content: Type<any>, options?: { title?: string; })
+  open(content: Type<any>, options?: { title?: string; data?: any })
   {
     this.modalRef = this.modalService.open(ModalComponent, { centered: true });
     this.modalComponent = this.modalRef.componentInstance;
     this.modalComponent.title = options?.title;
+    this.modalComponent.data = options?.data;
     this.modalComponent.content = content;
     this.modalComponent.closeEvent.subscribe(() => this.closeModal());
     this.modalComponent.submitEvent.subscribe(() => this.submitModal());
