@@ -1,8 +1,12 @@
-.div-img {
+.card-img {
   height: 275px;
 }
 
-.new-category-card {
+.card-description {
+  text-align: justify;
+}
+
+.card-empty {
   min-height: 380px;
 }
 

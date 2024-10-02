@@ -1,7 +1,6 @@
 using EShop.Shared;
 using Northwind.CategoryApi.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
 
 namespace Northwind.CategoryApi.Controllers
 {

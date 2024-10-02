@@ -31,7 +31,6 @@ export class EditComponent
   ngOnInit(): void
   {
     this.categoryForm = this.formBuilder.group({
-      categoryId: [0, Validators.required],
       categoryName: ['', [Validators.required, Validators.maxLength(15)]],
       description: [''],
       picture: [null]
@@ -40,7 +39,7 @@ export class EditComponent
     this.modalComponent.disabled = this.categoryForm.invalid;
   }
 
-  submit()
+  update()
   {
     const category = {
       categoryId: this.category.categoryId,
@@ -48,6 +47,16 @@ export class EditComponent
       description: this.categoryForm.get('description')?.value,
       picture: this.categoryForm.get('picture')?.value,
     }
-    this.categoryService.updateCategory(this.category?.categoryId, category);
+    this.categoryService.updateCategory(this.category?.categoryId, category).subscribe(console.log);
+  }
+
+  create()
+  {
+    const category = {
+      categoryName: this.categoryForm.get('categoryName')?.value,
+      description: this.categoryForm.get('description')?.value,
+      picture: this.categoryForm.get('picture')?.value,
+    }
+    this.categoryService.createCategory(category).subscribe(console.log);
   }
 }

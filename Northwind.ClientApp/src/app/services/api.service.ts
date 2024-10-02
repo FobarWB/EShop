@@ -11,11 +11,16 @@ export class ApiService
 
   get<T>(url: string): Observable<T>
   {
-    return this.httpClient.get<T>(url) as Observable<T>;
+    return this.httpClient.get<T>(url);
   }
 
-  put(url: string, body?: any)
+  put<T>(url: string, body?: any): Observable<T>
   {
-    this.httpClient.put(url, body).subscribe(console.log);
+    return this.httpClient.put<T>(url, body);
+  }
+
+  post<T>(url: string, body?: any): Observable<T>
+  {
+    return this.httpClient.post<T>(url, body)
   }
 }

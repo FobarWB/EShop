@@ -31,9 +31,14 @@ export class CategoryService
     }));
   }
 
-  updateCategory(id?: number, data?: any)
+  updateCategory(id?: number, body?: any): Observable<Category>
   {
     const url = `${this.apiUrl}/${id}`;
-    return this.apiService.put(url, data);
+    return this.apiService.put<Category>(url, body);
+  }
+
+  createCategory(body?: any): Observable<Category>
+  {
+    return this.apiService.post<Category>(this.apiUrl, body);
   }
 }

@@ -5,11 +5,12 @@ import { Category } from '../../models/category.model';
 import { RouterModule } from '@angular/router';
 import { EditComponent } from '../category/edit/edit.component';
 import { ModalService } from '../../services/modal.service';
+import { DefaultImageDirective } from '../../directives/default-image.directive';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [AsyncPipe, NgFor, RouterModule],
+  imports: [AsyncPipe, NgFor, RouterModule, DefaultImageDirective],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
 })
@@ -33,10 +34,17 @@ export class HomeComponent
     return encodeURIComponent(categoryName);
   }
 
-  openModal(category: Category)
+  updateCategory(category: Category)
   {
     this.modalService
-      .open(EditComponent, { title: 'Create/Edit', data: category })
-      .subscribe((componentRef): EditComponent => componentRef.submit());
+      .open(EditComponent, { title: `Edit category «${category.categoryName}»`, data: category })
+      .subscribe((component): EditComponent => component.update());
+  }
+
+  createCategory()
+  {
+    this.modalService
+      .open(EditComponent, { title: "Create new category" })
+      .subscribe((component): EditComponent => component.create());
   }
 }
