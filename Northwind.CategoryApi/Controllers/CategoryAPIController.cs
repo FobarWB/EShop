@@ -100,7 +100,7 @@ namespace Northwind.CategoryApi.Controllers
             return NoContent();
         }
 
-        // DELETE: api/category/[id]
+        // DELETE: api/categories/[id]
         [HttpDelete("{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]

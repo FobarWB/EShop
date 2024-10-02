@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ApiService } from './api.service';
 import { Category } from '../models/category.model';
-import { map, Observable, of, tap } from 'rxjs';
+import { map, Observable, of, Subject, tap } from 'rxjs';
 import { CacheService } from './cache.service';
 
 @Injectable({
@@ -10,11 +10,15 @@ import { CacheService } from './cache.service';
 export class CategoryService
 {
   private apiUrl = 'https://localhost:5003/api/categories';
+  public refreshRequired = new Subject<void>;
 
   constructor(
     private apiService: ApiService,
     private cacheService: CacheService
-  ) { }
+  )
+  {
+    this.refreshRequired.subscribe(_ => this.cacheService.clear());
+  }
 
   getCategories(categoryName?: string): Observable<Category[]>
   {
@@ -34,11 +38,17 @@ export class CategoryService
   updateCategory(id?: number, body?: any): Observable<Category>
   {
     const url = `${this.apiUrl}/${id}`;
-    return this.apiService.put<Category>(url, body);
+    return this.apiService.put<Category>(url, body).pipe(tap(_ => this.refreshRequired.next()));
   }
 
   createCategory(body?: any): Observable<Category>
   {
-    return this.apiService.post<Category>(this.apiUrl, body);
+    return this.apiService.post<Category>(this.apiUrl, body).pipe(tap(_ => this.refreshRequired.next()));
+  }
+
+  deleteCategory(id?: number): Observable<Category>
+  {
+    const url = `${this.apiUrl}/${id}`;
+    return this.apiService.delete<Category>(url).pipe(tap(_ => this.refreshRequired.next()));
   }
 }

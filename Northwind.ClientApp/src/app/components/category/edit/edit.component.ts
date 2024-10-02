@@ -1,5 +1,5 @@
 import { NgIf } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
 import { Category } from '../../../models/category.model';
@@ -47,7 +47,7 @@ export class EditComponent
       description: this.categoryForm.get('description')?.value,
       picture: this.categoryForm.get('picture')?.value,
     }
-    this.categoryService.updateCategory(this.category?.categoryId, category).subscribe(console.log);
+    this.categoryService.updateCategory(this.category?.categoryId, category).subscribe();
   }
 
   create()
@@ -57,6 +57,15 @@ export class EditComponent
       description: this.categoryForm.get('description')?.value,
       picture: this.categoryForm.get('picture')?.value,
     }
-    this.categoryService.createCategory(category).subscribe(console.log);
+    this.categoryService.createCategory(category).subscribe();
+  }
+
+  delete()
+  {
+    if (this.category)
+    {
+      this.categoryService.deleteCategory(this.category.categoryId).subscribe();
+      this.modalComponent.close();
+    }
   }
 }

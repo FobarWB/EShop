@@ -17,6 +17,7 @@
       Category Name is required and must be less than 15 characters
     </div>
   </div>
+
   <div class="mb-3">
     <label class="form-label">Description</label>
     <textarea
@@ -25,8 +26,13 @@
       formControlName="description"
     ></textarea>
   </div>
+
   <div class="mb-3">
     <label class="form-label">Picture</label>
     <input type="file" id="picture" class="form-control" />
+  </div>
+
+  <div *ngIf="category">
+    <button (click)="delete()" class="btn btn-danger w-100">Delete</button>
   </div>
 </form>

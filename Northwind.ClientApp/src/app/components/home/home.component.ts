@@ -24,14 +24,15 @@ export class HomeComponent
 
   ngOnInit()
   {
-    this.categoryService
-      .getCategories()
-      .subscribe((categories: Category[]) => this.categories = categories);
+    this.getAllCategories();
+    this.categoryService.refreshRequired.subscribe(_ => this.getAllCategories())
   }
 
-  encodeCategoryName(categoryName: string): string
+  getAllCategories()
   {
-    return encodeURIComponent(categoryName);
+    this.categoryService
+      .getCategories()
+      .subscribe(categories => this.categories = categories);
   }
 
   updateCategory(category: Category)
@@ -46,5 +47,10 @@ export class HomeComponent
     this.modalService
       .open(EditComponent, { title: "Create new category" })
       .subscribe((component): EditComponent => component.create());
+  }
+
+  encodeCategoryName(categoryName: string): string
+  {
+    return encodeURIComponent(categoryName);
   }
 }
