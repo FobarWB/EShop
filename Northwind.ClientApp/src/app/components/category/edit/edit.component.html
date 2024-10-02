@@ -27,12 +27,14 @@
     ></textarea>
   </div>
 
-  <div class="mb-3">
+  <div [ngClass]="{ 'mb-3': category }">
     <label class="form-label">Picture</label>
     <input type="file" id="picture" class="form-control" />
   </div>
 
   <div *ngIf="category">
-    <button (click)="delete()" class="btn btn-danger w-100">Delete</button>
+    <button type="button" (click)="delete()" class="btn btn-danger w-100">
+      Delete
+    </button>
   </div>
 </form>
