@@ -3,17 +3,79 @@
   style="width: 280px; left: 0"
 >
   <ul class="nav nav-pills flex-column mb-auto">
-    Sort by:
+    <li class="nav-item mb-3">
+      <p class="mb-1">Filter by Price:</p>
+      <ngx-slider
+        [(value)]="minValue"
+        [(highValue)]="highValue"
+        [options]="options"
+      ></ngx-slider>
+      <div class="d-flex mb-3">
+        <div class="input-group me-2">
+          <input
+            value="minValue"
+            type="number"
+            class="form-control"
+            placeholder="Min Price"
+          />
+        </div>
+        <div class="input-group">
+          <input
+            value="highValue"
+            type="number"
+            class="form-control"
+            placeholder="Max Price"
+          />
+        </div>
+        <div>
+          <button
+            (click)="applyFilters()"
+            type="button"
+            style="
+              padding: 12px 11px 12px 9px;
+              display: inline-block;
+              background: #2d2b33;
+              color: #fff;
+            "
+          >
+            Ок
+          </button>
+        </div>
+      </div>
+    </li>
+
+    <li class="nav-item mb-3">
+      <p class="mb-1">Filter by Availability:</p>
+      <div class="form-check">
+        <input
+          value="unitsInStock"
+          class="form-check-input"
+          type="checkbox"
+          id="stockCheck"
+        />
+        <label class="form-check-label" for="stockCheck">
+          Units in Stock
+        </label>
+      </div>
+    </li>
+
+    <li class="nav-item mb-3">
+      <p class="mb-1">Filter by Discount:</p>
+      <div class="form-check">
+        <input
+          value="discounted"
+          class="form-check-input"
+          type="checkbox"
+          id="discountCheck"
+        />
+        <label class="form-check-label" for="discountCheck"> Discounted </label>
+      </div>
+    </li>
+
     <li class="nav-item">
-      <a class="nav-link link-dark" aria-current="page">
-        <i class="fa-solid fa-drumstick-bite"></i> Unit Price
-      </a>
-      <a class="nav-link link-dark" aria-current="page">
-        <i class="fa-solid fa-drumstick-bite"></i> Unit in Stock
-      </a>
-      <a class="nav-link link-dark" aria-current="page">
-        <i class="fa-solid fa-drumstick-bite"></i> Discounded
-      </a>
+      <button class="btn btn-primary w-100" (click)="applyFilters()">
+        Apply Filters
+      </button>
     </li>
   </ul>
 </div>

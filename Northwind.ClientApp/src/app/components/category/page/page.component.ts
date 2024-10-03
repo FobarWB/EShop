@@ -17,6 +17,7 @@ import { Category } from '../../../models/category.model';
 export class PageComponent
 {
   products: Product[] = [];
+  filteredProducts: Product[] = [];
   categoryId?: number = undefined;
   categoryName?: string = undefined;
 
@@ -43,7 +44,11 @@ export class PageComponent
       });
       this.productService
         .getProducts(this.categoryId)
-        .subscribe((products: Product[]) => this.products = products);
+        .subscribe((products: Product[]) =>
+        {
+          this.products = products;
+          this.filteredProducts = products;
+        });
     });
   }
 
@@ -64,6 +69,33 @@ export class PageComponent
           }
           resolve(false);
         });
+    });
+  }
+
+  public sortProductsAsc(): void
+  {
+    this.products = this.products.sort((a, b) => a.unitPrice! - b.unitPrice!);
+  }
+
+  public sortProductsDesc(): void
+  {
+    this.products = this.products.sort((a, b) => b.unitPrice! - a.unitPrice!);
+  }
+
+  public sortByName(): void
+  {
+    this.products = this.products.sort((a, b) => a.productName!.localeCompare(b.productName!));
+  }
+
+  onFiltersApplied(filters: any)
+  {
+    this.filteredProducts = this.products.filter(product =>
+    {
+      const meetsPriceCriteria = product.unitPrice! >= filters.priceRange.min && product.unitPrice! <= filters.priceRange.max;
+      const meetsStockCriteria = filters.unitsInStock ? product.unitsInStock! > 0 : true;
+      const meetsDiscountCriteria = filters.discounted ? product.discontinued! === true : true;
+
+      return meetsPriceCriteria && meetsStockCriteria && meetsDiscountCriteria;
     });
   }
 }

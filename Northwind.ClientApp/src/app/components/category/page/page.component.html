@@ -3,9 +3,47 @@
     <h1 class="pb-3">All products by category «{{ categoryName }}»</h1>
     <div class="row flex-nowrap">
       <div class="col-auto">
-        <app-category-side-bar></app-category-side-bar>
+        <app-category-side-bar
+          (filtersApplied)="onFiltersApplied($event)"
+        ></app-category-side-bar>
       </div>
       <div class="col">
+        <div>
+          <nav class="navbar navbar-light bg-light">
+            <div class="container-fluid">
+              <span class="navbar-text">
+                Found products: {{ products.length }}
+              </span>
+              <div class="dropdown">
+                <button
+                  class="btn btn-secondary dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  Sort products
+                </button>
+                <ul class="dropdown-menu">
+                  <li>
+                    <a class="dropdown-item" (click)="sortProductsAsc()"
+                      >Sort by price ascending</a
+                    >
+                  </li>
+                  <li>
+                    <a class="dropdown-item" (click)="sortProductsDesc()"
+                      >Sort by price descending</a
+                    >
+                  </li>
+                  <li>
+                    <a class="dropdown-item" (click)="sortByName()"
+                      >Sort by name</a
+                    >
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </nav>
+        </div>
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
           <div class="col mb-5" *ngFor="let product of products">
             <div class="card h-100">
@@ -14,21 +52,38 @@
                 src="https://dummyimage.com/450x300/dee2e6/6c757d.jpg"
                 alt="..."
               />
-              <div class="card-body p-4">
-                <div class="text-center">
-                  <h5 class="fw-bolder">{{ product.productName }}</h5>
-                  {{
-                    product.unitPrice ? (product.unitPrice | currency) : "zero"
-                  }}
+              <div class="product-info">
+                <div class="product_name">
+                  <a>{{ product.productName }}</a>
+                </div>
+                <div class="product_price">
+                  <span class="money">
+                    {{
+                      product.unitPrice
+                        ? (product.unitPrice | currency)
+                        : "zero"
+                    }}
+                  </span>
                 </div>
               </div>
               <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
-                <div class="text-center">
+                <div class="d-flex justify-content-between mt-auto">
+                  <button class="btn btn-warning" type="submit">
+                    Add to cart <i class="fa-solid fa-cart-shopping"></i>
+                  </button>
                   <a class="btn btn-outline-dark mt-auto" href="#"
                     >View options</a
                   >
                 </div>
               </div>
+            </div>
+          </div>
+          <div class="ccol mb-5">
+            <div class="card card-empty shadow-sm h-100">
+              <button type="button" class="btn btn-outline-secondary flex-fill">
+                <i class="fa-solid fa-circle-plus h1"></i>
+                <span>Add new product</span>
+              </button>
             </div>
           </div>
         </div>
