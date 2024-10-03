@@ -8,16 +8,21 @@ import { Product } from '../models/product.model';
 })
 export class ProductService
 {
-  private apiUrl = 'https://localhost:5002/api/products';
+  private apiUrl = 'https://localhost:5002/api/products/';
 
   constructor(private apiService: ApiService) { }
 
-  getProducts = (categoryId?: number): Observable<Product[]> =>
+  getProducts(categoryId?: number): Observable<Product[]>
   {
     const url = categoryId ? `${this.apiUrl}?categoryId=${categoryId}` : this.apiUrl;
     return this.apiService.get(url);
   };
 
+  getProduct(id: number): Observable<Product>
+  {
+    const url = `${this.apiUrl}${id}`;
+    return this.apiService.get(url);
+  }
   // getProducts(categoryId?: number): Observable<Product[]> {
   //   const url = categoryId ? `${this.apiUrl}?categoryId=${categoryId}` : this.apiUrl;
   //   return this.http.get<Product[]>(url).pipe(catchError(this.handleError));
