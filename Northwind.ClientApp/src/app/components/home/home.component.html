@@ -5,7 +5,10 @@
         <div class="card shadow-sm w-100">
           <div class="card-img">
             <a
-              [routerLink]="[encodeCategoryName(c.categoryName), c.categoryId]"
+              [routerLink]="[
+                encodeCategoryName(c.categoryName),
+                encodeCategoryId(c.categoryId)
+              ]"
             >
               <img
                 src="images/category{{ c.categoryId }}.jpeg"

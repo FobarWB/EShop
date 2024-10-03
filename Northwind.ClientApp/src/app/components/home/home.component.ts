@@ -53,4 +53,9 @@ export class HomeComponent
   {
     return encodeURIComponent(categoryName);
   }
+
+  encodeCategoryId(id: number): string
+  {
+    return `c${id}`;
+  }
 }
