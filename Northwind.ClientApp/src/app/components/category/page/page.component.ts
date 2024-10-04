@@ -87,13 +87,15 @@ export class PageComponent
     this.products = this.products.sort((a, b) => a.productName!.localeCompare(b.productName!));
   }
 
+
   onFiltersApplied(filters: any)
   {
+    console.log(filters);
     this.filteredProducts = this.products.filter(product =>
     {
       const meetsPriceCriteria = product.unitPrice! >= filters.priceRange.min && product.unitPrice! <= filters.priceRange.max;
-      const meetsStockCriteria = filters.unitsInStock ? product.unitsInStock! > 0 : true;
-      const meetsDiscountCriteria = filters.discounted ? product.discontinued! === true : true;
+      const meetsStockCriteria = filters.unitsInStock ? product.unitsInStock !== null && product.unitsInStock! > 0 : true;
+      const meetsDiscountCriteria = filters.discounted ? product.discontinued === true : true;
 
       return meetsPriceCriteria && meetsStockCriteria && meetsDiscountCriteria;
     });

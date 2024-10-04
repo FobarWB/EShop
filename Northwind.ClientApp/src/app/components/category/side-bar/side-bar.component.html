@@ -13,7 +13,7 @@
       <div class="d-flex mb-3">
         <div class="input-group me-2">
           <input
-            value="minValue"
+            [(ngModel)]="minValue"
             type="number"
             class="form-control"
             placeholder="Min Price"
@@ -21,7 +21,7 @@
         </div>
         <div class="input-group">
           <input
-            value="highValue"
+            [(ngModel)]="highValue"
             type="number"
             class="form-control"
             placeholder="Max Price"
@@ -48,7 +48,7 @@
       <p class="mb-1">Filter by Availability:</p>
       <div class="form-check">
         <input
-          value="unitsInStock"
+          [(ngModel)]="unitsInStock"
           class="form-check-input"
           type="checkbox"
           id="stockCheck"
@@ -63,7 +63,7 @@
       <p class="mb-1">Filter by Discount:</p>
       <div class="form-check">
         <input
-          value="discounted"
+          [(ngModel)]="discounted"
           class="form-check-input"
           type="checkbox"
           id="discountCheck"
