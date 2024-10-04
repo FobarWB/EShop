@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject, tap } from 'rxjs';
 import { ApiService } from './api.service';
 import { Product } from '../models/product.model';
+import { CacheService } from './cache.service';
 
 @Injectable({
   providedIn: 'root'
@@ -9,14 +10,40 @@ import { Product } from '../models/product.model';
 export class ProductService
 {
   private apiUrl = 'https://localhost:5002/api/products';
+  public refreshRequired = new Subject<void>;
 
-  constructor(private apiService: ApiService) { }
+
+
+  constructor(
+    private apiService: ApiService,
+    private cacheService: CacheService
+  ) 
+  {
+    this.refreshRequired.subscribe(_ => this.cacheService.clear());
+  }
 
   getProducts = (categoryId?: number): Observable<Product[]> =>
   {
     const url = categoryId ? `${this.apiUrl}?categoryId=${categoryId}` : this.apiUrl;
     return this.apiService.get(url);
   };
+
+  createProduct(body?: any): Observable<Product>
+  {
+    return this.apiService.post<Product>(this.apiUrl, body).pipe(tap(_ => this.refreshRequired.next()));
+  }
+
+  updateProduct(id?: number, body?: any): Observable<Product>
+  {
+    const url = `${this.apiUrl}/${id}`;
+    return this.apiService.put<Product>(url, body).pipe(tap(_ => this.refreshRequired.next()));
+  }
+
+  deleteProduct(id?: number): Observable<Product>
+  {
+    const url = `${this.apiUrl}/${id}`;
+    return this.apiService.delete<Product>(url).pipe(tap(_ => this.refreshRequired.next()));
+  }
 
   // getProducts(categoryId?: number): Observable<Product[]> {
   //   const url = categoryId ? `${this.apiUrl}?categoryId=${categoryId}` : this.apiUrl;

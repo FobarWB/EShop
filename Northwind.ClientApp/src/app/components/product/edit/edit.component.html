@@ -1,0 +1,106 @@
+<form [formGroup]="productForm">
+  <div class="mb-3">
+    <label class="form-label">Product Name</label>
+    <input
+      type="text"
+      id="productName"
+      class="form-control"
+      formControlName="productName"
+    />
+    <div
+      *ngIf="
+        productForm.controls['productName'].invalid &&
+        productForm.controls['productName'].touched
+      "
+      class="text-danger"
+    >
+      Product Name is required and must be less than 25 characters
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Supplier ID</label>
+    <input
+      type="number"
+      id="supplierId"
+      class="form-control"
+      formControlName="supplierId"
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Category ID</label>
+    <input
+      type="number"
+      id="categoryId"
+      class="form-control"
+      formControlName="categoryId"
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Quantity Per Unit</label>
+    <input
+      type="text"
+      id="quantityPerUnit"
+      class="form-control"
+      formControlName="quantityPerUnit"
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Unit Price</label>
+    <input
+      type="number"
+      id="unitPrice"
+      class="form-control"
+      formControlName="unitPrice"
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Units In Stock</label>
+    <input
+      type="number"
+      id="unitsInStock"
+      class="form-control"
+      formControlName="unitsInStock"
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Units On Order</label>
+    <input
+      type="number"
+      id="unitsOnOrder"
+      class="form-control"
+      formControlName="unitsOnOrder"
+    />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Reorder Level</label>
+    <input
+      type="number"
+      id="reorderLevel"
+      class="form-control"
+      formControlName="reorderLevel"
+    />
+  </div>
+
+  <div class="form-check mb-3">
+    <input
+      class="form-check-input"
+      type="checkbox"
+      id="discontinued"
+      formControlName="discontinued"
+    />
+    <label class="form-check-label" for="discontinued"> Discontinued </label>
+  </div>
+
+  <div *ngIf="product">
+    <button type="button" (click)="delete()" class="btn btn-danger w-100">
+      Delete
+    </button>
+  </div>
+</form>

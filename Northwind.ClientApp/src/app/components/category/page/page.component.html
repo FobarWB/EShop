@@ -71,7 +71,10 @@
                   <button class="btn btn-warning" type="submit">
                     Add to cart <i class="fa-solid fa-cart-shopping"></i>
                   </button>
-                  <a class="btn btn-outline-dark mt-auto" href="#"
+                  <a
+                    (click)="updateProduct(product)"
+                    class="btn btn-outline-dark mt-auto"
+                    href="#"
                     >View options</a
                   >
                 </div>
@@ -80,9 +83,13 @@
           </div>
           <div class="ccol mb-5">
             <div class="card card-empty shadow-sm h-100">
-              <button type="button" class="btn btn-outline-secondary flex-fill">
+              <button
+                (click)="createProduct()"
+                type="button"
+                class="btn btn-outline-secondary flex-fill"
+              >
                 <i class="fa-solid fa-circle-plus h1"></i>
-                <span>Add new product</span>
+                <span style="white-space: pre-line">Add new product</span>
               </button>
             </div>
           </div>

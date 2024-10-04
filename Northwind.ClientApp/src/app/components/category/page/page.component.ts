@@ -6,6 +6,8 @@ import { Product } from '../../../models/product.model';
 import { ProductService } from '../../../services/products.service';
 import { CategoryService } from '../../../services/categories.service';
 import { Category } from '../../../models/category.model';
+import { ModalService } from '../../../services/modal.service';
+import { EditComponent } from '../../product/edit/edit.component';
 
 @Component({
   selector: 'app-category-page',
@@ -25,7 +27,9 @@ export class PageComponent
     private router: Router,
     private activatedRoute: ActivatedRoute,
     private productService: ProductService,
-    private categoryService: CategoryService) { }
+    private categoryService: CategoryService,
+    private modalService: ModalService
+  ) { }
 
   ngOnInit(): void
   {
@@ -99,5 +103,19 @@ export class PageComponent
 
       return meetsPriceCriteria && meetsStockCriteria && meetsDiscountCriteria;
     });
+  }
+
+  createProduct()
+  {
+    this.modalService
+      .open(EditComponent, { title: "Create new Product" })
+      .subscribe((component): EditComponent => component.create());
+  }
+
+  updateProduct(product: Product)
+  {
+    this.modalService
+      .open(EditComponent, { title: `Edit product «${product.productName}»`, data: product })
+      .subscribe((component): EditComponent => component.update());
   }
 }
