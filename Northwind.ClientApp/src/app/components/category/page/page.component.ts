@@ -46,13 +46,6 @@ export class PageComponent
           this.router.navigate(["/"]);
         }
       });
-      // this.productService
-      //   .getProducts(this.categoryId)
-      //   .subscribe((products: Product[]) =>
-      //   {
-      //     this.products = products;
-      //     this.filteredProducts = products;
-      //   });
       this.getAllProducts();
       this.productService.refreshRequired.subscribe(_ => this.getAllProducts());
     });
