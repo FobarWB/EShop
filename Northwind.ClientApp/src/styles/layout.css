@@ -1,3 +1,11 @@
+.layout {
+  max-width: 1600px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+}
+
 a.navbar-brand {
   white-space: normal;
   text-align: center;
