@@ -26,6 +26,12 @@ export class ProductService
     return this.apiService.get(url);
   };
 
+  getProduct(id: number): Observable<Product>
+  {
+    const url = `${this.apiUrl}${id}`;
+    return this.apiService.get(url);
+  }
+
   createProduct(body?: any): Observable<Product>
   {
     return this.apiService.post<Product>(this.apiUrl, body).pipe(tap(_ => this.refreshRequired.next()));
