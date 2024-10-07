@@ -12,8 +12,6 @@ export class ProductService
   private apiUrl = 'https://localhost:5002/api/products';
   public refreshRequired = new Subject<void>;
 
-
-
   constructor(
     private apiService: ApiService,
     private cacheService: CacheService
@@ -22,9 +20,9 @@ export class ProductService
     this.refreshRequired.subscribe(_ => this.cacheService.clear());
   }
 
-  getProducts = (categoryId?: number): Observable<Product[]> =>
+  getProducts = (productId?: number): Observable<Product[]> =>
   {
-    const url = categoryId ? `${this.apiUrl}?categoryId=${categoryId}` : this.apiUrl;
+    const url = productId ? `${this.apiUrl}?categoryId=${productId}` : this.apiUrl;
     return this.apiService.get(url);
   };
 
