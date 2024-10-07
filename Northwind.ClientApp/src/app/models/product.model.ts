@@ -2,7 +2,6 @@ import { Category } from "./category.model";
 
 export interface Product
 {
-    asbasndasjkdn: number;
     productId: number;
     productName: string;
     supplierId: number | null;

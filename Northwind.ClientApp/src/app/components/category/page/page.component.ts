@@ -6,6 +6,8 @@ import { Product } from '../../../models/product.model';
 import { ProductService } from '../../../services/products.service';
 import { CategoryService } from '../../../services/categories.service';
 import { Category } from '../../../models/category.model';
+import { ModalService } from '../../../services/modal.service';
+import { EditComponent } from '../../product/edit/edit.component';
 
 @Component({
   selector: 'app-category-page',
@@ -17,6 +19,7 @@ import { Category } from '../../../models/category.model';
 export class PageComponent
 {
   products: Product[] = [];
+  filteredProducts: Product[] = [];
   categoryId?: number = undefined;
   categoryName?: string = undefined;
 
@@ -24,7 +27,9 @@ export class PageComponent
     private router: Router,
     private activatedRoute: ActivatedRoute,
     private productService: ProductService,
-    private categoryService: CategoryService) { }
+    private categoryService: CategoryService,
+    private modalService: ModalService
+  ) { }
 
   ngOnInit(): void
   {
@@ -41,10 +46,20 @@ export class PageComponent
           this.router.navigate(["/"]);
         }
       });
-      this.productService
-        .getProducts(this.categoryId)
-        .subscribe((products: Product[]) => this.products = products);
+      this.getAllProducts();
+      this.productService.refreshRequired.subscribe(_ => this.getAllProducts());
     });
+  }
+
+  getAllProducts()
+  {
+    this.productService
+      .getProducts(this.categoryId)
+      .subscribe((products: Product[]) =>
+      {
+        this.products = products;
+        this.filteredProducts = products;
+      });
   }
 
   validateCategory(): Promise<boolean>
@@ -65,5 +80,48 @@ export class PageComponent
           resolve(false);
         });
     });
+  }
+
+  public sortProductsAsc(): void
+  {
+    this.products = this.products.sort((a, b) => a.unitPrice! - b.unitPrice!);
+  }
+
+  public sortProductsDesc(): void
+  {
+    this.products = this.products.sort((a, b) => b.unitPrice! - a.unitPrice!);
+  }
+
+  public sortByName(): void
+  {
+    this.products = this.products.sort((a, b) => a.productName!.localeCompare(b.productName!));
+  }
+
+
+  onFiltersApplied(filters: any)
+  {
+    console.log(filters);
+    this.filteredProducts = this.products.filter(product =>
+    {
+      const meetsPriceCriteria = product.unitPrice! >= filters.priceRange.min && product.unitPrice! <= filters.priceRange.max;
+      const meetsStockCriteria = filters.unitsInStock ? product.unitsInStock !== null && product.unitsInStock! > 0 : true;
+      const meetsDiscountCriteria = filters.discounted ? product.discontinued === true : true;
+
+      return meetsPriceCriteria && meetsStockCriteria && meetsDiscountCriteria;
+    });
+  }
+
+  createProduct()
+  {
+    this.modalService
+      .open(EditComponent, { title: "Create new Product" })
+      .subscribe((component): EditComponent => component.create());
+  }
+
+  updateProduct(product: Product)
+  {
+    this.modalService
+      .open(EditComponent, { title: `Edit product «${product.productName}»`, data: product })
+      .subscribe((component): EditComponent => component.update());
   }
 }

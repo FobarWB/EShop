@@ -1,28 +1,48 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject, tap } from 'rxjs';
 import { ApiService } from './api.service';
 import { Product } from '../models/product.model';
+import { CacheService } from './cache.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProductService
 {
-  private apiUrl = 'https://localhost:5002/api/products/';
+  private apiUrl = 'https://localhost:5002/api/products';
+  public refreshRequired = new Subject<void>;
 
-  constructor(private apiService: ApiService) { }
-
-  getProducts(categoryId?: number): Observable<Product[]>
+  constructor(
+    private apiService: ApiService,
+    private cacheService: CacheService
+  ) 
   {
-    const url = categoryId ? `${this.apiUrl}?categoryId=${categoryId}` : this.apiUrl;
+    this.refreshRequired.subscribe(_ => this.cacheService.clear());
+  }
+
+  getProducts = (productId?: number): Observable<Product[]> =>
+  {
+    const url = productId ? `${this.apiUrl}?categoryId=${productId}` : this.apiUrl;
     return this.apiService.get(url);
   };
 
-  getProduct(id: number): Observable<Product>
+  createProduct(body?: any): Observable<Product>
   {
-    const url = `${this.apiUrl}${id}`;
-    return this.apiService.get(url);
+    return this.apiService.post<Product>(this.apiUrl, body).pipe(tap(_ => this.refreshRequired.next()));
   }
+
+  updateProduct(id?: number, body?: any): Observable<Product>
+  {
+    const url = `${this.apiUrl}/${id}`;
+    return this.apiService.put<Product>(url, body).pipe(tap(_ => this.refreshRequired.next()));
+  }
+
+  deleteProduct(id?: number): Observable<Product>
+  {
+    const url = `${this.apiUrl}/${id}`;
+    return this.apiService.delete<Product>(url).pipe(tap(_ => this.refreshRequired.next()));
+  }
+
   // getProducts(categoryId?: number): Observable<Product[]> {
   //   const url = categoryId ? `${this.apiUrl}?categoryId=${categoryId}` : this.apiUrl;
   //   return this.http.get<Product[]>(url).pipe(catchError(this.handleError));
