@@ -1,54 +1,27 @@
 .layout {
   max-width: 1600px;
   width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
   margin-left: auto;
   margin-right: auto;
-  display: flex;
 }
 
-a.navbar-brand {
-  white-space: normal;
-  text-align: center;
-  word-break: break-all;
+@media (min-width: 768px) {
+  .layout {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
-
-a {
-  color: #0077cc;
+@media (min-width: 1024px) {
+  .layout {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
 }
-
-.btn-primary {
-  color: #fff;
-  background-color: #1b6ec2;
-  border-color: #1861ac;
-}
-
-.nav-pills .nav-link.active,
-.nav-pills .show > .nav-link {
-  color: #fff;
-  background-color: #1b6ec2;
-  border-color: #1861ac;
-}
-
-.border-top {
-  border-top: 1px solid #e5e5e5;
-}
-.border-bottom {
-  border-bottom: 1px solid #e5e5e5;
-}
-
-.box-shadow {
-  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
-}
-
-button.accept-policy {
-  font-size: 1rem;
-  line-height: inherit;
-}
-
-.footer {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  white-space: nowrap;
-  line-height: 60px;
+@media (min-width: 1280px) {
+  .layout {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
 }

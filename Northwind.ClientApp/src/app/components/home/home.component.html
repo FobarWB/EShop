@@ -1,51 +1,49 @@
-<div class="album py-5 bg-light">
-  <div class="container">
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
-      <div class="col d-flex align-items-stretch" *ngFor="let c of categories">
-        <div class="card shadow-sm w-100">
-          <div class="card-img">
-            <a
-              [routerLink]="[
-                encodeCategoryName(c.categoryName),
-                encodeCategoryId(c.categoryId)
-              ]"
+<div class="py-5">
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-3">
+    <div class="col d-flex align-items-stretch" *ngFor="let c of categories">
+      <div class="card shadow-sm w-100">
+        <div class="card-img">
+          <a
+            [routerLink]="[
+              encodeCategoryName(c.categoryName),
+              encodeCategoryId(c.categoryId)
+            ]"
+          >
+            <img
+              src="images/category{{ c.categoryId }}.jpeg"
+              default="images/categories.jpeg"
+              class="card-img-top"
+              alt="{{ c.categoryName }}"
+            />
+          </a>
+        </div>
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">{{ c.categoryName }}</h5>
+          <p class="card-text card-description">{{ c.description }}</p>
+          <div
+            class="d-flex justify-content-between mt-auto align-self-stretch"
+          >
+            <button
+              (click)="updateCategory(c)"
+              type="button"
+              class="btn btn-sm btn-outline-secondary w-100"
             >
-              <img
-                src="images/category{{ c.categoryId }}.jpeg"
-                default="images/categories.jpeg"
-                class="card-img-top"
-                alt="{{ c.categoryName }}"
-              />
-            </a>
-          </div>
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title">{{ c.categoryName }}</h5>
-            <p class="card-text card-description">{{ c.description }}</p>
-            <div
-              class="d-flex justify-content-between mt-auto align-self-stretch"
-            >
-              <button
-                (click)="updateCategory(c)"
-                type="button"
-                class="btn btn-sm btn-outline-secondary w-100"
-              >
-                Edit
-              </button>
-            </div>
+              Edit
+            </button>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="col d-flex align-items-stretch">
-        <div class="card card-empty shadow-sm w-100">
-          <button
-            (click)="createCategory()"
-            type="button"
-            class="btn btn-outline-secondary flex-fill"
-          >
-            <i class="fa-solid fa-circle-plus h1"></i>
-          </button>
-        </div>
+    <div class="col d-flex align-items-stretch">
+      <div class="card card-empty shadow-sm w-100">
+        <button
+          (click)="createCategory()"
+          type="button"
+          class="btn btn-outline-secondary flex-fill"
+        >
+          <i class="fa-solid fa-circle-plus h1"></i>
+        </button>
       </div>
     </div>
   </div>
