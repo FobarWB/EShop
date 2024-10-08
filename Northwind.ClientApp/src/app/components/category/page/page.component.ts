@@ -104,7 +104,6 @@ export class PageComponent
 
   onFiltersApplied(filters: any)
   {
-    console.log(filters);
     this.filteredProducts = this.products.filter(product =>
     {
       const meetsPriceCriteria = product.unitPrice! >= filters.priceRange.min && product.unitPrice! <= filters.priceRange.max;
@@ -128,4 +127,15 @@ export class PageComponent
       .open(EditComponent, { title: `Edit product «${product.productName}»`, data: product })
       .subscribe((component): EditComponent => component.update());
   }
+
+  encodeProductName(name: string): any | string
+  {
+    return encodeURIComponent(name);
+  }
+
+  encodeProductId(id: number): any | string
+  {
+    return `p${id}`;
+  }
+
 }

@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProductService } from '../../../services/products.service';
 import { Product } from '../../../models/product.model';
+import { SpinnerComponent } from "../../spinner/spinner.component";
 
 @Component({
   selector: 'app-page',
   standalone: true,
-  imports: [],
+  imports: [SpinnerComponent],
   templateUrl: './page.component.html',
   styleUrl: './page.component.css'
 })
@@ -15,6 +16,7 @@ export class PageComponent
   product?: Product;
   productId?: number;
   productName?: string;
+  isLoading: boolean = false;
 
   constructor(private router: Router,
     private activatedRoute: ActivatedRoute,
@@ -31,15 +33,25 @@ export class PageComponent
       this.validateProduct()
         .then(_ =>
         {
-          this.productService
-            .getProduct(this.productId!)
-            .subscribe(product => this.product = product);
+          this.getProduct()
         })
         .catch(_ =>
         {
           this.router.navigate(["/"]);
         });
     });
+  }
+
+  getProduct()
+  {
+    this.isLoading = true;
+    this.productService
+      .getProduct(this.productId!)
+      .subscribe(product => 
+      {
+        this.product = product;
+        setTimeout(() => this.isLoading = false, 500);
+      });
   }
 
   validateProduct(): Promise<boolean>

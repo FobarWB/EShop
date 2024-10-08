@@ -44,26 +44,34 @@
         </nav>
       </div>
       <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-3">
-        @for (product of filteredProducts; track $index) {
+        @for (p of filteredProducts; track $index) {
         <div class="col d-flex align-items-stretch">
           <div class="col card border-0 rounded-0 shadow">
             <button
-              (click)="updateProduct(product)"
+              (click)="updateProduct(p)"
               type="button"
               class="btn btn-outline-secondary position-absolute top-0 end-0 m-2"
               data-bs-theme="dark"
             >
               Edit
             </button>
-            <img
-              src="images/bag-scaled.jpg"
-              class="card-img-top rounded-0"
-              alt="..."
-            />
+            <a
+              [routerLink]="[
+                '/',
+                encodeProductName(p.productName),
+                encodeProductId(p.productId)
+              ]"
+            >
+              <img
+                src="images/bag-scaled.jpg"
+                class="card-img-top rounded-0"
+                alt="..."
+              />
+            </a>
             <div class="card-body">
               <div class="row">
                 <div class="col-10">
-                  <div class="h5 text-truncate">{{ product.productName }}</div>
+                  <div class="h5 text-truncate">{{ p.productName }}</div>
                   <p class="card-text">
                     <i class="bi bi-star-fill text-warning"></i>
                     <i class="bi bi-star-fill text-warning"></i>
@@ -77,7 +85,7 @@
                   <i class="bi bi-bookmark-plus fs-2"></i>
                 </div>
               </div>
-              @if (product.unitsInStock !== null && product.unitsInStock! > 0) {
+              @if (p.unitsInStock !== null && p.unitsInStock! > 0) {
               <span class="text-success">In stock</span>
               } @else {
               <span class="text-danger">Out of stock</span>
@@ -86,9 +94,7 @@
             <div class="row align-items-center text-center g-0">
               <div class="col-4">
                 <h5>
-                  {{
-                    product.unitPrice ? (product.unitPrice | currency) : "zero"
-                  }}
+                  {{ p.unitPrice ? (p.unitPrice | currency) : "zero" }}
                 </h5>
               </div>
               <div class="col-8">

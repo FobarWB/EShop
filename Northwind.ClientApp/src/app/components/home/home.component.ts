@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { AsyncPipe, NgFor, NgOptimizedImage } from '@angular/common';
+import { AsyncPipe, NgFor } from '@angular/common';
 import { CategoryService } from '../../services/categories.service';
 import { Category } from '../../models/category.model';
 import { RouterModule } from '@angular/router';
@@ -11,7 +11,7 @@ import { SpinnerComponent } from "../spinner/spinner.component";
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [AsyncPipe, NgFor, RouterModule, DefaultImageDirective, SpinnerComponent, NgOptimizedImage],
+  imports: [AsyncPipe, NgFor, RouterModule, DefaultImageDirective, SpinnerComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
 })
@@ -56,9 +56,9 @@ export class HomeComponent
       .subscribe((component): EditComponent => component.create());
   }
 
-  encodeCategoryName(categoryName: string): string
+  encodeCategoryName(name: string): string
   {
-    return encodeURIComponent(categoryName);
+    return encodeURIComponent(name);
   }
 
   encodeCategoryId(id: number): string

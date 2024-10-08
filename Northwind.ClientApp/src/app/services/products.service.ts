@@ -28,7 +28,7 @@ export class ProductService
 
   getProduct(id: number): Observable<Product>
   {
-    const url = `${this.apiUrl}${id}`;
+    const url = `${this.apiUrl}/${id}`;
     return this.apiService.get(url);
   }
 
