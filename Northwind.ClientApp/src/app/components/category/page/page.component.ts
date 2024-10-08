@@ -8,11 +8,12 @@ import { CategoryService } from '../../../services/categories.service';
 import { Category } from '../../../models/category.model';
 import { ModalService } from '../../../services/modal.service';
 import { EditComponent } from '../../product/edit/edit.component';
+import { SpinnerComponent } from "../../spinner/spinner.component";
 
 @Component({
   selector: 'app-category-page',
   standalone: true,
-  imports: [SideBarComponent, CommonModule, RouterModule],
+  imports: [SideBarComponent, CommonModule, RouterModule, SpinnerComponent],
   templateUrl: './page.component.html',
   styleUrl: './page.component.css'
 })
@@ -22,6 +23,7 @@ export class PageComponent
   filteredProducts: Product[] = [];
   categoryId?: number = undefined;
   categoryName?: string = undefined;
+  isLoading: boolean = false;
 
   constructor(
     private router: Router,
@@ -53,12 +55,14 @@ export class PageComponent
 
   getAllProducts()
   {
+    this.isLoading = true;
     this.productService
       .getProducts(this.categoryId)
       .subscribe((products: Product[]) =>
       {
         this.products = products;
         this.filteredProducts = products;
+        setTimeout(() => this.isLoading = false, 500);
       });
   }
 
