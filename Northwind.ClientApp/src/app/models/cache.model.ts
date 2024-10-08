@@ -1,4 +1,4 @@
-export interface CacheContent
+export interface ICacheContent
 {
     expiration: number;
     value: any;

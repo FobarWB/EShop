@@ -1,14 +1,15 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, TemplateRef, ViewChild, ViewChildren, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SideBarComponent } from '../side-bar/side-bar.component';
-import { Product } from '../../../models/product.model';
+import { IProduct } from '../../../models/product.model';
 import { ProductService } from '../../../services/products.service';
 import { CategoryService } from '../../../services/categories.service';
-import { Category } from '../../../models/category.model';
+import { ICategory } from '../../../models/category.model';
 import { ModalService } from '../../../services/modal.service';
 import { EditComponent } from '../../product/edit/edit.component';
 import { SpinnerComponent } from "../../spinner/spinner.component";
+import { IFilters } from '../../../models/filters.model';
 
 @Component({
   selector: 'app-category-page',
@@ -19,22 +20,29 @@ import { SpinnerComponent } from "../../spinner/spinner.component";
 })
 export class PageComponent
 {
-  products: Product[] = [];
-  filteredProducts: Product[] = [];
+  @ViewChild("clearFilters", { read: TemplateRef, static: true }) clearFiltersButton!: TemplateRef<any>;
+  @ViewChild("filterFlags", { read: ViewContainerRef, static: true }) filtersViewContainerRef!: ViewContainerRef;
+  @ViewChild(SideBarComponent, { static: true }) sideBarComponent!: SideBarComponent;
+  products: IProduct[] = [];
+  filteredProducts: IProduct[] = [];
   categoryId?: number = undefined;
   categoryName?: string = undefined;
   isLoading: boolean = false;
+  filters = new Map<string, any>();
 
   constructor(
     private router: Router,
     private activatedRoute: ActivatedRoute,
     private productService: ProductService,
     private categoryService: CategoryService,
-    private modalService: ModalService
+    private modalService: ModalService,
   ) { }
 
   ngOnInit(): void
   {
+    console.log(this.clearFiltersButton);
+    console.log(this.filtersViewContainerRef);
+    console.log(this.sideBarComponent);
     this.activatedRoute.paramMap.subscribe(params =>
     {
       const id = params.get('id');
@@ -58,12 +66,26 @@ export class PageComponent
     this.isLoading = true;
     this.productService
       .getProducts(this.categoryId)
-      .subscribe((products: Product[]) =>
+      .subscribe((products: IProduct[]) =>
       {
         this.products = products;
         this.filteredProducts = products;
         setTimeout(() => this.isLoading = false, 500);
       });
+  }
+
+  createProduct()
+  {
+    this.modalService
+      .open(EditComponent, { title: "Create new Product" })
+      .subscribe((component): EditComponent => component.create());
+  }
+
+  updateProduct(product: IProduct)
+  {
+    this.modalService
+      .open(EditComponent, { title: `Edit product «${product.productName}»`, data: product })
+      .subscribe((component): EditComponent => component.update());
   }
 
   validateCategory(): Promise<boolean>
@@ -72,7 +94,7 @@ export class PageComponent
     {
       this.categoryService
         .getCategories()
-        .subscribe((categories: Category[]) =>
+        .subscribe((categories: ICategory[]) =>
         {
           for (let c of categories)
           {
@@ -84,6 +106,16 @@ export class PageComponent
           resolve(false);
         });
     });
+  }
+
+  encodeProductName(name: string): any | string
+  {
+    return encodeURIComponent(name);
+  }
+
+  encodeProductId(id: number): any | string
+  {
+    return `p${id}`;
   }
 
   public sortProductsAsc(): void
@@ -101,41 +133,29 @@ export class PageComponent
     this.products = this.products.sort((a, b) => a.productName!.localeCompare(b.productName!));
   }
 
-
-  onFiltersApplied(filters: any)
+  filtersAppliedHandler(filters: IFilters)
   {
     this.filteredProducts = this.products.filter(product =>
     {
-      const meetsPriceCriteria = product.unitPrice! >= filters.priceRange.min && product.unitPrice! <= filters.priceRange.max;
+      const meetsPriceCriteria = filters.priceRange ? product.unitPrice! >= filters.priceRange.min && product.unitPrice! <= filters.priceRange.max : true;
       const meetsStockCriteria = filters.unitsInStock ? product.unitsInStock !== null && product.unitsInStock! > 0 : true;
       const meetsDiscountCriteria = filters.discounted ? product.discontinued === true : true;
 
       return meetsPriceCriteria && meetsStockCriteria && meetsDiscountCriteria;
     });
+
+    this.filters.clear();
+    for (const [key, value] of Object.entries(filters))
+    {
+      if (value)
+      {
+        this.filters.set(key, () => this.sideBarComponent.removeFilter(<keyof IFilters>key));
+      }
+    }
   }
 
-  createProduct()
+  removeAllFilters()
   {
-    this.modalService
-      .open(EditComponent, { title: "Create new Product" })
-      .subscribe((component): EditComponent => component.create());
+    this.sideBarComponent.removeAllFilters();
   }
-
-  updateProduct(product: Product)
-  {
-    this.modalService
-      .open(EditComponent, { title: `Edit product «${product.productName}»`, data: product })
-      .subscribe((component): EditComponent => component.update());
-  }
-
-  encodeProductName(name: string): any | string
-  {
-    return encodeURIComponent(name);
-  }
-
-  encodeProductId(id: number): any | string
-  {
-    return `p${id}`;
-  }
-
 }

@@ -2,7 +2,7 @@ import { NgClass, NgIf } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
-import { Category } from '../../../models/category.model';
+import { ICategory } from '../../../models/category.model';
 import { CategoryService } from '../../../services/categories.service';
 
 @Component({
@@ -14,10 +14,10 @@ import { CategoryService } from '../../../services/categories.service';
 })
 export class EditComponent
 {
-  protected category!: Category;
+  protected category!: ICategory;
   protected categoryForm!: FormGroup;
 
-  set data(newCategory: Category)
+  set data(newCategory: ICategory)
   {
     this.category = newCategory;
     this.categoryForm.patchValue(this.category);

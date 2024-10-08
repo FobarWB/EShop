@@ -1,13 +1,13 @@
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { CacheContent } from '../models/cache.model';
+import { ICacheContent } from '../models/cache.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CacheService
 {
-  private cache = new Map<string, CacheContent>();
+  private cache = new Map<string, ICacheContent>();
 
   constructor() { }
 

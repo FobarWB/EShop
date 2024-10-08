@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Product } from '../../../models/product.model';
+import { IProduct } from '../../../models/product.model';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
 import { ProductService } from '../../../services/products.service';
@@ -15,10 +15,10 @@ import { NgIf } from '@angular/common';
 export class EditComponent 
 {
 
-  protected product!: Product;
+  protected product!: IProduct;
   protected productForm!: FormGroup;
 
-  set data(newProduct: Product)
+  set data(newProduct: IProduct)
   {
     this.product = newProduct;
     this.productForm.patchValue(this.product);

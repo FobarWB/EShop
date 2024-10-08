@@ -1,10 +1,10 @@
-import { Product } from "./product.model";
+import { IProduct } from "./product.model";
 
-export interface Category
+export interface ICategory
 {
     categoryId: number;
     categoryName: string;
     description: string | null;
     picture: string | null;
-    products: Product[];
+    products: IProduct[];
 }

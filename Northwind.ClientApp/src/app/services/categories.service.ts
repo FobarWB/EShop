@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ApiService } from './api.service';
-import { Category } from '../models/category.model';
-import { map, Observable, of, Subject, tap } from 'rxjs';
+import { ICategory } from '../models/category.model';
+import { Observable, Subject, tap } from 'rxjs';
 import { CacheService } from './cache.service';
 
 @Injectable({
@@ -20,7 +20,7 @@ export class CategoryService
     this.refreshRequired.subscribe(_ => this.cacheService.clear());
   }
 
-  getCategories(categoryName?: string): Observable<Category[]>
+  getCategories(categoryName?: string): Observable<ICategory[]>
   {
     const cacheKey = `categories_${categoryName || 'all'}`;
     const cachedCategories = this.cacheService.get(cacheKey);
@@ -29,26 +29,26 @@ export class CategoryService
       return cachedCategories;
     }
     const url = categoryName ? `${this.apiUrl}?categoryName=${categoryName}` : this.apiUrl;
-    return this.apiService.get<Category[]>(url).pipe(tap(categories =>
+    return this.apiService.get<ICategory[]>(url).pipe(tap(categories =>
     {
       this.cacheService.set(cacheKey, categories);
     }));
   }
 
-  updateCategory(id?: number, body?: any): Observable<Category>
+  updateCategory(id?: number, body?: any): Observable<ICategory>
   {
     const url = `${this.apiUrl}/${id}`;
-    return this.apiService.put<Category>(url, body).pipe(tap(_ => this.refreshRequired.next()));
+    return this.apiService.put<ICategory>(url, body).pipe(tap(_ => this.refreshRequired.next()));
   }
 
-  createCategory(body?: any): Observable<Category>
+  createCategory(body?: any): Observable<ICategory>
   {
-    return this.apiService.post<Category>(this.apiUrl, body).pipe(tap(_ => this.refreshRequired.next()));
+    return this.apiService.post<ICategory>(this.apiUrl, body).pipe(tap(_ => this.refreshRequired.next()));
   }
 
-  deleteCategory(id?: number): Observable<Category>
+  deleteCategory(id?: number): Observable<ICategory>
   {
     const url = `${this.apiUrl}/${id}`;
-    return this.apiService.delete<Category>(url).pipe(tap(_ => this.refreshRequired.next()));
+    return this.apiService.delete<ICategory>(url).pipe(tap(_ => this.refreshRequired.next()));
   }
 }

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProductService } from '../../../services/products.service';
-import { Product } from '../../../models/product.model';
+import { IProduct } from '../../../models/product.model';
 import { SpinnerComponent } from "../../spinner/spinner.component";
 
 @Component({
@@ -13,7 +13,7 @@ import { SpinnerComponent } from "../../spinner/spinner.component";
 })
 export class PageComponent
 {
-  product?: Product;
+  product?: IProduct;
   productId?: number;
   productName?: string;
   isLoading: boolean = false;

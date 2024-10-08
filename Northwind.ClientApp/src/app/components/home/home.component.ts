@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { AsyncPipe, NgFor } from '@angular/common';
 import { CategoryService } from '../../services/categories.service';
-import { Category } from '../../models/category.model';
+import { ICategory } from '../../models/category.model';
 import { RouterModule } from '@angular/router';
 import { EditComponent } from '../category/edit/edit.component';
 import { ModalService } from '../../services/modal.service';
@@ -18,7 +18,7 @@ import { SpinnerComponent } from "../spinner/spinner.component";
 export class HomeComponent
 {
   isLoading: boolean = false;
-  categories: Category[] = [];
+  categories: ICategory[] = [];
 
   constructor(
     private categoryService: CategoryService,
@@ -42,7 +42,7 @@ export class HomeComponent
       });
   }
 
-  updateCategory(category: Category)
+  updateCategory(category: ICategory)
   {
     this.modalService
       .open(EditComponent, { title: `Edit category «${category.categoryName}»`, data: category })

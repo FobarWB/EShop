@@ -1,16 +1,7 @@
 import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
-import { Component, EventEmitter, output, Output } from '@angular/core';
+import { Component, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
-interface Filters
-{
-  priceRange: {
-    min: number;
-    max: number;
-  };
-  unitsInStock: boolean;
-  discounted: boolean;
-}
+import { IFilters } from '../../../models/filters.model';
 
 @Component({
   selector: 'app-category-side-bar',
@@ -21,8 +12,9 @@ interface Filters
 })
 export class SideBarComponent
 {
-  minValue: number = 10;
-  highValue: number = 200;
+  protected filters: IFilters = {};
+  minValue: number = 0;
+  maxValue: number = 300;
   unitsInStock: boolean = false;
   discounted: boolean = false;
 
@@ -31,16 +23,59 @@ export class SideBarComponent
     ceil: 300,
   };
 
-  filtersApplied = output<Filters>();
+  filtersApplied = output<IFilters>();
 
-  applyFilters()
+  removeAllFilters()
   {
-    const filters: Filters = {
-      priceRange: { min: this.minValue, max: this.highValue },
-      unitsInStock: this.unitsInStock,
-      discounted: this.discounted
-    };
+    let key: keyof IFilters;
+    for (key in this.filters)
+    {
+      this.removeFilter(key);
+    }
+  }
 
-    this.filtersApplied.emit(filters);
+  removeFilter(key: keyof IFilters)
+  {
+    switch (key)
+    {
+      case "priceRange":
+        {
+          this.minValue = 0;
+          this.maxValue = 300;
+        }
+        break;
+      case "unitsInStock":
+        {
+          this.unitsInStock = false;
+        }
+        break;
+      case "discounted":
+        {
+          this.discounted = false;
+        }
+        break;
+      default:
+        break;
+    }
+    if (key === "priceRange")
+    {
+      this.minValue = 0;
+      this.maxValue = 300;
+    }
+    this.filters[key] = undefined;
+    this.filtersApplied.emit(this.filters);
+  }
+
+  onPriceApplied()
+  {
+    this.filters.priceRange = { min: this.minValue, max: this.maxValue };
+    this.filtersApplied.emit(this.filters);
+  }
+
+  onFiltersApplied()
+  {
+    this.filters.unitsInStock = this.unitsInStock;
+    this.filters.discounted = this.discounted;
+    this.filtersApplied.emit(this.filters);
   }
 }

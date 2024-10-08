@@ -1,6 +1,6 @@
-import { Category } from "./category.model";
+import { ICategory } from "./category.model";
 
-export interface Product
+export interface IProduct
 {
     productId: number;
     productName: string;
@@ -12,5 +12,5 @@ export interface Product
     unitsOnOrder: number | null;
     reorderLevel: number | null;
     discontinued: boolean;
-    category: Category | null;
+    category: ICategory | null;
 }
