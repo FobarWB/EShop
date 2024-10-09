@@ -1,3 +1,7 @@
+.sticky-top {
+  top: 65px;
+}
+
 .card-footer {
   display: flex;
   justify-content: space-between;
@@ -41,4 +45,8 @@
 
 .card:hover {
   box-shadow: var(--bs-box-shadow-lg) !important;
+}
+
+a.breadcrumb-item:hover {
+  text-decoration: underline !important;
 }

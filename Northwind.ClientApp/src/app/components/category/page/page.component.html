@@ -1,67 +1,87 @@
-<div class="py-2">
-  <h1 class="pb-3">All products by category «{{ categoryName }}»</h1>
-  <div class="sticky-top" style="top: 65px">
-    <div
-      class="py-3 d-flex justify-content-between align-items-center bg-white"
+<div class="pt-2 pb-5">
+  <nav class="breadcrumb ps-1">
+    <a
+      class="breadcrumb-item link-dark text-decoration-none"
+      [routerLink]="['/']"
     >
-      <div class="d-flex justify-content-start align-items-center">
-        <span> Found products: {{ products.length }} </span>
-        @if (filters.size > 0) {
-        <button
-          (click)="removeAllFilters()"
-          type="button"
-          class="btn btn-secondary ms-2"
-        >
-          Cancel
-        </button>
-        } @for (filter of filters; track $index) {
-        <button
-          (click)="filter[1]()"
-          type="button"
-          class="btn btn-secondary ms-2"
-        >
-          {{ filter[0] }}
-        </button>
-        }
-      </div>
+      Home
+    </a>
+    <span class="breadcrumb-item active" aria-current="page">
+      {{ categoryName }}
+    </span>
+  </nav>
 
-      <div class="dropdown">
-        <button
-          class="btn btn-secondary dropdown-toggle"
-          type="button"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-        >
-          Sort products
-        </button>
-        <ul class="dropdown-menu">
-          <li>
-            <a class="dropdown-item" (click)="sortProductsAsc()"
-              >Sort by price ascending</a
-            >
-          </li>
-          <li>
-            <a class="dropdown-item" (click)="sortProductsDesc()"
-              >Sort by price descending</a
-            >
-          </li>
-          <li>
-            <a class="dropdown-item" (click)="sortByName()">Sort by name</a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </div>
+  <h1>{{ categoryName }}</h1>
 
   <div class="row flex-nowrap">
     <div class="col-auto">
       <app-category-side-bar (filtersApplied)="filtersAppliedHandler($event)" />
     </div>
+
     <div class="col">
+      <div class="sticky-top">
+        <div
+          class="py-3 d-flex justify-content-between align-items-center bg-white"
+        >
+          <div class="d-flex justify-content-start align-items-center">
+            <span> Found products: {{ products.length }} </span>
+            @if (filters.size > 0) {
+            <button
+              (click)="removeAllFilters()"
+              type="button"
+              class="btn btn-outline-secondary rounded-5 ms-2 px-3"
+            >
+              Cancel
+            </button>
+            } @for (filter of filters; track $index) {
+            <button
+              (click)="filter[1]()"
+              type="button"
+              class="btn btn-outline-secondary rounded-5 ms-2 px-3"
+            >
+              <span>
+                {{ filter[0] }}
+                <i
+                  class="fa-regular fa-circle-xmark"
+                  style="font-size: 14px"
+                ></i>
+              </span>
+            </button>
+            }
+          </div>
+
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              Sort products
+            </button>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item" (click)="sortProductsAsc()"
+                  >Sort by price ascending</a
+                >
+              </li>
+              <li>
+                <a class="dropdown-item" (click)="sortProductsDesc()"
+                  >Sort by price descending</a
+                >
+              </li>
+              <li>
+                <a class="dropdown-item" (click)="sortByName()">Sort by name</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-3">
         @for (p of filteredProducts; track $index) {
         <div class="col d-flex align-items-stretch">
-          <div class="col card rounded-0">
+          <div class="card w-100 rounded-0">
             <button
               (click)="updateProduct(p)"
               type="button"
@@ -122,15 +142,15 @@
         </div>
         }
 
-        <div class="ccol mb-5">
-          <div class="card card-empty shadow-sm h-100">
+        <div class="col d-flex align-items-stretch">
+          <div class="card w-100 card-empty">
             <button
               (click)="createProduct()"
               type="button"
               class="btn btn-outline-secondary flex-fill"
             >
               <i class="fa-solid fa-circle-plus h1"></i>
-              <span style="white-space: pre-line">Add new product</span>
+              <p>Add new product</p>
             </button>
           </div>
         </div>

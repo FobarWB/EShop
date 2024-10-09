@@ -1,0 +1,29 @@
+.price-slider .ngx-slider .ngx-slider-bar {
+  background: var(--bs-warning-bg-subtle);
+}
+
+.price-slider .ngx-slider .ngx-slider-selection {
+  background: var(--bs-warning);
+}
+
+.price-slider .ngx-slider .ngx-slider-pointer {
+  width: 12px;
+  height: 24px;
+  top: auto;
+  bottom: 0;
+  background-color: #333;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
+
+.price-slider .ngx-slider .ngx-slider-pointer:after {
+  display: none;
+}
+
+.price-slider .ngx-slider .ngx-slider-bubble {
+  bottom: 24px;
+}
+
+.price-slider .ngx-slider .ngx-slider-limit {
+  font-weight: bold;
+}

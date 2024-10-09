@@ -1,4 +1,4 @@
-<aside class="sidebar flex-shrink-0 sticky-top">
+<aside class="sidebar flex-shrink-0 sticky-top py-3">
   <ul class="list-unstyled ps-0">
     <li class="mb-1">
       <a
@@ -10,44 +10,36 @@
         <span>Price</span>
       </a>
       <div class="collapse" id="price-collapse">
-        <div class="p-2">
+        <div class="p-2 price-slider">
           <ngx-slider
             [(value)]="minValue"
             [(highValue)]="maxValue"
             [options]="options"
           >
           </ngx-slider>
-          <div class="d-flex mb-3">
-            <div class="input-group me-2">
-              <input
-                [(ngModel)]="minValue"
-                type="number"
-                class="form-control"
-                placeholder="Min Price"
-              />
-            </div>
-            <div class="input-group">
-              <input
-                [(ngModel)]="maxValue"
-                type="number"
-                class="form-control"
-                placeholder="Max Price"
-              />
-            </div>
-            <div>
-              <button
-                (click)="onPriceApplied()"
-                type="button"
-                style="
-                  padding: 12px 11px 12px 9px;
-                  display: inline-block;
-                  background: #2d2b33;
-                  color: #fff;
-                "
-              >
-                Ок
-              </button>
-            </div>
+          <div class="d-flex flex-row align-items-center">
+            <input
+              (input)="minValueChanged($event)"
+              [(ngModel)]="minValue"
+              type="text"
+              class="form-control"
+              placeholder="Min Price"
+            />
+            <span class="mx-2">-</span>
+            <input
+              (input)="maxValueChanged($event)"
+              [(ngModel)]="maxValue"
+              type="text"
+              class="form-control"
+              placeholder="Max Price"
+            />
+            <button
+              (click)="onPriceApplied()"
+              type="button"
+              class="btn btn-dark w-100 ms-4"
+            >
+              ОK
+            </button>
           </div>
         </div>
       </div>

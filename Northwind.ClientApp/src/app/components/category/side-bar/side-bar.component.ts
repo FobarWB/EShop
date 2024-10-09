@@ -21,6 +21,7 @@ export class SideBarComponent
   options: Options = {
     floor: 0,
     ceil: 300,
+    animate: false
   };
 
   filtersApplied = output<IFilters>();
@@ -64,6 +65,47 @@ export class SideBarComponent
     }
     this.filters[key] = undefined;
     this.filtersApplied.emit(this.filters);
+  }
+
+  minValueChanged(event: Event)
+  {
+    const inputElement: HTMLInputElement = event.target as HTMLInputElement;
+    let newValue: string = inputElement.value;
+    if (!newValue.match(/^[0-9]+$/g))
+    {
+      if (newValue === '')
+      {
+        inputElement.value = "0";
+        this.minValue = 0;
+      }
+      else
+      {
+        newValue = newValue.replace(/[^\d]/g, '');
+        inputElement.value = newValue;
+      }
+    }
+    this.minValue = +newValue;
+  }
+
+  maxValueChanged(event: Event)
+  {
+    const inputElement: HTMLInputElement = event.target as HTMLInputElement;
+    let newValue: string = inputElement.value;
+    if (!newValue.match(/^[0-9]+$/g))
+    {
+      if (newValue === '')
+      {
+        inputElement.value = "0";
+        this.maxValue = 0;
+      }
+      else
+      {
+        newValue = newValue.replace(/[^\d]/g, '');
+        inputElement.value = newValue;
+        this.maxValue = +newValue;
+      }
+    }
+    this.maxValue = +newValue;
   }
 
   onPriceApplied()
