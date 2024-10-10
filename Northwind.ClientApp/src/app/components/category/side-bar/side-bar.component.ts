@@ -1,5 +1,5 @@
-import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
-import { Component, output } from '@angular/core';
+import { NgxSliderModule, Options as SliderOptions } from '@angular-slider/ngx-slider';
+import { Component, Input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IFilters } from '../../../models/filters.model';
 
@@ -12,19 +12,21 @@ import { IFilters } from '../../../models/filters.model';
 })
 export class SideBarComponent
 {
+  @Input({ required: true }) options!: SliderOptions;
+
   protected filters: IFilters = {};
   minValue: number = 0;
-  maxValue: number = 300;
+  maxValue: number = 0;
   unitsInStock: boolean = false;
   discounted: boolean = false;
 
-  options: Options = {
-    floor: 0,
-    ceil: 300,
-    animate: false
-  };
-
   filtersApplied = output<IFilters>();
+
+  ngOnChanges()
+  {
+    this.minValue = this.options.floor!;
+    this.maxValue = this.options.ceil!;
+  }
 
   removeAllFilters()
   {
@@ -75,12 +77,13 @@ export class SideBarComponent
     {
       if (newValue === '')
       {
-        inputElement.value = "0";
-        this.minValue = 0;
+        this.minValue = this.options.floor!;
+        inputElement.value = this.minValue.toString();
       }
       else
       {
         newValue = newValue.replace(/[^\d]/g, '');
+        console.log(newValue);
         inputElement.value = newValue;
       }
     }
@@ -95,8 +98,8 @@ export class SideBarComponent
     {
       if (newValue === '')
       {
-        inputElement.value = "0";
-        this.maxValue = 0;
+        this.maxValue = this.options.floor!;
+        inputElement.value = this.maxValue.toString();
       }
       else
       {

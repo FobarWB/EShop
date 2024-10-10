@@ -23,6 +23,8 @@ export class PageComponent
   @ViewChild("filterFlags", { read: ViewContainerRef, static: true }) filtersViewContainerRef!: ViewContainerRef;
   @ViewChild(SideBarComponent, { static: true }) sideBarComponent!: SideBarComponent;
   products: IProduct[] = [];
+  minPrice: number = 0;
+  maxPrice: number = 0;
   filteredProducts: IProduct[] = [];
   categoryId?: number = undefined;
   categoryName?: string = undefined;
@@ -67,6 +69,11 @@ export class PageComponent
       {
         this.products = products;
         this.filteredProducts = products;
+        const prices = this.products
+          .map(product => product.unitPrice)
+          .filter(price => price !== null);
+        this.minPrice = Math.floor(Math.min(...prices));
+        this.maxPrice = Math.ceil(Math.max(...prices));
         setTimeout(() => this.isLoading = false, 500);
       });
   }

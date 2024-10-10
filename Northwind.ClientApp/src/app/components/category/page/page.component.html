@@ -15,7 +15,10 @@
 
   <div class="row flex-nowrap">
     <div class="col-auto">
-      <app-category-side-bar (filtersApplied)="filtersAppliedHandler($event)" />
+      <app-category-side-bar
+        (filtersApplied)="filtersAppliedHandler($event)"
+        [options]="{ floor: minPrice, ceil: maxPrice, animate: false }"
+      />
     </div>
 
     <div class="col">
