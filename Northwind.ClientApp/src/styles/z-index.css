@@ -1,0 +1,19 @@
+header {
+  z-index: 5001 !important;
+}
+
+footer {
+  z-index: 5001 !important;
+}
+
+.spinner {
+  z-index: 5000 !important;
+}
+
+.modal-backdrop {
+  z-index: 5002 !important;
+}
+
+.modal {
+  z-index: 5003 !important;
+}

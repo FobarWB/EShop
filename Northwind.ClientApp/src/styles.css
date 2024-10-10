@@ -1,5 +1,6 @@
 @import "./styles/layout.css";
 @import "./styles/priceSlider.css";
+@import "./styles/z-index.css";
 
 html {
   font-size: 14px;

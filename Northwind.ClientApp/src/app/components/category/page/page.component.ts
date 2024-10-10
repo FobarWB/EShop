@@ -40,9 +40,6 @@ export class PageComponent
 
   ngOnInit(): void
   {
-    console.log(this.clearFiltersButton);
-    console.log(this.filtersViewContainerRef);
-    console.log(this.sideBarComponent);
     this.activatedRoute.paramMap.subscribe(params =>
     {
       const id = params.get('id');
