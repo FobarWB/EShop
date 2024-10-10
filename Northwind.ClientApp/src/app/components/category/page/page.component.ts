@@ -50,6 +50,7 @@ export class PageComponent
         .then(_ =>
         {
           this.getAllProducts();
+          this.productService.refreshRequired.subscribe(_ => this.getAllProducts());
         })
         .catch(_ =>
         {

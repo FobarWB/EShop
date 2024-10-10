@@ -27,7 +27,7 @@ export class HomeComponent
   ngOnInit()
   {
     this.getAllCategories();
-    this.categoryService.refreshRequired.subscribe(_ => this.getAllCategories())
+    this.categoryService.refreshRequired.subscribe(_ => this.getAllCategories());
   }
 
   getAllCategories()
