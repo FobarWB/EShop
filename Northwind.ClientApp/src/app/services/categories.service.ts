@@ -35,6 +35,12 @@ export class CategoryService
     }));
   }
 
+  getCategory(id: number): Observable<ICategory>
+  {
+    const url = `${this.apiUrl}/${id}`;
+    return this.apiService.get(url);
+  }
+
   updateCategory(id?: number, body?: any): Observable<ICategory>
   {
     const url = `${this.apiUrl}/${id}`;

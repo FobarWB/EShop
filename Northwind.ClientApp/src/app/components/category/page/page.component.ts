@@ -1,11 +1,10 @@
-import { ChangeDetectorRef, Component, ElementRef, TemplateRef, ViewChild, ViewChildren, ViewContainerRef } from '@angular/core';
+import { Component, TemplateRef, ViewChild, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SideBarComponent } from '../side-bar/side-bar.component';
 import { IProduct } from '../../../models/product.model';
 import { ProductService } from '../../../services/products.service';
 import { CategoryService } from '../../../services/categories.service';
-import { ICategory } from '../../../models/category.model';
 import { ModalService } from '../../../services/modal.service';
 import { EditComponent } from '../../product/edit/edit.component';
 import { SpinnerComponent } from "../../spinner/spinner.component";
@@ -42,25 +41,25 @@ export class PageComponent
   {
     this.activatedRoute.paramMap.subscribe(params =>
     {
+      this.isLoading = true;
       const id = params.get('id');
       const name = params.get('categoryName');
       this.categoryId = id ? +id : undefined;
       this.categoryName = name ? decodeURIComponent(name) : "All products";
-      this.validateCategory().then((isValid) =>
-      {
-        if (!isValid)
+      this.validateCategory()
+        .then(_ =>
+        {
+          this.getAllProducts();
+        })
+        .catch(_ =>
         {
           this.router.navigate(["/"]);
-        }
-      });
-      this.getAllProducts();
-      this.productService.refreshRequired.subscribe(_ => this.getAllProducts());
+        });
     });
   }
 
   getAllProducts()
   {
-    this.isLoading = true;
     this.productService
       .getProducts(this.categoryId)
       .subscribe((products: IProduct[]) =>
@@ -85,22 +84,30 @@ export class PageComponent
       .subscribe((component): EditComponent => component.update());
   }
 
-  validateCategory(): Promise<boolean>
+  validateCategory(): Promise<void>
   {
-    return new Promise<boolean>((resolve, reject) =>
+    return new Promise<void>((resolve, reject) =>
     {
+      if (!this.categoryId)
+      {
+        reject();
+      }
       this.categoryService
-        .getCategories()
-        .subscribe((categories: ICategory[]) =>
+        .getCategory(this.categoryId!)
+        .subscribe(category =>
         {
-          for (let c of categories)
+          if (category == null)
           {
-            if (c.categoryId == this.categoryId && c.categoryName == this.categoryName)
-            {
-              resolve(true);
-            }
+            reject();
           }
-          resolve(false);
+          if (category.categoryName == this.categoryName)
+          {
+            resolve();
+          }
+          else
+          {
+            reject();
+          }
         });
     });
   }

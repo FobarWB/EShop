@@ -26,6 +26,7 @@ export class PageComponent
   {
     this.activatedRoute.paramMap.subscribe(params =>
     {
+      this.isLoading = true;
       const id = params.get('id');
       const name = params.get('productName');
       this.productId = id ? +id : undefined;
@@ -44,7 +45,6 @@ export class PageComponent
 
   getProduct()
   {
-    this.isLoading = true;
     this.productService
       .getProduct(this.productId!)
       .subscribe(product => 
@@ -54,9 +54,9 @@ export class PageComponent
       });
   }
 
-  validateProduct(): Promise<boolean>
+  validateProduct(): Promise<void>
   {
-    return new Promise<boolean>((resolve, reject) =>
+    return new Promise<void>((resolve, reject) =>
     {
       if (!this.productId)
       {
@@ -72,7 +72,7 @@ export class PageComponent
           }
           if (product.productName == this.productName)
           {
-            resolve(true);
+            resolve();
           }
           else
           {
