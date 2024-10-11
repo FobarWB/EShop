@@ -1,5 +1,5 @@
 import { Component, TemplateRef, ViewChild, ViewContainerRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgClass } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SideBarComponent } from '../side-bar/side-bar.component';
 import { IProduct } from '../../../models/product.model';
@@ -13,7 +13,7 @@ import { IFilters } from '../../../models/filters.model';
 @Component({
   selector: 'app-category-page',
   standalone: true,
-  imports: [SideBarComponent, CommonModule, RouterModule, SpinnerComponent],
+  imports: [SideBarComponent, CommonModule, RouterModule, SpinnerComponent, NgClass],
   templateUrl: './page.component.html',
   styleUrl: './page.component.css'
 })

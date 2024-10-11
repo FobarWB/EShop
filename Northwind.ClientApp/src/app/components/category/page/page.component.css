@@ -44,9 +44,19 @@
 }
 
 .card:hover {
+  z-index: 1 !important;
+  position: relative !important;
   box-shadow: var(--bs-box-shadow-lg) !important;
 }
 
 a.breadcrumb-item:hover {
   text-decoration: underline !important;
+}
+
+.btn-hover {
+  transition: color 0.15s;
+}
+
+.btn-hover:hover {
+  color: var(--bs-warning) !important;
 }

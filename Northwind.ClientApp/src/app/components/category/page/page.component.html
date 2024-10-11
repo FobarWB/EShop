@@ -14,18 +14,16 @@
   <h1>{{ categoryName }}</h1>
 
   <div class="row flex-nowrap">
-    <div class="col-auto">
+    <div class="col-auto pe-0 border-end border-top">
       <app-category-side-bar
         (filtersApplied)="filtersAppliedHandler($event)"
         [options]="{ floor: minPrice, ceil: maxPrice, animate: false }"
       />
     </div>
 
-    <div class="col">
-      <div class="sticky-top">
-        <div
-          class="py-3 d-flex justify-content-between align-items-center bg-white"
-        >
+    <div class="col border-top px-0">
+      <div class="sticky-top p-3 border-bottom border-end bg-white">
+        <div class="d-flex justify-content-between align-items-center">
           <div class="d-flex justify-content-start align-items-center">
             <span> Found products: {{ products.length }} </span>
             @if (filters.size > 0) {
@@ -80,11 +78,10 @@
           </div>
         </div>
       </div>
-
-      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-3">
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 m-0">
         @for (p of filteredProducts; track $index) {
-        <div class="col d-flex align-items-stretch">
-          <div class="card w-100 rounded-0">
+        <div class="col d-flex align-items-stretch p-0">
+          <div class="card w-100 rounded-0 border-start-0 border-top-0">
             <button
               (click)="updateProduct(p)"
               type="button"
@@ -101,56 +98,67 @@
               ]"
             >
               <img
-                src="images/bag-scaled.jpg"
+                src="images/bag.webp"
                 class="card-img-top rounded-0"
                 alt="..."
               />
             </a>
-            <div class="card-body">
-              <div class="row">
-                <div class="col-10">
-                  <div class="h5 text-truncate">{{ p.productName }}</div>
-                  <p class="card-text">
-                    <i class="bi bi-star-fill text-warning"></i>
-                    <i class="bi bi-star-fill text-warning"></i>
-                    <i class="bi bi-star-fill text-warning"></i>
-                    <i class="bi bi-star text-warning"></i>
-                    <i class="bi bi-star text-warning"></i>
-                    (123)
-                  </p>
+            <div class="p-3">
+              <div>
+                <div class="d-flex justify-content-between">
+                  <div class="w-75">
+                    <div class="h5 text-truncate">{{ p.productName }}</div>
+                    <p class="card-text">
+                      <i class="bi bi-star-fill text-warning"></i>
+                      <i class="bi bi-star-fill text-warning"></i>
+                      <i class="bi bi-star-fill text-warning"></i>
+                      <i class="bi bi-star text-warning"></i>
+                      <i class="bi bi-star text-warning"></i>
+                      (123)
+                    </p>
+                  </div>
+                  <div>
+                    <i class="bi bi-bookmark-plus fs-2 btn-hover text-dark"></i>
+                  </div>
                 </div>
-                <div class="col-2">
-                  <i class="bi bi-bookmark-plus fs-2"></i>
+                @if (p.unitsInStock !== null && p.unitsInStock! > 0) {
+                <span class="text-success">In stock</span>
+                } @else {
+                <span class="text-danger">Out of stock</span>
+                }
+              </div>
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="fs-4 m-0">
+                  <span
+                    [ngClass]="{
+                      'text-decoration-line-through text-muted fs-5':
+                        p.discontinued
+                    }"
+                    >{{ p.unitPrice ? (p.unitPrice | currency) : "zero" }}</span
+                  >
+                  @if (p.discontinued) {
+                  <span class="ps-2">{{
+                    p.unitPrice ? (p.unitPrice - 2 | currency) : "zero"
+                  }}</span>
+                  }
                 </div>
-              </div>
-              @if (p.unitsInStock !== null && p.unitsInStock! > 0) {
-              <span class="text-success">In stock</span>
-              } @else {
-              <span class="text-danger">Out of stock</span>
-              }
-            </div>
-            <div class="row align-items-center text-center g-0">
-              <div class="col-4">
-                <h5>
-                  {{ p.unitPrice ? (p.unitPrice | currency) : "zero" }}
-                </h5>
-              </div>
-              <div class="col-8">
-                <button class="btn btn-dark text-warning w-100 p-3 rounded-0">
-                  ADD TO CART
-                </button>
+                <div>
+                  <i class="bi bi-cart fs-2 btn-hover text-dark"></i>
+                </div>
               </div>
             </div>
           </div>
         </div>
         }
 
-        <div class="col d-flex align-items-stretch">
-          <div class="card w-100 card-empty">
+        <div class="col d-flex align-items-stretch p-0">
+          <div
+            class="card card-empty w-100 rounded-0 border-start-0 border-top-0"
+          >
             <button
               (click)="createProduct()"
               type="button"
-              class="btn btn-outline-secondary flex-fill"
+              class="btn btn-outline-secondary border-0 rounded-0 flex-fill"
             >
               <i class="fa-solid fa-circle-plus h1"></i>
               <p>Add new product</p>
