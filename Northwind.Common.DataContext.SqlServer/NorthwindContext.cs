@@ -43,6 +43,8 @@ namespace EShop.Shared
         public virtual DbSet<SummaryOfSalesByYear> SummaryOfSalesByYears { get; set; } = null!;
         public virtual DbSet<Supplier> Suppliers { get; set; } = null!;
         public virtual DbSet<Territory> Territories { get; set; } = null!;
+        public virtual DbSet<Cart> Carts { get; set; } = null!;
+        public virtual DbSet<CartItem> CartItems { get; set; } = null!;
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -57,6 +59,22 @@ namespace EShop.Shared
             modelBuilder.Entity<AlphabeticalListOfProduct>(entity =>
             {
                 entity.ToView("Alphabetical list of products");
+            });
+
+            modelBuilder.Entity<Cart>(entity =>
+            {
+                entity.HasKey(e => e.CartId);
+                entity.Property(e => e.UserId).IsRequired(); // Binding to a user, e.g. via UserId.
+            });
+
+            modelBuilder.Entity<CartItem>(entity =>
+            {
+                entity.HasKey(e => e.CartItemId);
+
+                entity.HasOne(d => d.Cart)
+                    .WithMany(p => p.CartItems)
+                    .HasForeignKey(d => d.CartId)
+                    .OnDelete(DeleteBehavior.Cascade); // When you delete a cart, all of its items are deleted.
             });
 
             modelBuilder.Entity<CategorySalesFor1997>(entity =>
