@@ -3,6 +3,11 @@ using EShop.Shared;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.HttpLogging;
 using Swashbuckle.AspNetCore.SwaggerUI;
+using Northwind.ShoppingCart.Repositories;
+using Microsoft.AspNetCore.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Northwind.ShoppingCart;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,24 +17,41 @@ builder.Services.AddCors();
 
 builder.Services.AddNorthwindContext();
 
-builder.Services.AddControllers(options => 
+builder.Services.AddControllers(options =>
 {
-    WriteLine("Default output formatters:");
+    // Use ILogger for logging
+    var loggerFactory = LoggerFactory.Create(builder => 
+    {
+        builder.AddConsole();
+        builder.SetMinimumLevel(LogLevel.Information);
+    });
+
+    var logger = loggerFactory.CreateLogger("OutputFormatters");
+
+    logger.LogInformation("Default output formatters:");
     foreach (IOutputFormatter formatter in options.OutputFormatters)
     {
-        OutputFormatter? mediaFormatter = formatter as OutputFormatter;
-        if (mediaFormatter == null)
+        if (formatter is OutputFormatter mediaFormatter)
         {
-            WriteLine($" {formatter.GetType().Name}");
+            logger.LogInformation(" {0}, Media types: {1}", 
+                mediaFormatter.GetType().Name,
+                string.Join(", ", mediaFormatter.SupportedMediaTypes));
         }
         else
         {
-            WriteLine(" {0}, Media types: {1}", 
-            arg0: mediaFormatter.GetType().Name,
-            arg1: string.Join(", ", mediaFormatter.SupportedMediaTypes));
+            logger.LogInformation($" {formatter.GetType().Name}");
         }
     }
-}).AddXmlDataContractSerializerFormatters().AddXmlSerializerFormatters();
+})
+.AddXmlDataContractSerializerFormatters()
+.AddXmlSerializerFormatters()
+.AddJsonOptions(x =>
+x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve)
+.ConfigureApiBehaviorOptions(options =>
+{
+    // Customize API behavior options here if needed
+    options.SuppressModelStateInvalidFilter = true; // Example: suppress automatic 400 response
+});
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -44,7 +66,7 @@ builder.Services.AddHttpLogging(options =>
     options.ResponseBodyLogLimit = 4096; // default is 32k
 });
 
-//builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
+builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 
 var app = builder.Build();
 
@@ -83,6 +105,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthorization();
 

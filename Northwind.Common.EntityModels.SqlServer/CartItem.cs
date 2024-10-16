@@ -12,12 +12,14 @@ namespace EShop.Shared
     public int CartId { get; set; } // External key for communication with Cart
     [Required]
     public long ProductId { get; set; }
+    // Kinda be deleted
     [Required]
     [StringLength(100)]
     public string ProductName { get; set; } = null!;
     [Required]
     public int Quantity { get; set; }
     [Column(TypeName = "money")]
+    // Kinda be deleted
     public decimal UnitPrice { get; set; }
     public decimal Total => Quantity * UnitPrice;
     public string? Image { get; set; }
