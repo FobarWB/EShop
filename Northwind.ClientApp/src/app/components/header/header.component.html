@@ -1,12 +1,10 @@
-<header class="sticky-top">
-  <nav
-    class="navbar bg-dark navbar-expand-sm border-bottom box-shadow pb-3"
-    data-bs-theme="dark"
-  >
-    <div class="layout">
-      <a class="navbar-brand" routerLink="">
-        <i class="fa-solid fa-house"></i>
-        Northwind.Mvc
+<header class="sticky-top shadow">
+  <nav class="navbar navbar-expand-sm">
+    <div class="layout d-flex">
+      <a class="navbar-brand me-0" routerLink="">
+        <i class="fa-solid fa-bowl-food fs-1">
+          <span class="brand-text align-middle ms-2 fs-2">Food Shop</span>
+        </i>
       </a>
       <button
         class="navbar-toggler"
@@ -16,24 +14,42 @@
       >
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item">
-            <a class="nav-link" routerLink="/">Home</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" routerLink="/privacy">Privacy</a>
-          </li>
-        </ul>
-        <form class="d-flex">
-          <input
-            class="form-control me-2"
-            type="search"
-            placeholder="Search"
-            aria-label="Search"
-          />
-          <button class="btn btn-outline-success" type="submit">Search</button>
-        </form>
+      <div class="navbar-collapse collapse" id="navbarNav">
+        <div class="nav-item dropdown ms-4">
+          <a
+            class="btn btn-categories dropdown-toggle"
+            role="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            <span>All categories</span>
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#">Action</a></li>
+            <li><a class="dropdown-item" href="#">Another action</a></li>
+            <li><a class="dropdown-item" href="#">Something else here</a></li>
+          </ul>
+        </div>
+        <div class="nav-item flex-grow-1 ms-4">
+          <div class="d-flex input-group">
+            <input
+              class="form-control input-search"
+              type="search"
+              placeholder="Search"
+              aria-label="Search"
+            />
+            <button class="btn btn-search">Search</button>
+          </div>
+        </div>
+        <div class="nav-item ms-auto d-flex align-items-center">
+          <div class="nav-link ms-4">
+            <i class="bi bi-person-circle fs-2"></i>
+            <!-- <i class="fa-regular fa-circle-user fs-2"></i> -->
+          </div>
+          <div class="nav-link ms-4">
+            <i class="bi bi-cart fs-2"></i>
+          </div>
+        </div>
       </div>
     </div>
   </nav>

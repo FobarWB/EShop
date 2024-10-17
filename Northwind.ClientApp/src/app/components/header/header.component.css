@@ -1,23 +1,31 @@
-a.navbar-brand {
-  white-space: normal;
-  text-align: center;
-  word-break: break-all;
+.navbar {
+  background-color: #ff7f50 !important;
 }
 
-.nav-pills .nav-link.active,
-.nav-pills .show > .nav-link {
-  color: #fff;
-  background-color: #1b6ec2;
-  border-color: #1861ac;
+.navbar-brand,
+.nav-link,
+.nav-icon {
+  color: #8f1e00 !important;
 }
 
-.box-shadow {
-  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
+.brand-text {
+  letter-spacing: 0.15rem;
 }
 
-.navbar > .layout {
-  display: flex;
-  flex-wrap: inherit;
-  align-items: center;
-  justify-content: space-between;
+.btn-categories,
+.btn-search {
+  color: #f7eedd !important;
+  background-color: #8f1e00 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.btn-categories:hover,
+.btn-search:hover {
+  opacity: 85% !important;
+}
+
+.input-search {
+  border: 0 !important;
+  box-shadow: none !important;
 }

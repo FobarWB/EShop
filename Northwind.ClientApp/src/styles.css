@@ -33,6 +33,6 @@ body {
   content: url("/images/default.jpg");
 }
 
-.degub-outline * {
-  outline: 2px solid green !important;
+.debug-outline * {
+  outline: 1px solid black !important;
 }
