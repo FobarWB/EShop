@@ -134,7 +134,8 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("CartId");
 
@@ -143,35 +144,20 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
 
             modelBuilder.Entity("EShop.Shared.CartItem", b =>
                 {
-                    b.Property<int>("CartItemId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CartItemId"), 1L, 1);
-
                     b.Property<int>("CartId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnOrder(0);
 
-                    b.Property<string>("Image")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long>("ProductId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int")
+                        .HasColumnOrder(1);
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("money");
+                    b.HasKey("CartId", "ProductId");
 
-                    b.HasKey("CartItemId");
-
-                    b.HasIndex("CartId");
+                    b.HasIndex("ProductId");
 
                     b.ToTable("CartItems");
                 });
@@ -1143,7 +1129,15 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EShop.Shared.Product", "Product")
+                        .WithMany("CartItems")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Cart");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("EShop.Shared.Employee", b =>
@@ -1256,6 +1250,8 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
 
             modelBuilder.Entity("EShop.Shared.Product", b =>
                 {
+                    b.Navigation("CartItems");
+
                     b.Navigation("OrderDetails");
                 });
 

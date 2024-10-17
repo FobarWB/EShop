@@ -21,36 +21,70 @@ namespace Northwind.ShoppingCart.Controllers
         [HttpPost("create")]
         public async Task<IActionResult> CreateCart([FromBody] Cart cartRequest)
         {
-             _logger.LogInformation("Received Cart Request: {@CartRequest}", cartRequest);
+            _logger.LogInformation("Received Cart Request: {@CartRequest}", cartRequest);
+            
+            // Проверка на null
             if (cartRequest == null)
             {
                 return BadRequest("Cart request cannot be null.");
             }
 
-            // Check if cartItems is initialized
-            if (cartRequest.CartItems == null)
+            // Проверка на наличие UserId
+            if (string.IsNullOrEmpty(cartRequest.UserId))
             {
-                return BadRequest("Cart items cannot be null.");
+                return BadRequest("UserId cannot be null or empty.");
+            }
+
+            // Проверка на наличие элементов в CartItems
+            if (cartRequest.CartItems == null || !cartRequest.CartItems.Any())
+            {
+                return BadRequest("Cart items cannot be null or empty.");
+            }
+
+            // Проверка каждого CartItem
+            foreach (var item in cartRequest.CartItems)
+            {
+                if (item.ProductId <= 0)
+                {
+                    return BadRequest($"Invalid ProductId: {item.ProductId}");
+                }
+                if (item.Quantity <= 0)
+                {
+                    return BadRequest($"Invalid Quantity: {item.Quantity}");
+                }
             }
 
             Cart cart = new Cart
             {
                 UserId = cartRequest.UserId,
-                CreatedAt = DateTime.UtcNow, 
-                CartItems = cartRequest.CartItems
+                CreatedAt = DateTime.UtcNow,
+                CartItems = cartRequest.CartItems.Select(item => new CartItem
+                {
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity
+                }).ToList()
             };
 
-            var createdCart = await _repository.CreateCartAsync(cart);
-            
-            if (createdCart == null)
-                return BadRequest("Failed to create cart");
+            try
+            {
+                var createdCart = await _repository.CreateCartAsync(cart);
+                if (createdCart == null)
+                {
+                    return BadRequest("Failed to create cart");
+                }
 
-            return Ok(createdCart);
+                return Ok(createdCart);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while creating cart.");
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // POST: api/carts/userId/add
         [HttpPost("{userId}/add")]
-        [ValidateAntiForgeryToken]
+        //[ValidateAntiForgeryToken]
         public async Task<IActionResult> AddItemToCart(string userId, [FromBody] CartItem item)
         {
             var result = await _repository.AddItemToCartAsync(userId, item);
@@ -99,8 +133,16 @@ namespace Northwind.ShoppingCart.Controllers
         public async Task<IActionResult> DeleteCart(string userId)
         {
             var result = await _repository.DeleteCartAsync(userId);
-            if (!result.HasValue) return NotFound("Cart not found");
-            if (!result.Value) return BadRequest("Failed to delete cart");
+            if (!result.HasValue)
+            {
+                _logger.LogWarning("Cart not found for userId: {UserId}", userId);
+                return NotFound("Cart not found");
+            }
+            if (!result.Value)
+            {
+                _logger.LogError("Failed to delete cart for userId: {UserId}", userId);
+                return BadRequest("Failed to delete cart");
+            }
             return Ok();
         }
     }

@@ -69,12 +69,17 @@ namespace EShop.Shared
 
             modelBuilder.Entity<CartItem>(entity =>
             {
-                entity.HasKey(e => e.CartItemId);
+            entity.HasKey(e => new { e.CartId, e.ProductId }); // Compound key
 
-                entity.HasOne(d => d.Cart)
-                    .WithMany(p => p.CartItems)
-                    .HasForeignKey(d => d.CartId)
-                    .OnDelete(DeleteBehavior.Cascade); // When you delete a cart, all of its items are deleted.
+            entity.HasOne(d => d.Cart)
+                .WithMany(p => p.CartItems)
+                .HasForeignKey(d => d.CartId)
+                .OnDelete(DeleteBehavior.Cascade); // Deleting Cart deletes CartItems
+
+            entity.HasOne(d => d.Product)
+                .WithMany(p => p.CartItems)
+                .HasForeignKey(d => d.ProductId)
+                .OnDelete(DeleteBehavior.Restrict); // Deleting a product does not delete CartItems
             });
 
             modelBuilder.Entity<CategorySalesFor1997>(entity =>
@@ -234,6 +239,10 @@ namespace EShop.Shared
                     .WithMany(p => p.Products)
                     .HasForeignKey(d => d.SupplierId)
                     .HasConstraintName("FK_Products_Suppliers");
+                      
+                entity.HasMany(e => e.CartItems)
+                    .WithOne(ci => ci.Product)
+                    .HasForeignKey(ci => ci.ProductId);
             });
 
             modelBuilder.Entity<ProductSalesFor1997>(entity =>

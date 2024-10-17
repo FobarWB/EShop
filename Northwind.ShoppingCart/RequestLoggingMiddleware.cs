@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Northwind.ShoppingCart
 {
@@ -18,9 +14,9 @@ namespace Northwind.ShoppingCart
 
         public async Task InvokeAsync(HttpContext context)
         {
-            context.Request.EnableBuffering(); // Позволяет читать тело запроса несколько раз
+            context.Request.EnableBuffering(); 
             var bodyAsText = await new StreamReader(context.Request.Body).ReadToEndAsync();
-            context.Request.Body.Position = 0; // Сбросить позицию потока
+            context.Request.Body.Position = 0; 
 
             _logger.LogInformation($"Request Body: {bodyAsText}");
 

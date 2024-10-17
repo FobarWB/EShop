@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Northwind.ShoppingCart;
+using Microsoft.AspNetCore.Mvc;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,7 +26,6 @@ builder.Services.AddControllers(options =>
         builder.AddConsole();
         builder.SetMinimumLevel(LogLevel.Information);
     });
-
     var logger = loggerFactory.CreateLogger("OutputFormatters");
 
     logger.LogInformation("Default output formatters:");
@@ -46,13 +46,17 @@ builder.Services.AddControllers(options =>
 .AddXmlDataContractSerializerFormatters()
 .AddXmlSerializerFormatters()
 .AddJsonOptions(x =>
-x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve)
+x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles)
 .ConfigureApiBehaviorOptions(options =>
 {
     // Customize API behavior options here if needed
-    options.SuppressModelStateInvalidFilter = true; // Example: suppress automatic 400 response
+    options.SuppressModelStateInvalidFilter = false; // Example: suppress automatic 400 response
 });
-
+builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
+builder.Services.AddControllersWithViews(options =>
+{
+   // options.Filters.Add(new ValidateAntiForgeryTokenAttribute());
+});
 builder.Services.AddSwaggerGen(c =>
 {
 c.SwaggerDoc("v1", new()
@@ -106,7 +110,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseMiddleware<RequestLoggingMiddleware>();
+//app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthorization();
 

@@ -8,6 +8,8 @@ namespace EShop.Shared
     {
     [Key]
     public int CartId { get; set; }
+    [Required]
+    [StringLength(450)]
     public string? UserId { get; set; } // Communication with the user
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     

@@ -6,25 +6,17 @@ namespace EShop.Shared
 {
     public class CartItem
     {
-    [Key]
-    public int CartItemId { get; set; }
-    [ForeignKey("Cart")]
-    public int CartId { get; set; } // External key for communication with Cart
-    [Required]
-    public long ProductId { get; set; }
-    // Kinda be deleted
-    [Required]
-    [StringLength(100)]
-    public string ProductName { get; set; } = null!;
+    [Key, Column(Order = 0)]
+    public int CartId { get; set; } //Compound key
+    [Key, Column(Order = 1)]
+    public int ProductId { get; set; } //Compound key
     [Required]
     public int Quantity { get; set; }
-    [Column(TypeName = "money")]
-    // Kinda be deleted
-    public decimal UnitPrice { get; set; }
-    public decimal Total => Quantity * UnitPrice;
-    public string? Image { get; set; }
 
     [ForeignKey("CartId")]
     public virtual Cart? Cart { get; set; } // Communication/linking with the shopping cart
+
+    [ForeignKey("ProductId")]
+    public virtual Product Product { get; set; } = null!;
     }
 }
