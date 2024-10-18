@@ -35,8 +35,8 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
             migrationBuilder.AlterColumn<string>(
                 name: "UserId",
                 table: "Carts",
-                type: "nvarchar(450)",
-                maxLength: 450,
+                type: "nvarchar(50)",
+                maxLength: 50,
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)");
@@ -65,6 +65,12 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
                 columns: new[] { "CartId", "ProductId" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_Carts_UserId",
+                table: "Carts",
+                column: "UserId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CartItems_ProductId",
                 table: "CartItems",
                 column: "ProductId");
@@ -84,6 +90,10 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
                 name: "FK_CartItems_Products_ProductId",
                 table: "CartItems");
 
+            migrationBuilder.DropIndex(
+                name: "IX_Carts_UserId",
+                table: "Carts");
+
             migrationBuilder.DropPrimaryKey(
                 name: "PK_CartItems",
                 table: "CartItems");
@@ -98,8 +108,8 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
                 type: "nvarchar(max)",
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(450)",
-                oldMaxLength: 450);
+                oldType: "nvarchar(50)",
+                oldMaxLength: 50);
 
             migrationBuilder.AlterColumn<long>(
                 name: "ProductId",

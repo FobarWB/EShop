@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Northwind.Common.DataContext.SqlServer.Migrations
 {
     [DbContext(typeof(NorthwindContext))]
-    [Migration("20241017165942_UpdateCartItemModel")]
+    [Migration("20241018125910_UpdateCartItemModel")]
     partial class UpdateCartItemModel
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -136,10 +136,13 @@ namespace Northwind.Common.DataContext.SqlServer.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("CartId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.ToTable("Carts");
                 });

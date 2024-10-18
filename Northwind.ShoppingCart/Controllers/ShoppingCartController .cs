@@ -35,34 +35,12 @@ namespace Northwind.ShoppingCart.Controllers
                 return BadRequest("UserId cannot be null or empty.");
             }
 
-            // Проверка на наличие элементов в CartItems
-            if (cartRequest.CartItems == null || !cartRequest.CartItems.Any())
-            {
-                return BadRequest("Cart items cannot be null or empty.");
-            }
-
-            // Проверка каждого CartItem
-            foreach (var item in cartRequest.CartItems)
-            {
-                if (item.ProductId <= 0)
-                {
-                    return BadRequest($"Invalid ProductId: {item.ProductId}");
-                }
-                if (item.Quantity <= 0)
-                {
-                    return BadRequest($"Invalid Quantity: {item.Quantity}");
-                }
-            }
-
+            // Создание объекта корзины
             Cart cart = new Cart
             {
                 UserId = cartRequest.UserId,
                 CreatedAt = DateTime.UtcNow,
-                CartItems = cartRequest.CartItems.Select(item => new CartItem
-                {
-                    ProductId = item.ProductId,
-                    Quantity = item.Quantity
-                }).ToList()
+                CartItems = new List<CartItem>() // Создаем пустой список элементов корзины
             };
 
             try
@@ -87,8 +65,17 @@ namespace Northwind.ShoppingCart.Controllers
         //[ValidateAntiForgeryToken]
         public async Task<IActionResult> AddItemToCart(string userId, [FromBody] CartItem item)
         {
+            if (item == null || item.ProductId == 0 || item.Quantity <= 0)
+            {
+                return BadRequest("Invalid item data.");
+            }
+
             var result = await _repository.AddItemToCartAsync(userId, item);
-            if (!result) return BadRequest("Failed to add item to cart");
+            if (!result)
+            {
+                return BadRequest("Failed to add item to cart");
+            }
+            
             return Ok("Item added to cart.");
         }
 

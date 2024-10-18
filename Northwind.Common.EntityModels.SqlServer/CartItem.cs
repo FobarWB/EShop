@@ -17,6 +17,6 @@ namespace EShop.Shared
     public virtual Cart? Cart { get; set; } // Communication/linking with the shopping cart
 
     [ForeignKey("ProductId")]
-    public virtual Product Product { get; set; } = null!;
+    public virtual Product? Product { get; set; } 
     }
 }

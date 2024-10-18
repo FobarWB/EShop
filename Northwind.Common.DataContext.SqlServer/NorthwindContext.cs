@@ -64,7 +64,8 @@ namespace EShop.Shared
             modelBuilder.Entity<Cart>(entity =>
             {
                 entity.HasKey(e => e.CartId);
-                entity.Property(e => e.UserId).IsRequired(); // Binding to a user, e.g. via UserId.
+                entity.Property(e => e.UserId).IsRequired(); // / Binding to a user, e.g. via UserId.
+                entity.HasIndex(e => e.UserId).IsUnique(); // Unique indexer
             });
 
             modelBuilder.Entity<CartItem>(entity =>
