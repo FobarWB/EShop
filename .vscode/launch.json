@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CategoryApi",
+      "command": "dotnet run",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}/Northwind.CategoryApi"
+    },
+    {
+      "name": "ProductApi",
+      "command": "dotnet run",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}/Northwind.ProductApi"
+    },
+    {
+      "name": "ClientApp",
+      "command": "ng serve --open",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}/Northwind.ClientApp"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Launch API and Angular",
+      "configurations": ["CategoryApi", "ProductApi", "ClientApp"],
+      "stopAll": true
+    }
+  ]
+}
