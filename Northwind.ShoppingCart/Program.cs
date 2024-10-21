@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls("https://localhost:5004/");
 // Add services to the container.
 builder.Services.AddCors();
 
