@@ -20,11 +20,22 @@
   box-shadow: none !important;
 }
 
+.btn-cart {
+  color: #8f1e00 !important;
+  background-color: #ff7f50 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
 .btn-categories:hover,
 .btn-search:hover {
   opacity: 85% !important;
 }
 
+.btn-cart:hover {
+  color: #f7eedd !important;
+  background-color: #8f1e00 !important;
+}
 .input-search {
   border: 0 !important;
   box-shadow: none !important;

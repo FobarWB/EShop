@@ -3,6 +3,7 @@ import { HomeComponent } from './components/home/home.component';
 import { PrivacyComponent } from './components/privacy/privacy.component';
 import { PageComponent as CategoryPageComponent } from './components/category/page/page.component';
 import { PageComponent as ProductPageComponent } from './components/product/page/page.component';
+import { CartComponent } from './components/cart/cart.component';
 
 export const routes: Routes = [
     {
@@ -12,6 +13,10 @@ export const routes: Routes = [
     {
         path: 'privacy',
         component: PrivacyComponent
+    },
+    {
+        path: 'cart',
+        component: CartComponent
     },
     {
         matcher: (url) =>
