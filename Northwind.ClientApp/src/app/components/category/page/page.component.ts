@@ -9,6 +9,7 @@ import { ModalService } from '../../../services/modal.service';
 import { EditComponent } from '../../product/edit/edit.component';
 import { SpinnerComponent } from "../../spinner/spinner.component";
 import { IFilters } from '../../../models/filters.model';
+import { CartService } from '../../../services/cart.service';
 
 @Component({
   selector: 'app-category-page',
@@ -37,6 +38,7 @@ export class PageComponent
     private productService: ProductService,
     private categoryService: CategoryService,
     private modalService: ModalService,
+    private cartService: CartService
   ) { }
 
   ngOnInit(): void
@@ -169,5 +171,11 @@ export class PageComponent
   removeAllFilters()
   {
     this.sideBarComponent.removeAllFilters();
+  }
+
+  AddProductToCart(product: IProduct): void 
+  {
+    const quantity = 1;
+    this.cartService.addItemToCart(product.productId, quantity);
   }
 }

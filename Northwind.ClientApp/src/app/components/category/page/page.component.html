@@ -143,7 +143,13 @@
                   }
                 </div>
                 <div>
-                  <i class="bi bi-cart fs-2 btn-hover text-dark"></i>
+                  <button
+                    (click)="AddProductToCart(p)"
+                    type="button"
+                    class="btn btn-cart"
+                  >
+                    <i class="bi bi-cart fs-2 btn-hover text-dark"></i>
+                  </button>
                 </div>
               </div>
             </div>
