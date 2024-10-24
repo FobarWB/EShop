@@ -11,9 +11,8 @@
           </div>
         </div>
       </div>
-
-      <!-- Цикл по каждому товару в корзине -->
-      <div *ngFor="let item of cartItems" class="row border-top border-bottom">
+      @for (cartItem of cartItems; track $index) {
+      <div class="row border-top border-bottom">
         <div class="row main align-items-center">
           <div class="col-2">
             <img
@@ -24,25 +23,25 @@
           </div>
           <div class="col">
             <div class="row text-muted">
-              {{
-                getProduct(item.productId)?.category?.categoryName || "Category"
-              }}
+              {{ getProductCategoryName(cartItem) }}
             </div>
             <div class="row">
-              {{ getProduct(item.productId)?.productName || "Product Name" }}
+              {{ getProductName(cartItem) }}
             </div>
           </div>
           <div class="col">
-            <a>-</a><a class="border">{{ item.quantity }}</a
+            <a>-</a><a class="border">{{ cartItem.quantity }}</a
             ><a>+</a>
           </div>
           <div class="col">
-            &euro; {{ getProduct(item.productId)?.unitPrice || "Price" }}
+            &euro; {{ getPriceForCartItem(cartItem) || "Price" }}
+            <span class="close">&#10005;</span>
+            &euro; {{ getSummaryPriceForCartItem(cartItem) || "Price" }}
             <span class="close">&#10005;</span>
           </div>
         </div>
       </div>
-
+      }
       <div class="back-to-shop">
         <a href="#">&leftarrow;</a><span class="text-muted">Back to shop</span>
       </div>
@@ -58,7 +57,7 @@
         </div>
         <div class="col text-right">
           &euro;
-          <!-- Здесь можно выводить итоговую цену -->
+          {{ getSummaryPriceForAllCartItems() }}
         </div>
       </div>
       <form>
@@ -76,7 +75,7 @@
         <div class="col">TOTAL PRICE</div>
         <div class="col text-right">
           &euro;
-          <!-- Итоговая цена -->
+          {{ getSummaryPriceForAllCartItems() + 5 }}
         </div>
       </div>
       <button class="btn">CHECKOUT</button>

@@ -48,10 +48,6 @@ export class CartService
     return of(); // No need to create a cart for anonymous users, handled via localStorage
   }
 
-  // addItemToCart(userId: string, body?: ICartItem): Observable<ICartItem>
-  // {
-  //   return this.apiService.post<ICartItem>(this.apiUrl, body);
-  // }
   //plus
   addItemToCart(productId: number, quantity: number): Observable<void>
   {
@@ -71,7 +67,7 @@ export class CartService
         existingItem.quantity += quantity;
       } else
       {
-        cart.cartItems.push({ cartId: cart.cartId, productId, quantity, product: null });
+        cart.cartItems.push({ cartId: cart.cartId, productId, quantity });
       }
 
       this.saveCartToLocalStorage(cart);

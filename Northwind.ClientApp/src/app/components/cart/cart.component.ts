@@ -1,8 +1,15 @@
 import { Component, OnInit } from '@angular/core';
 import { CartService } from '../../services/cart.service';
-import { ProductService } from '../../services/products.service'; // Correct import path
-import { IProduct } from '../../models/product.model';
+import { ProductService } from '../../services/products.service';
 import { ICartItem } from '../../models/cart-item.model';
+import { CategoryService } from '../../services/categories.service';
+
+export interface ICartItemDTO
+{
+  categoryName?: string | null;
+  productName?: string | null;
+  unitPrice?: number | null;
+}
 
 @Component({
   selector: 'app-cart',
@@ -11,38 +18,68 @@ import { ICartItem } from '../../models/cart-item.model';
   templateUrl: './cart.component.html',
   styleUrl: './cart.component.css'
 })
-
 export class CartComponent implements OnInit
 {
   cartItems: ICartItem[] = [];
-  products: { [productId: number]: IProduct } = {};
+  cartItemsDTO: { [productId: number]: ICartItemDTO } = {};
 
   constructor(
     private cartService: CartService,
-    private productService: ProductService
+    private productService: ProductService,
+    private categoryService: CategoryService
   ) { }
 
   ngOnInit(): void
   {
-    // Get cart items
     this.cartService.getCartByUserId().subscribe(cart =>
     {
       this.cartItems = cart.cartItems;
-
-      // Fetch product details for each item in the cart
       this.cartItems.forEach(cartItem =>
       {
+        this.cartItemsDTO[cartItem.productId] = {};
         this.productService.getProduct(cartItem.productId).subscribe(product =>
         {
-          this.products[cartItem.productId] = product; // Map productId to product details
+          const categoryId = product.categoryId ? product.categoryId : 0;
+          this.categoryService.getCategory(categoryId).subscribe(category =>
+          {
+            this.cartItemsDTO[cartItem.productId].categoryName = category.categoryName;
+          });
+          this.cartItemsDTO[cartItem.productId].productName = product.productName;
+          this.cartItemsDTO[cartItem.productId].unitPrice = product.unitPrice;
         });
       });
     });
-
   }
 
-  getProduct(productId: number): IProduct | null
+  getProductName(cartItem: ICartItem)
   {
-    return this.products[productId] || null;
+    return this.cartItemsDTO[cartItem.productId].productName;
+  }
+
+  getProductCategoryName(cartItem: ICartItem)
+  {
+    return this.cartItemsDTO[cartItem.productId].categoryName;
+  }
+
+  getPriceForCartItem(cartItem: ICartItem)
+  {
+    return this.cartItemsDTO[cartItem.productId].unitPrice;
+  }
+
+  getSummaryPriceForCartItem(cartItem: ICartItem)
+  {
+    const priceForOne = this.getPriceForCartItem(cartItem);
+    return priceForOne ? priceForOne * cartItem.quantity : priceForOne;
+  }
+
+  getSummaryPriceForAllCartItems() 
+  {
+    let sum: number = 0;
+    this.cartItems.forEach(cartItem =>
+    {
+      const price = this.getSummaryPriceForCartItem(cartItem);
+      sum += price ? price : 0;
+    });
+    return sum;
   }
 }
