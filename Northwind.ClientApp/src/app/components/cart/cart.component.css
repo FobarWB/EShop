@@ -102,11 +102,17 @@ select {
 input {
   border: 1px solid rgba(0, 0, 0, 0.137);
   padding: 1vh;
-  margin-bottom: 4vh;
   outline: none;
   width: 100%;
   background-color: rgb(247, 247, 247);
 }
+.cart-counter-input {
+  width: 50px;
+  margin-left: var(--global-spacer);
+  margin-right: var(--global-spacer);
+  text-align: center;
+}
+
 input:focus::-webkit-input-placeholder {
   color: transparent;
 }
@@ -119,6 +125,25 @@ input:focus::-webkit-input-placeholder {
   margin-top: 4vh;
   padding: 1vh;
   border-radius: 0;
+}
+.cart-counter-button {
+  width: 40px;
+  padding: 0;
+  font-size: 24px;
+  height: 40px;
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  margin: 5px 0;
+}
+.btn-trash {
+  font-size: 24px;
+  height: 40px;
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 .btn:focus {
   box-shadow: none;
@@ -139,6 +164,11 @@ a {
 a:hover {
   color: black;
   text-decoration: none;
+}
+
+.btn-trash:hover {
+  color: #8f1e00 !important;
+  background-color: #ffffff !important;
 }
 #code {
   background-image: linear-gradient(

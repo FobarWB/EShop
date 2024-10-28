@@ -6,8 +6,13 @@
           <div class="col">
             <h4><b>Shopping Cart</b></h4>
           </div>
-          <div class="col align-self-center text-right text-muted">
+          <div class="col text-center text-muted">
             {{ cartItems.length }} items
+          </div>
+          <div class="col text-end text-muted">
+            <button (click)="clearCurrentCart()" class="btn-trash">
+              <i class="bi bi-trash"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -30,8 +35,30 @@
             </div>
           </div>
           <div class="col">
-            <a>-</a><a class="border">{{ cartItem.quantity }}</a
-            ><a>+</a>
+            <button
+              (click)="
+                updateQuantity(cartItem.productId, cartItem.quantity - 1)
+              "
+              [disabled]="cartItem.quantity <= 1"
+              class="cart-counter-button"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              class="cart-counter-input"
+              [(ngModel)]="cartItem.quantity"
+              (change)="onQuantityChange(cartItem)"
+              min="1"
+            />
+            <button
+              (click)="
+                updateQuantity(cartItem.productId, cartItem.quantity + 1)
+              "
+              class="cart-counter-button"
+            >
+              +
+            </button>
           </div>
           <div class="col">
             &euro; {{ getPriceForCartItem(cartItem) || "Price" }}
@@ -39,6 +66,12 @@
             &euro; {{ getSummaryPriceForCartItem(cartItem) || "Price" }}
             <span class="close">&#10005;</span>
           </div>
+          <button
+            (click)="deleteCurrentItem(cartItem)"
+            type="button"
+            class="btn-close"
+            aria-label="Close"
+          ></button>
         </div>
       </div>
       }

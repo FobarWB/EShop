@@ -25,7 +25,7 @@ export class CartService
   {
     return this.isAuthenticated;
   }
-  //plus
+
   getCartByUserId(): Observable<ICart>
   {
     if (this.isUserAuthenticated())
@@ -37,7 +37,7 @@ export class CartService
     const cart = this.getCartFromLocalStorage();
     return of(cart);
   }
-  //plus
+
   createCart(): Observable<ICart>
   {
     if (this.isUserAuthenticated())
@@ -48,7 +48,7 @@ export class CartService
     return of(); // No need to create a cart for anonymous users, handled via localStorage
   }
 
-  //plus
+
   addItemToCart(productId: number, quantity: number): Observable<void>
   {
     if (this.isUserAuthenticated())
@@ -74,6 +74,7 @@ export class CartService
       return of();
     }
   }
+  // ToDo: autoUpdate page
   updateItemQuantity(productId: number, newQuantity: number): Observable<void>
   {
     if (this.isUserAuthenticated())
@@ -93,7 +94,7 @@ export class CartService
       return of();
     }
   }
-
+  // ToDo: autoUpdate page
   removeItemFromCart(productId: number): Observable<void>
   {
     if (this.isUserAuthenticated()) 
@@ -109,7 +110,7 @@ export class CartService
       return of();
     }
   }
-
+  // ToDo: autoUpdate page
   clearCart(): Observable<void>
   {
     if (this.isUserAuthenticated())
