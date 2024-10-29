@@ -5,6 +5,7 @@ import { ICartItem } from '../../models/cart-item.model';
 import { CategoryService } from '../../services/categories.service';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
 export interface ICartItemDTO
 {
@@ -43,24 +44,36 @@ export class CartComponent implements OnInit
     {
       this.cartItems = cart.cartItems;
       this.cartItemsDTO = {};
-      this.cartItems.forEach(cartItem =>
+      const productObservables = this.cartItems.map(cartItem =>
+        this.productService.getProduct(cartItem.productId)
+      );
+
+      forkJoin(productObservables).subscribe(products =>
       {
-        this.cartItemsDTO[cartItem.productId] = {};
-        this.productService.getProduct(cartItem.productId).subscribe(product =>
+        products.forEach((product, index) =>
         {
-          const categoryId = product.categoryId ? product.categoryId : 0;
-          this.categoryService.getCategory(categoryId).subscribe(category =>
+          const cartItem = this.cartItems[index];
+          const categoryId = product.categoryId || 0;
+
+          this.cartItemsDTO[cartItem.productId] = {
+            productName: product.productName,
+            unitPrice: product.unitPrice,
+          };
+
+          if (categoryId)
           {
-            this.cartItemsDTO[cartItem.productId].categoryName = category.categoryName;
-          });
-          this.cartItemsDTO[cartItem.productId].productName = product.productName;
-          this.cartItemsDTO[cartItem.productId].unitPrice = product.unitPrice;
-          this.cdr.detectChanges();
+            this.categoryService.getCategory(categoryId).subscribe(category =>
+            {
+              this.cartItemsDTO[cartItem.productId].categoryName = category.categoryName;
+              this.cdr.detectChanges();
+            });
+          }
         });
+        this.cdr.detectChanges();
       });
-      this.cdr.detectChanges();
     });
   }
+
 
   getProductName(cartItem: ICartItem)
   {
@@ -100,6 +113,7 @@ export class CartComponent implements OnInit
     {
       this.loadCartItems();
     });
+    window.location.reload();
   }
 
   deleteCurrentItem(cartItem: ICartItem)
@@ -108,6 +122,7 @@ export class CartComponent implements OnInit
     {
       this.loadCartItems();
     });
+    window.location.reload();
   }
 
   updateQuantity(productId: number, newQuantity: number): void
@@ -118,12 +133,14 @@ export class CartComponent implements OnInit
     {
       this.loadCartItems();
     });
+    window.location.reload();
   }
 
   onQuantityChange(cartItem: ICartItem): void
   {
     const newQuantity = cartItem.quantity < 1 ? 1 : cartItem.quantity;
     this.updateQuantity(cartItem.productId, newQuantity);
+    window.location.reload();
   }
 
 }
