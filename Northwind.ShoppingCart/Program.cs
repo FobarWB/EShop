@@ -46,18 +46,20 @@ builder.Services.AddControllers(options =>
 })
 .AddXmlDataContractSerializerFormatters()
 .AddXmlSerializerFormatters()
-.AddJsonOptions(x =>
-x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles)
-.ConfigureApiBehaviorOptions(options =>
-{
-    // Customize API behavior options here if needed
-    options.SuppressModelStateInvalidFilter = false; // Example: suppress automatic 400 response
-});
-builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
-builder.Services.AddControllersWithViews(options =>
-{
-   // options.Filters.Add(new ValidateAntiForgeryTokenAttribute());
-});
+ .AddJsonOptions(x =>
+ x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+// .ConfigureApiBehaviorOptions(options =>
+// {
+//     // Customize API behavior options here if needed
+//     options.SuppressModelStateInvalidFilter = false; // Example: suppress automatic 400 response
+// });
+// builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
+// builder.Services.AddControllersWithViews(options =>
+// {
+//    // options.Filters.Add(new ValidateAntiForgeryTokenAttribute());
+// });
+
+
 builder.Services.AddSwaggerGen(c =>
 {
 c.SwaggerDoc("v1", new()
@@ -83,7 +85,9 @@ app.UseCors(configurePolicy: options =>
   options.WithOrigins(
     "http://localhost:4200" // Angular client
   );
-    options.AllowAnyHeader();
+    options.AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader();
 });
 
 app.UseCors("AllowSpecificOrigins");
@@ -108,10 +112,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseHttpLogging();
 
 app.UseHttpsRedirection();
 
-//app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthorization();
 

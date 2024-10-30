@@ -176,6 +176,7 @@ export class PageComponent
   AddProductToCart(product: IProduct): void 
   {
     const quantity = 1;
-    this.cartService.addItemToCart(product.productId, quantity);
+    this.cartService.addItemToCart(product.productId, quantity).subscribe();
+    // debugger;
   }
 }

@@ -44,36 +44,22 @@ export class CartComponent implements OnInit
     {
       this.cartItems = cart.cartItems;
       this.cartItemsDTO = {};
-      const productObservables = this.cartItems.map(cartItem =>
-        this.productService.getProduct(cartItem.productId)
-      );
-
-      forkJoin(productObservables).subscribe(products =>
+      this.cartItems.forEach(cartItem =>
       {
-        products.forEach((product, index) =>
+        this.cartItemsDTO[cartItem.productId] = {};
+        this.productService.getProduct(cartItem.productId).subscribe(product =>
         {
-          const cartItem = this.cartItems[index];
-          const categoryId = product.categoryId || 0;
-
-          this.cartItemsDTO[cartItem.productId] = {
-            productName: product.productName,
-            unitPrice: product.unitPrice,
-          };
-
-          if (categoryId)
+          const categoryId = product.categoryId ? product.categoryId : 0;
+          this.categoryService.getCategory(categoryId).subscribe(category =>
           {
-            this.categoryService.getCategory(categoryId).subscribe(category =>
-            {
-              this.cartItemsDTO[cartItem.productId].categoryName = category.categoryName;
-              this.cdr.detectChanges();
-            });
-          }
+            this.cartItemsDTO[cartItem.productId].categoryName = category.categoryName;
+          });
+          this.cartItemsDTO[cartItem.productId].productName = product.productName;
+          this.cartItemsDTO[cartItem.productId].unitPrice = product.unitPrice;
         });
-        this.cdr.detectChanges();
       });
     });
   }
-
 
   getProductName(cartItem: ICartItem)
   {
@@ -118,29 +104,31 @@ export class CartComponent implements OnInit
 
   deleteCurrentItem(cartItem: ICartItem)
   {
-    this.cartService.removeItemFromCart(cartItem.productId).subscribe(() =>
-    {
-      this.loadCartItems();
-    });
-    window.location.reload();
+    this.cartService.removeItemFromCart(cartItem.productId).subscribe();
+    // .subscribe(() =>
+    // {
+    //   this.loadCartItems();
+    // });
+    //window.location.reload();
   }
 
   updateQuantity(productId: number, newQuantity: number): void
   {
     if (newQuantity < 1) return;
 
-    this.cartService.updateItemQuantity(productId, newQuantity).subscribe(() =>
-    {
-      this.loadCartItems();
-    });
-    window.location.reload();
+    this.cartService.updateItemQuantity(productId, newQuantity).subscribe();
+    // .subscribe(() =>
+    // {
+    //   this.loadCartItems();
+    // });
+    //window.location.reload();
   }
 
   onQuantityChange(cartItem: ICartItem): void
   {
     const newQuantity = cartItem.quantity < 1 ? 1 : cartItem.quantity;
     this.updateQuantity(cartItem.productId, newQuantity);
-    window.location.reload();
+    //window.location.reload();
   }
 
 }

@@ -65,6 +65,7 @@ namespace Northwind.ShoppingCart.Controllers
         //[ValidateAntiForgeryToken]
         public async Task<IActionResult> AddItemToCart(string userId, [FromBody] CartItem item)
         {
+            _logger.LogInformation("Received Cart Request: {@CartRequest}", item);
             if (item == null || item.ProductId == 0 || item.Quantity <= 0)
             {
                 return BadRequest("Invalid item data.");
@@ -75,8 +76,8 @@ namespace Northwind.ShoppingCart.Controllers
             {
                 return BadRequest("Failed to add item to cart");
             }
-            
-            return Ok("Item added to cart.");
+            Console.WriteLine($"UserId: {userId}, ProductId: {item.ProductId}, Quantity: {item.Quantity}");
+            return Ok(new { message = "Item added to cart." });
         }
 
         // GET: api/carts/userId
@@ -92,9 +93,11 @@ namespace Northwind.ShoppingCart.Controllers
         [HttpPut("{userId}/update/{productId}")]
         public async Task<IActionResult> UpdateItemQuantity(string userId, int productId, [FromBody] int newQuantity)
         {
+            System.Console.WriteLine(newQuantity);
             var result = await _repository.UpdateItemQuantityAsync(userId, productId, newQuantity);
             if (!result) return BadRequest("Failed to update item quantity");
-            return Ok("Item quantity updated.");
+            // return Ok(new { message = "Item quantity updated." });
+            return NoContent();
         }
 
         //DELETE: api/carts/userid/remove/productId
@@ -103,7 +106,8 @@ namespace Northwind.ShoppingCart.Controllers
         {
             var result = await _repository.RemoveItemFromCartAsync(userId, productId);
             if (!result) return BadRequest("Failed to remove item from cart");
-            return Ok();
+            Console.WriteLine($"Delete item from cart by {userId}");
+            return NoContent();
         }
 
         // DELETE: api/carts/userId/clear
