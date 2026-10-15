@@ -21,7 +21,7 @@ export class ApiService
 
   post<T>(url: string, body?: any): Observable<T>
   {
-    return this.httpClient.post<T>(url, body);
+    return this.httpClient.post<T>(url, body, { responseType: "json" });
   }
 
   delete<T>(url: string): Observable<T>

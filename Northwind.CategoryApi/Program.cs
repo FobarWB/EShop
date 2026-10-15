@@ -37,7 +37,7 @@ builder.Services.AddControllers(options =>
 builder.Services.AddSwaggerGen(c =>
 {
 c.SwaggerDoc("v1", new()
-{ Title = "Northwind Product API", Version = "v1" });
+{ Title = "Northwind Category API", Version = "v1" });
 });
 
 builder.Services.AddHttpLogging(options =>

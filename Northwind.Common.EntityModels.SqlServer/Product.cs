@@ -15,6 +15,7 @@ namespace EShop.Shared
     {
         public Product()
         {
+            CartItems = new HashSet<CartItem>();
             OrderDetails = new HashSet<OrderDetail>();
         }
 
@@ -41,5 +42,6 @@ namespace EShop.Shared
         public virtual Supplier? Supplier { get; set; }
         [InverseProperty("Product")]
         public virtual ICollection<OrderDetail> OrderDetails { get; set; }
+        public virtual ICollection<CartItem> CartItems { get; set; }
     }
 }

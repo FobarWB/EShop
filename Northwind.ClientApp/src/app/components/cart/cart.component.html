@@ -1,0 +1,117 @@
+<div class="card">
+  <div class="row">
+    <div class="col-md-8 cart">
+      <div class="title">
+        <div class="row">
+          <div class="col">
+            <h4><b>Shopping Cart</b></h4>
+          </div>
+          <div class="col text-center text-muted">
+            {{ cartItems.length }} items
+          </div>
+          <div class="col text-end text-muted">
+            <button (click)="clearCurrentCart()" class="btn-trash">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      @for (cartItem of cartItems; track $index) {
+      <div class="row border-top border-bottom">
+        <div class="row main align-items-center">
+          <div class="col-2">
+            <img
+              class="img-fluid"
+              src="https://i.imgur.com/1GrakTl.jpg"
+              alt="product image"
+            />
+          </div>
+          <div class="col">
+            <div class="row text-muted">
+              {{ getProductCategoryName(cartItem) }}
+            </div>
+            <div class="row">
+              {{ getProductName(cartItem) }}
+            </div>
+          </div>
+          <div class="col">
+            <button
+              (click)="
+                updateQuantity(cartItem.productId, cartItem.quantity - 1)
+              "
+              [disabled]="cartItem.quantity <= 1"
+              class="cart-counter-button"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              class="cart-counter-input"
+              [(ngModel)]="cartItem.quantity"
+              (change)="onQuantityChange(cartItem)"
+              min="1"
+            />
+            <button
+              (click)="
+                updateQuantity(cartItem.productId, cartItem.quantity + 1)
+              "
+              class="cart-counter-button"
+            >
+              +
+            </button>
+          </div>
+          <div class="col">
+            &euro; {{ getPriceForCartItem(cartItem) || "Price" }}
+            <span class="close">&#10005;</span>
+            &euro; {{ getSummaryPriceForCartItem(cartItem) || "Price" }}
+            <span class="close">&#10005;</span>
+          </div>
+          <button
+            (click)="deleteCurrentItem(cartItem)"
+            type="button"
+            class="btn-close"
+            aria-label="Close"
+          ></button>
+        </div>
+      </div>
+      }
+      <div class="back-to-shop">
+        <a href="#">&leftarrow;</a><span class="text-muted">Back to shop</span>
+      </div>
+    </div>
+    <div class="col-md-4 summary">
+      <div>
+        <h5><b>Summary</b></h5>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="col" style="padding-left: 0">
+          ITEMS {{ cartItems.length }}
+        </div>
+        <div class="col text-right">
+          &euro;
+          {{ getSummaryPriceForAllCartItems() }}
+        </div>
+      </div>
+      <form>
+        <p>SHIPPING</p>
+        <select>
+          <option class="text-muted">Standard-Delivery- &euro;5.00</option>
+        </select>
+        <p>GIVE CODE</p>
+        <input id="code" placeholder="Enter your code" />
+      </form>
+      <div
+        class="row"
+        style="border-top: 1px solid rgba(0, 0, 0, 0.1); padding: 2vh 0"
+      >
+        <div class="col">TOTAL PRICE</div>
+        <div class="col text-right">
+          &euro;
+          {{ getSummaryPriceForAllCartItems() + 5 }}
+        </div>
+      </div>
+      <button class="btn">CHECKOUT</button>
+    </div>
+  </div>
+</div>

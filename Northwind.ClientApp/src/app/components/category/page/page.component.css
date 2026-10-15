@@ -35,6 +35,13 @@
   margin: 0 5px;
 }
 
+.btn-cart {
+  color: #8f1e00 !important;
+  background-color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
 .card-empty {
   min-height: 330px;
 }
@@ -54,6 +61,10 @@ a.breadcrumb-item:hover {
 }
 
 .btn-hover {
+  transition: color 0.15s;
+}
+
+.btn-cart:hover {
   transition: color 0.15s;
 }
 
