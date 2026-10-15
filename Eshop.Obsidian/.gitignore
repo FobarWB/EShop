@@ -1,0 +1,8 @@
+# Obsidian per-user state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/hotkeys.json
+.obsidian/community-plugins.json
+.obsidian/plugins/
+.obsidian/cache
+.trash/

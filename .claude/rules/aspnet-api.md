@@ -1,0 +1,22 @@
+---
+paths:
+  - "**/Controllers/**/*.cs"
+  - "**/Repositories/**/*.cs"
+  - "**/Program.cs"
+---
+
+# ASP.NET Core Web API
+
+Layering: controller → repository → DbContext. Controllers contain no EF queries.
+
+- Return `ActionResult<T>` / `IActionResult` with correct status codes: 200, 201 + location for create, 204 for delete, 400, 404.
+- New endpoints return DTOs, not EF entities (existing endpoints still expose entities; migrate them when touched).
+- Collection endpoints are paged (page/size or `Take` limit); never return a whole table.
+- Materialize queries with `ToListAsync()` before returning; returning a deferred `IEnumerable` makes the serializer enumerate synchronously.
+- Request validation: `[ApiController]` + data annotations on request DTOs → automatic 400 ProblemDetails; no manual null checks of the body.
+- Errors: `AddProblemDetails()` + `UseExceptionHandler()`; actions do not wrap everything in `try/catch` or build 500 responses themselves.
+- Pass the action `CancellationToken` down to repositories.
+- Structured logging with message templates: `_logger.LogInformation("Cart {UserId} created", userId)`, never string interpolation.
+- Service-to-service HTTP uses `IHttpClientFactory`, never `new HttpClient()`.
+- Background work (hosted services, message consumers) never captures `HttpContext` or a request-scoped `DbContext`; create a scope with `IServiceScopeFactory`.
+- Ports and CORS origins are duplicated in the Angular services (see AGENTS.md); change both sides together.
