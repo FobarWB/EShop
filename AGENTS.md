@@ -23,10 +23,12 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 - Ports are hardcoded in two places: `builder.WebHost.UseUrls(...)` in each API `Program.cs` (overrides `launchSettings.json`)
   and `apiUrl` in `Northwind.ClientApp/src/app/services/*.service.ts`. Change both sides together; CORS allows `http://localhost:4200`.
 
-### Planned changes (update this section when an issue is done)
+### Project status
 
-.NET 10 + EF Core 10 (#12) → rename data layer to `EShop.Data` (#13) → PostgreSQL (#14);
-Angular 22 (#15); rename services to `EShop.*` and move `Northwind.Mvc` to `archive/` (#16); tests (#9); CI (#10).
+GitHub is the source of truth for progress; do not copy task status into files.
+- Roadmap: `gh issue view 17`; open work: `gh issue list`; board: `gh project item-list 1 --owner FobarWB`.
+- What is merged: `git log --oneline master`.
+- `Northwind.*` names, SQL Server and Angular 18 are being replaced (see the roadmap); check the issue before assuming the current state.
 
 ## Environment
 
