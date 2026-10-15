@@ -8,7 +8,7 @@ verified: 2026-10-15
 REST API for shopping carts: one cart per user, items reference products.
 
 - Project: [Northwind.ShoppingCart](../../Northwind.ShoppingCart/)
-- Local URL: https://localhost:5004 (Swagger: `/swagger`)
+- Local URL: https://localhost:5004 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
 
 ## Endpoints (`api/carts`)
 

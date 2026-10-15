@@ -8,7 +8,7 @@ verified: 2026-10-15
 REST API for products (CRUD).
 
 - Project: [Northwind.ProductApi](../../Northwind.ProductApi/)
-- Local URL: https://localhost:5002 (Swagger: `/swagger`)
+- Local URL: https://localhost:5002 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
 
 ## Endpoints (`api/products`)
 

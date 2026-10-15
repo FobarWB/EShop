@@ -2,7 +2,7 @@ using static System.Console;
 using EShop.Shared;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.HttpLogging;
-using Swashbuckle.AspNetCore.SwaggerUI;
+using Scalar.AspNetCore;
 using Northwind.ShoppingCart.Repositories;
 using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json;
@@ -60,10 +60,14 @@ builder.Services.AddControllers(options =>
 // });
 
 
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddOpenApi(options =>
 {
-c.SwaggerDoc("v1", new()
-{ Title = "Northwind Shopping cart API", Version = "v1" });
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info.Title = "Northwind Shopping cart API";
+        document.Info.Version = "v1";
+        return Task.CompletedTask;
+    });
 });
 
 builder.Services.AddHttpLogging(options =>
@@ -93,24 +97,10 @@ app.UseCors(configurePolicy: options =>
 app.UseCors("AllowSpecificOrigins");
 
 
-if (builder.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json",
-         "Northwind Service API Version 1");
-        c.SupportedSubmitMethods(new[] {
-         SubmitMethod.Get, SubmitMethod.Post,
-         SubmitMethod.Put, SubmitMethod.Delete });
-    });
-}
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi(); // OpenAPI document: /openapi/v1.json
+    app.MapScalarApiReference(); // interactive UI: /scalar
 }
 app.UseHttpLogging();
 
