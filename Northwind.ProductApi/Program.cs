@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Mvc.Formatters;
 using EShop.Shared; 
 using static System.Console;
 using Northwind.ProductApi.Repositories;
-using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.SwaggerUI; // SubmitMethod
 using Microsoft.AspNetCore.HttpLogging;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,10 +33,14 @@ builder.Services.AddControllers(options =>
     }
 }).AddXmlDataContractSerializerFormatters().AddXmlSerializerFormatters();
 
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddOpenApi(options =>
 {
-c.SwaggerDoc("v1", new()
-{ Title = "Northwind Product API", Version = "v1" });
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info.Title = "Northwind Product API";
+        document.Info.Version = "v1";
+        return Task.CompletedTask;
+    });
 });
 
 builder.Services.AddHttpLogging(options =>
@@ -67,24 +70,10 @@ app.UseCors(configurePolicy: options =>
 app.UseCors("AllowSpecificOrigins");
 //app.UseCors(policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 
-if (builder.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json",
-         "Northwind Service API Version 1");
-        c.SupportedSubmitMethods(new[] {
-         SubmitMethod.Get, SubmitMethod.Post,
-         SubmitMethod.Put, SubmitMethod.Delete });
-    });
-}
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi(); // OpenAPI document: /openapi/v1.json
+    app.MapScalarApiReference(); // interactive UI: /scalar
 }
 app.UseHttpLogging();
 

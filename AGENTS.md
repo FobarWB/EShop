@@ -33,16 +33,20 @@ GitHub is the source of truth for progress; do not copy task status into files.
 ## Environment
 
 - Windows 11, PowerShell 5.1 (no `&&`); Git Bash is also available.
-- .NET SDK 8.0 and 9.0 (projects target `net8.0`); Node 24, npm 11; `gh` CLI; `csharpier`.
+- .NET SDK 10 (pinned by `global.json`; `net10.0` is set for all projects in `Directory.Build.props`);
+  Node 24, npm 11; `gh` CLI; `csharpier`; `dotnet-ef`.
+- Package versions live only in `Directory.Packages.props` (central package management);
+  `PackageReference` items have no `Version`. `nuget.config` restricts package sources to nuget.org.
 - Database today: SQL Server. Only LocalDB (`(localdb)\MSSQLLocalDB`) exists on this machine, so connection strings
   pointing to `Server=.` do not work. PostgreSQL replaces SQL Server in #14.
-- Not installed yet: .NET 10 SDK, `dotnet-ef`, PostgreSQL, Docker.
+- Not installed yet: PostgreSQL, Docker.
 
 ## Commands
 
 ```powershell
 dotnet build EShop.sln                              # whole solution
 dotnet run --project Northwind.ProductApi           # same for CategoryApi, ShoppingCart
+                                                    # API reference (Development): https://localhost:<port>/scalar
 cd Northwind.ClientApp; npm ci; npm start           # Angular dev server on :4200
 csharpier format <file>                             # format edited C# files
 ```
@@ -59,6 +63,10 @@ This is a learning project: the owner reviews every change before it is applied.
 - Before any operation that changes Git or GitHub state (branch, stage, commit, push, PR, merge, issue, label, project item):
   show the exact commands and their effect, then wait for approval.
 - Approval of edits does not authorize commits or pushes.
+- Commits and pull requests: by default the agent prepares the list of files to stage, the commit message
+  and the PR title/body (following the template); the owner commits, pushes and opens the PR.
+  The agent runs `git commit` or `gh pr create` only when the owner explicitly asks,
+  and never runs `git push` without the owner's explicit approval.
 
 ## Git and GitHub
 
