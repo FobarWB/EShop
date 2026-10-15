@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking; // EntityEntry<T>
-using EShop.Shared; // Category
+using EShop.Data;
+using EShop.Data.Entities; // Category
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -11,9 +12,9 @@ namespace Northwind.CategoryApi.Repositories
 
         private static ConcurrentDictionary<int, Category>? categoryCache;
 
-        private NorthwindContext db;
+        private EShopDbContext db;
 
-        public CategoryRepository(NorthwindContext injectedContext)
+        public CategoryRepository(EShopDbContext injectedContext)
         {
             db = injectedContext;
             if (categoryCache is null)

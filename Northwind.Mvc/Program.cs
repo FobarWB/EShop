@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Northwind.Mvc.Data;
-using EShop.Shared;
+using EShop.Data;
 using System.Net.Http.Headers; // MediaTypeWithQualityHeaderValue
 
 
@@ -36,7 +36,7 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.Requ
 builder.Services.AddControllersWithViews();
 
 string sqlServerConnecntion = builder.Configuration.GetConnectionString("NorthwindConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddNorthwindContext(sqlServerConnecntion);
+builder.Services.AddEShopDbContext(sqlServerConnecntion);
 
 var app = builder.Build();
 

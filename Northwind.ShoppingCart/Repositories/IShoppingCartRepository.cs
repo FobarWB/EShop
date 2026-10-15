@@ -1,4 +1,4 @@
-using EShop.Shared;
+using EShop.Data.Entities;
 
 namespace Northwind.ShoppingCart.Repositories
 {

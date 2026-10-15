@@ -29,7 +29,7 @@ Deleting a cart deletes its items; deleting a product that is in a cart is restr
 
 ## Dependencies
 
-Shared DbContext (`Northwind.Common.DataContext.SqlServer`); reads `Products` to check stock.
+Shared DbContext (`EShopDbContext` in `EShop.Data`); reads `Products` to check stock.
 
 ## Known issues
 

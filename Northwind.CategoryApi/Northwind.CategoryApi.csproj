@@ -7,7 +7,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Northwind.Common.DataContext.SqlServer\Northwind.Common.DataContext.SqlServer.csproj" />
+    <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
   </ItemGroup>
 
 </Project>

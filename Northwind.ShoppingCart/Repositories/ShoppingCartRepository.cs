@@ -1,4 +1,5 @@
-using EShop.Shared;
+using EShop.Data;
+using EShop.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -6,9 +7,9 @@ namespace Northwind.ShoppingCart.Repositories
 {
     public class ShoppingCartRepository : IShoppingCartRepository
     {
-        private readonly NorthwindContext db;
+        private readonly EShopDbContext db;
 
-        public ShoppingCartRepository(NorthwindContext db)
+        public ShoppingCartRepository(EShopDbContext db)
         {
             this.db = db;
         }

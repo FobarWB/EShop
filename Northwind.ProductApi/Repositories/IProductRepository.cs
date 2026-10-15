@@ -1,4 +1,4 @@
-using EShop.Shared; // Product
+using EShop.Data.Entities; // Product
 
 namespace Northwind.ProductApi.Repositories
 {

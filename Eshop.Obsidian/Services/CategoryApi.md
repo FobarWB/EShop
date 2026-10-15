@@ -26,7 +26,7 @@ REST API for product categories (CRUD).
 
 ## Dependencies
 
-Shared DbContext (`Northwind.Common.DataContext.SqlServer`). Called by [ClientApp](ClientApp.md) and the archived `Northwind.Mvc`.
+Shared DbContext (`EShopDbContext` in `EShop.Data`). Called by [ClientApp](ClientApp.md) and the archived `Northwind.Mvc`.
 Kept separate from ProductApi for now: see [SeparateProductAndCategoryApis](../Decisions/SeparateProductAndCategoryApis.md).
 
 ## Known issues

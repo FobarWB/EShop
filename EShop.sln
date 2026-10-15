@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Northwind.Common.DataContext.SqlServer", "Northwind.Common.DataContext.SqlServer\Northwind.Common.DataContext.SqlServer.csproj", "{9778B518-3513-4144-A6BB-6FAD3917151A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EShop.Data", "EShop.Data\EShop.Data.csproj", "{9778B518-3513-4144-A6BB-6FAD3917151A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Northwind.Common.EntityModels.SqlServer", "Northwind.Common.EntityModels.SqlServer\Northwind.Common.EntityModels.SqlServer.csproj", "{D108DFE2-BB04-42C4-BC0B-D8D2CD700621}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EShop.Data.Entities", "EShop.Data.Entities\EShop.Data.Entities.csproj", "{D108DFE2-BB04-42C4-BC0B-D8D2CD700621}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Northwind.Mvc", "Northwind.Mvc\Northwind.Mvc.csproj", "{E01CBB58-6204-484F-8AB1-F4599E4BCA63}"
 EndProject

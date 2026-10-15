@@ -1,4 +1,4 @@
-using EShop.Shared;
+using EShop.Data.Entities;
 using Northwind.CategoryApi.Repositories;
 using Microsoft.AspNetCore.Mvc;
 

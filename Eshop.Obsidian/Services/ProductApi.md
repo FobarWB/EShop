@@ -26,7 +26,7 @@ REST API for products (CRUD).
 
 ## Dependencies
 
-Shared DbContext (`Northwind.Common.DataContext.SqlServer`). Called by [ClientApp](ClientApp.md) and the archived `Northwind.Mvc`.
+Shared DbContext (`EShopDbContext` in `EShop.Data`). Called by [ClientApp](ClientApp.md) and the archived `Northwind.Mvc`.
 
 ## Known issues
 

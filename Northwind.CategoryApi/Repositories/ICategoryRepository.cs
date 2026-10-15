@@ -1,4 +1,4 @@
-using EShop.Shared; // Category
+using EShop.Data.Entities; // Category
 
 namespace Northwind.CategoryApi.Repositories
 {

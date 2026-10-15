@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Northwind.Mvc.Models;
-using EShop.Shared;
+using EShop.Data;
+using EShop.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal; // Include extension method
 using Microsoft.AspNetCore.Authorization; // [Authorize]
@@ -12,10 +13,10 @@ namespace Northwind.Mvc.Controllers;
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
-    private readonly NorthwindContext db;
+    private readonly EShopDbContext db;
     private readonly IHttpClientFactory clientFactory;
 
-    public HomeController(ILogger<HomeController> logger, NorthwindContext injectedContext, IHttpClientFactory httpClientFactory)
+    public HomeController(ILogger<HomeController> logger, EShopDbContext injectedContext, IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
         db = injectedContext;

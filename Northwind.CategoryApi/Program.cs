@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Formatters;
-using EShop.Shared; 
+using EShop.Data; 
 using static System.Console;
 using Northwind.CategoryApi.Repositories;
 using Microsoft.AspNetCore.HttpLogging;
@@ -12,7 +12,7 @@ builder.WebHost.UseUrls("https://localhost:5003/");
 // Add services to the container.
 builder.Services.AddCors();
 
-builder.Services.AddNorthwindContext();
+builder.Services.AddEShopDbContext();
 
 builder.Services.AddControllers(options => 
 {

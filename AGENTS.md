@@ -14,8 +14,8 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `Northwind.CategoryApi/` | Categories REST API | https://localhost:5003 |
 | `Northwind.ShoppingCart/` | Shopping cart REST API | https://localhost:5004 |
 | `Northwind.ClientApp/` | Angular 18 SPA | http://localhost:4200 |
-| `Northwind.Common.DataContext.SqlServer/` | EF Core `NorthwindContext`, migrations | — |
-| `Northwind.Common.EntityModels.SqlServer/` | EF Core entities (namespace `EShop.Shared`) | — |
+| `EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
+| `EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `Northwind.Mvc/` | **Archived** legacy MVC app. Keep it building; no feature work. | https://localhost:5001 |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 

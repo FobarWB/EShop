@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking; // EntityEntry<T>
-using EShop.Shared; // Product
+using EShop.Data;
+using EShop.Data.Entities; // Product
 using System.Collections.Concurrent;
 
 namespace Northwind.ProductApi.Repositories
@@ -8,9 +9,9 @@ namespace Northwind.ProductApi.Repositories
     {
         private static ConcurrentDictionary<int, Product>? productCache;
         
-        private NorthwindContext db;
+        private EShopDbContext db;
 
-        public ProductRepository(NorthwindContext injectedContext)
+        public ProductRepository(EShopDbContext injectedContext)
         {
             db = injectedContext;
             if (productCache is null)
