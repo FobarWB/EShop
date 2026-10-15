@@ -17,6 +17,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `Northwind.Common.DataContext.SqlServer/` | EF Core `NorthwindContext`, migrations | — |
 | `Northwind.Common.EntityModels.SqlServer/` | EF Core entities (namespace `EShop.Shared`) | — |
 | `Northwind.Mvc/` | **Archived** legacy MVC app. Keep it building; no feature work. | https://localhost:5001 |
+| `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 
 - All APIs share one database through the common DbContext.
 - Ports are hardcoded in two places: `builder.WebHost.UseUrls(...)` in each API `Program.cs` (overrides `launchSettings.json`)
@@ -79,5 +80,6 @@ Write all repository content in English: code, comments, documentation, commits,
 
 ## Knowledge vault
 
-Learning notes and decisions live in the Obsidian vault `Eshop.Obsidian` (`C:\Prog\E-commercial\Eshop.Obsidian`,
-the repository clone will move next to it). If the vault is missing, continue without it; do not create it unasked.
+`Eshop.Obsidian/` is an Obsidian vault with service notes, architecture decisions and learning notes.
+Read `Eshop.Obsidian/Workflow.md` before changing notes, and the note of the affected service before changing its code.
+When a change alters documented behavior or a decision is made, update the notes in the same pull request.
