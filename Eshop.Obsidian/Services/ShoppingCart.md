@@ -1,13 +1,13 @@
 ---
 type: service
-verified: 2026-10-15
+verified: 2026-10-16
 ---
 
 # ShoppingCart
 
 REST API for shopping carts: one cart per user, items reference products.
 
-- Project: [Northwind.ShoppingCart](../../Northwind.ShoppingCart/)
+- Project: [EShop.ShoppingCart](../../src/EShop.ShoppingCart/)
 - Local URL: https://localhost:5004 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
 
 ## Endpoints (`api/carts`)

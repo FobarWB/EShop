@@ -10,25 +10,25 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 
 | Path | Purpose | Local URL |
 |---|---|---|
-| `Northwind.ProductApi/` | Products REST API | https://localhost:5002 |
-| `Northwind.CategoryApi/` | Categories REST API | https://localhost:5003 |
-| `Northwind.ShoppingCart/` | Shopping cart REST API | https://localhost:5004 |
-| `Northwind.ClientApp/` | Angular 18 SPA | http://localhost:4200 |
-| `EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
-| `EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
-| `Northwind.Mvc/` | **Archived** legacy MVC app. Keep it building; no feature work. | https://localhost:5001 |
+| `src/EShop.ProductApi/` | Products REST API | https://localhost:5002 |
+| `src/EShop.CategoryApi/` | Categories REST API | https://localhost:5003 |
+| `src/EShop.ShoppingCart/` | Shopping cart REST API | https://localhost:5004 |
+| `src/EShop.ClientApp/` | Angular 18 SPA | http://localhost:4200 |
+| `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
+| `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
+| `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 
 - All APIs share one database through the common DbContext.
-- Ports are hardcoded in two places: `builder.WebHost.UseUrls(...)` in each API `Program.cs` (overrides `launchSettings.json`)
-  and `apiUrl` in `Northwind.ClientApp/src/app/services/*.service.ts`. Change both sides together; CORS allows `http://localhost:4200`.
+- API ports are set by `applicationUrl` in each project's `Properties/launchSettings.json` and duplicated as `apiUrl`
+  in `src/EShop.ClientApp/src/app/services/*.service.ts`. Change both sides together; CORS allows `http://localhost:4200`.
 
 ### Project status
 
 GitHub is the source of truth for progress; do not copy task status into files.
 - Roadmap: `gh issue view 17`; open work: `gh issue list`; board: `gh project item-list 1 --owner FobarWB`.
 - What is merged: `git log --oneline master`.
-- `Northwind.*` names, SQL Server and Angular 18 are being replaced (see the roadmap); check the issue before assuming the current state.
+- SQL Server and Angular 18 are being replaced (see the roadmap); check the issue before assuming the current state.
 
 ## Environment
 
@@ -39,15 +39,16 @@ GitHub is the source of truth for progress; do not copy task status into files.
   `PackageReference` items have no `Version`. `nuget.config` restricts package sources to nuget.org.
 - Database today: SQL Server. Only LocalDB (`(localdb)\MSSQLLocalDB`) exists on this machine, so connection strings
   pointing to `Server=.` do not work. PostgreSQL replaces SQL Server in #14.
-- Not installed yet: PostgreSQL, Docker.
+- PostgreSQL 18 is installed locally (Windows service `postgresql-x64-18`, tools in `C:\Program Files\PostgreSQL\18\bin`).
+  Docker is not installed yet.
 
 ## Commands
 
 ```powershell
 dotnet build EShop.sln                              # whole solution
-dotnet run --project Northwind.ProductApi           # same for CategoryApi, ShoppingCart
+dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart
                                                     # API reference (Development): https://localhost:<port>/scalar
-cd Northwind.ClientApp; npm ci; npm start           # Angular dev server on :4200
+cd src/EShop.ClientApp; npm ci; npm start           # Angular dev server on :4200
 csharpier format <file>                             # format edited C# files
 ```
 

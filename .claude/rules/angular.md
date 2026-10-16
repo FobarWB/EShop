@@ -1,6 +1,6 @@
 ---
 paths:
-  - "**/ClientApp/src/**"
+  - "**/*ClientApp/src/**"
 ---
 
 # Angular client

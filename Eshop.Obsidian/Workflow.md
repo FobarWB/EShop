@@ -21,7 +21,7 @@ If there is no new durable knowledge, no entry is needed.
 
 | Path | Content |
 | --- | --- |
-| `Services/` | One note per service, named after it without the `Northwind.`/`EShop.` prefix |
+| `Services/` | One note per service, named after it without the `EShop.` prefix |
 | `Decisions/` | One note per architecture decision |
 | `Learning/` | Notes about technologies studied in this project |
 | `_templates/` | Templates for new notes (Obsidian core Templates plugin) |
@@ -29,7 +29,7 @@ If there is no new durable knowledge, no entry is needed.
 ## Links and names
 
 Use standard Markdown links with relative paths; no wikilinks.
-Link source code relative to the note, e.g. from `Services/` use `../../Northwind.ProductApi/`.
+Link source code relative to the note, e.g. from `Services/` use `../../src/EShop.ProductApi/`.
 File names are unique across the vault and use CamelCase.
 
 ## Properties

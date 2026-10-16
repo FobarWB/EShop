@@ -1,6 +1,0 @@
-@Northwind.ProductApi_HostAddress = http://localhost:5166
-
-GET {{Northwind.ProductApi_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
