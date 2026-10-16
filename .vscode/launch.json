@@ -6,27 +6,34 @@
       "command": "dotnet run",
       "request": "launch",
       "type": "node-terminal",
-      "cwd": "${workspaceFolder}/Northwind.CategoryApi"
+      "cwd": "${workspaceFolder}/src/EShop.CategoryApi"
     },
     {
       "name": "ProductApi",
       "command": "dotnet run",
       "request": "launch",
       "type": "node-terminal",
-      "cwd": "${workspaceFolder}/Northwind.ProductApi"
+      "cwd": "${workspaceFolder}/src/EShop.ProductApi"
+    },
+    {
+      "name": "ShoppingCart",
+      "command": "dotnet run",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}/src/EShop.ShoppingCart"
     },
     {
       "name": "ClientApp",
       "command": "ng serve --open",
       "request": "launch",
       "type": "node-terminal",
-      "cwd": "${workspaceFolder}/Northwind.ClientApp"
+      "cwd": "${workspaceFolder}/src/EShop.ClientApp"
     }
   ],
   "compounds": [
     {
       "name": "Launch API and Angular",
-      "configurations": ["CategoryApi", "ProductApi", "ClientApp"],
+      "configurations": ["CategoryApi", "ProductApi", "ShoppingCart", "ClientApp"],
       "stopAll": true
     }
   ]

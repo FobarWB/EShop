@@ -1,13 +1,13 @@
 ---
 type: service
-verified: 2026-10-15
+verified: 2026-10-16
 ---
 
 # ClientApp
 
 Angular 18 single-page application: catalog, product pages and the shopping cart.
 
-- Project: [Northwind.ClientApp](../../Northwind.ClientApp/)
+- Project: [EShop.ClientApp](../../src/EShop.ClientApp/)
 - Local URL: http://localhost:4200 (`npm start`)
 
 ## Routes

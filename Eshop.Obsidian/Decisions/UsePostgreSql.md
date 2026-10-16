@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-10-15
+verified: 2026-10-16
 issue: 14
 ---
 
@@ -21,3 +21,4 @@ Replace SQL Server with PostgreSQL (Npgsql EF Core provider) after the .NET 10 /
 - Existing SQL Server migrations are replaced by a fresh initial migration.
 - SQL Server types (`money`, `image`, `ntext`, `nvarchar`) map to PostgreSQL types; snake_case naming.
 - PostgreSQL runs natively first and moves to Docker later.
+- The last SQL Server version is tagged `sqlserver-final`; SQL Server-era code that is not ported lives in `archive/`.

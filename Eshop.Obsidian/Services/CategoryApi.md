@@ -1,13 +1,13 @@
 ---
 type: service
-verified: 2026-10-15
+verified: 2026-10-16
 ---
 
 # CategoryApi
 
 REST API for product categories (CRUD).
 
-- Project: [Northwind.CategoryApi](../../Northwind.CategoryApi/)
+- Project: [EShop.CategoryApi](../../src/EShop.CategoryApi/)
 - Local URL: https://localhost:5003 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
 
 ## Endpoints (`api/categories`)
@@ -26,7 +26,7 @@ REST API for product categories (CRUD).
 
 ## Dependencies
 
-Shared DbContext (`Northwind.Common.DataContext.SqlServer`). Called by [ClientApp](ClientApp.md) and the archived `Northwind.Mvc`.
+Shared DbContext (`EShopDbContext` in `EShop.Data`). Called by [ClientApp](ClientApp.md).
 Kept separate from ProductApi for now: see [SeparateProductAndCategoryApis](../Decisions/SeparateProductAndCategoryApis.md).
 
 ## Known issues

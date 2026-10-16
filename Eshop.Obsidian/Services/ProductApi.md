@@ -1,13 +1,13 @@
 ---
 type: service
-verified: 2026-10-15
+verified: 2026-10-16
 ---
 
 # ProductApi
 
 REST API for products (CRUD).
 
-- Project: [Northwind.ProductApi](../../Northwind.ProductApi/)
+- Project: [EShop.ProductApi](../../src/EShop.ProductApi/)
 - Local URL: https://localhost:5002 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
 
 ## Endpoints (`api/products`)
@@ -26,7 +26,7 @@ REST API for products (CRUD).
 
 ## Dependencies
 
-Shared DbContext (`Northwind.Common.DataContext.SqlServer`). Called by [ClientApp](ClientApp.md) and the archived `Northwind.Mvc`.
+Shared DbContext (`EShopDbContext` in `EShop.Data`). Called by [ClientApp](ClientApp.md).
 
 ## Known issues
 

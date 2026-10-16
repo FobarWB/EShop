@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-15
+verified: 2026-10-16
 ---
 
 # Services
@@ -14,4 +14,4 @@ All backend services share one database through the common DbContext. Ports are 
 - [ShoppingCart](ShoppingCart.md): carts and cart items per user.
 - [ClientApp](ClientApp.md): Angular SPA that calls the three APIs.
 
-`Northwind.Mvc` is archived and not documented here.
+The archived `Northwind.Mvc` lives in `archive/` and is not documented here.
