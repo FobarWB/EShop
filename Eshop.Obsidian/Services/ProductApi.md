@@ -22,7 +22,7 @@ REST API for products (CRUD).
 
 ## Data
 
-`Product` in the shared Northwind database, accessed through `IProductRepository`.
+`Product` in the shared PostgreSQL database `eshop` (Northwind data), accessed through `IProductRepository`.
 
 ## Dependencies
 

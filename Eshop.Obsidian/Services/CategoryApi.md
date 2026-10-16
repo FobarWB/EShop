@@ -22,7 +22,7 @@ REST API for product categories (CRUD).
 
 ## Data
 
-`Category` in the shared Northwind database.
+`Category` in the shared PostgreSQL database `eshop` (Northwind data).
 
 ## Dependencies
 
@@ -33,4 +33,3 @@ Kept separate from ProductApi for now: see [SeparateProductAndCategoryApis](../D
 
 - The XML output formatter cannot serialize entities with navigation collections (`Category.Products`);
   it logs warnings at startup. JSON responses are not affected.
-- Data endpoints need a database; without SQL Server they fail with `SqlException` after the connection timeout.

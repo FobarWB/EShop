@@ -24,7 +24,7 @@
     },
     {
       "name": "ClientApp",
-      "command": "ng serve --open",
+      "command": "npm.cmd start -- --open",
       "request": "launch",
       "type": "node-terminal",
       "cwd": "${workspaceFolder}/src/EShop.ClientApp"

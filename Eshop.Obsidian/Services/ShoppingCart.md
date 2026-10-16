@@ -24,7 +24,7 @@ REST API for shopping carts: one cart per user, items reference products.
 
 ## Data
 
-`Cart` (unique `UserId`) and `CartItem` (key `CartId` + `ProductId`, `Quantity`) in the shared Northwind database.
+`Cart` (unique `UserId`) and `CartItem` (key `CartId` + `ProductId`, `Quantity`) in the shared PostgreSQL database `eshop` (Northwind data).
 Deleting a cart deletes its items; deleting a product that is in a cart is restricted.
 
 ## Dependencies
@@ -35,3 +35,4 @@ Shared DbContext (`EShopDbContext` in `EShop.Data`); reads `Products` to check s
 
 - No authentication: `userId` is taken from the client as-is.
 - Every action wraps its body in `try/catch` returning 500; EF entities are returned directly.
+- Adding an item fails with 400 when the user has no cart yet; the client never creates one ([#22](https://github.com/FobarWB/EShop/issues/22)).

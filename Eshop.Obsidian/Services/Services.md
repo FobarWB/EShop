@@ -7,7 +7,8 @@ verified: 2026-10-16
 
 [Home](../Home.md)
 
-All backend services share one database through the common DbContext. Ports are listed in [AGENTS.md](../../AGENTS.md).
+All backend services share one PostgreSQL database (`eshop`) through the common DbContext.
+Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 
 - [ProductApi](ProductApi.md): products CRUD.
 - [CategoryApi](CategoryApi.md): categories CRUD.
