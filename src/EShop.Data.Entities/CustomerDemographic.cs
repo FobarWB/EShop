@@ -14,10 +14,8 @@ namespace EShop.Data.Entities
         }
 
         [Key]
-        [Column("CustomerTypeID")]
         [StringLength(10)]
         public string CustomerTypeId { get; set; } = null!;
-        [Column(TypeName = "ntext")]
         public string? CustomerDesc { get; set; }
 
         [ForeignKey("CustomerTypeId")]

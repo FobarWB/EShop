@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EShop.Data.Entities
 {
-    [Table("Region")]
     public partial class Region
     {
         public Region()
@@ -15,8 +14,8 @@ namespace EShop.Data.Entities
         }
 
         [Key]
-        [Column("RegionID")]
         public int RegionId { get; set; }
+
         [StringLength(50)]
         public string RegionDescription { get; set; } = null!;
 

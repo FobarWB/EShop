@@ -1,25 +1,32 @@
-using Microsoft.EntityFrameworkCore; // UseSqlServer
-using Microsoft.Extensions.DependencyInjection; // IServiceCollection
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace EShop.Data
+namespace EShop.Data;
+
+public static class EShopDbContextExtensions
 {
-    public static  class EShopDbContextExtensions
-    {
- 
+    public const string ConnectionStringName = "EShop";
+
     /// <summary>
-    /// Adds EShopDbContext to the specified IServiceCollection. Uses the SqlServer database provider.
+    /// Registers <see cref="EShopDbContext"/> with the PostgreSQL provider and snake_case naming.
+    /// The connection string is read from <c>ConnectionStrings:EShop</c>.
     /// </summary>
-    /// <param name="services"></param>
-    /// <param name="connectionString">Set to override the default.</param>
-    /// <returns>An IServiceCollection that can be used to add more services.</returns>
     public static IServiceCollection AddEShopDbContext(
-        this IServiceCollection services, string connectionString =
-        "Data Source=.;Initial Catalog=Northwind;"
-        + "Integrated Security=true;MultipleActiveResultsets=true;")
-        {
-            services.AddDbContext<EShopDbContext>(options =>
-            options.UseSqlServer(connectionString),contextLifetime: ServiceLifetime.Transient);
-            return services;
-        }
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
+    {
+        var connectionString =
+            configuration.GetConnectionString(ConnectionStringName)
+            ?? throw new InvalidOperationException(
+                $"Connection string '{ConnectionStringName}' is not configured. Set it with "
+                    + "dotnet user-secrets set \"ConnectionStrings:EShop\" \"<value>\" --project src/EShop.ProductApi"
+            );
+
+        services.AddDbContext<EShopDbContext>(options =>
+            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention()
+        );
+        return services;
     }
 }

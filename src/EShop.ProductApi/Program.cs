@@ -1,44 +1,51 @@
-using Microsoft.AspNetCore.Mvc.Formatters;
-using EShop.Data; 
-using static System.Console;
+using EShop.Data;
 using EShop.ProductApi.Repositories;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Scalar.AspNetCore;
+using static System.Console;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddCors();
 
-builder.Services.AddEShopDbContext();
+builder.Services.AddEShopDbContext(builder.Configuration);
 
-builder.Services.AddControllers(options => 
-{
-    WriteLine("Default output formatters:");
-    foreach (IOutputFormatter formatter in options.OutputFormatters)
+builder
+    .Services.AddControllers(options =>
     {
-        OutputFormatter? mediaFormatter = formatter as OutputFormatter;
-        if (mediaFormatter == null)
+        WriteLine("Default output formatters:");
+        foreach (IOutputFormatter formatter in options.OutputFormatters)
         {
-            WriteLine($" {formatter.GetType().Name}");
+            OutputFormatter? mediaFormatter = formatter as OutputFormatter;
+            if (mediaFormatter == null)
+            {
+                WriteLine($" {formatter.GetType().Name}");
+            }
+            else
+            {
+                WriteLine(
+                    " {0}, Media types: {1}",
+                    arg0: mediaFormatter.GetType().Name,
+                    arg1: string.Join(", ", mediaFormatter.SupportedMediaTypes)
+                );
+            }
         }
-        else
-        {
-            WriteLine(" {0}, Media types: {1}", 
-            arg0: mediaFormatter.GetType().Name,
-            arg1: string.Join(", ", mediaFormatter.SupportedMediaTypes));
-        }
-    }
-}).AddXmlDataContractSerializerFormatters().AddXmlSerializerFormatters();
+    })
+    .AddXmlDataContractSerializerFormatters()
+    .AddXmlSerializerFormatters();
 
 builder.Services.AddOpenApi(options =>
 {
-    options.AddDocumentTransformer((document, _, _) =>
-    {
-        document.Info.Title = "EShop Product API";
-        document.Info.Version = "v1";
-        return Task.CompletedTask;
-    });
+    options.AddDocumentTransformer(
+        (document, _, _) =>
+        {
+            document.Info.Title = "EShop Product API";
+            document.Info.Version = "v1";
+            return Task.CompletedTask;
+        }
+    );
 });
 
 builder.Services.AddHttpLogging(options =>
@@ -50,22 +57,22 @@ builder.Services.AddHttpLogging(options =>
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
-
 var app = builder.Build();
 
 app.UseHttpLogging();
 
 app.UseCors(configurePolicy: options =>
 {
-  options.WithMethods("GET", "POST", "PUT", "DELETE");
-  options.WithOrigins(
-    "https://localhost:5002", // allow requests from the MVC client
-    "http://localhost:4200" // Angular client
-  );
+    options.WithMethods("GET", "POST", "PUT", "DELETE");
+    options.WithOrigins(
+        "https://localhost:5002", // allow requests from the MVC client
+        "http://localhost:4200" // Angular client
+    );
     options.AllowAnyHeader();
 });
 
 app.UseCors("AllowSpecificOrigins");
+
 //app.UseCors(policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 
 if (app.Environment.IsDevelopment())

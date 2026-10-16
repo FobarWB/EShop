@@ -6,11 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EShop.Data.Entities
 {
-    [Index("CategoryId", Name = "CategoriesProducts")]
-    [Index("CategoryId", Name = "CategoryId")]
-    [Index("ProductName", Name = "ProductName")]
-    [Index("SupplierId", Name = "SupplierId")]
-    [Index("SupplierId", Name = "SuppliersProducts")]
+    [Index("CategoryId")]
+    [Index("ProductName")]
+    [Index("SupplierId")]
     public partial class Product
     {
         public Product()
@@ -21,13 +19,16 @@ namespace EShop.Data.Entities
 
         [Key]
         public int ProductId { get; set; }
+
         [StringLength(40)]
         public string ProductName { get; set; } = null!;
         public int? SupplierId { get; set; }
         public int? CategoryId { get; set; }
+
         [StringLength(20)]
         public string? QuantityPerUnit { get; set; }
-        [Column(TypeName = "money")]
+
+        [Precision(19, 4)]
         public decimal? UnitPrice { get; set; }
         public short? UnitsInStock { get; set; }
         public short? UnitsOnOrder { get; set; }
@@ -37,9 +38,11 @@ namespace EShop.Data.Entities
         [ForeignKey("CategoryId")]
         [InverseProperty("Products")]
         public virtual Category? Category { get; set; }
+
         [ForeignKey("SupplierId")]
         [InverseProperty("Products")]
         public virtual Supplier? Supplier { get; set; }
+
         [InverseProperty("Product")]
         public virtual ICollection<OrderDetail> OrderDetails { get; set; }
         public virtual ICollection<CartItem> CartItems { get; set; }
