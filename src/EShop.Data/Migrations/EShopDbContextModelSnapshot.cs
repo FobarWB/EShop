@@ -3,8 +3,8 @@ using System;
 using EShop.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -17,1081 +17,685 @@ namespace EShop.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "6.0.11")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("CustomerCustomerDemo", b =>
                 {
                     b.Property<string>("CustomerId")
                         .HasMaxLength(5)
-                        .HasColumnType("nchar(5)")
-                        .HasColumnName("CustomerID")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("customer_id");
 
                     b.Property<string>("CustomerTypeId")
                         .HasMaxLength(10)
-                        .HasColumnType("nchar(10)")
-                        .HasColumnName("CustomerTypeID")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("customer_type_id");
 
-                    b.HasKey("CustomerId", "CustomerTypeId");
+                    b.HasKey("CustomerId", "CustomerTypeId")
+                        .HasName("pk_customer_customer_demo");
 
-                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("CustomerId", "CustomerTypeId"), false);
+                    b.HasIndex("CustomerTypeId")
+                        .HasDatabaseName("ix_customer_customer_demo_customer_type_id");
 
-                    b.HasIndex("CustomerTypeId");
-
-                    b.ToTable("CustomerCustomerDemo", (string)null);
-                });
-
-            modelBuilder.Entity("CustomerCustomerDemographic", b =>
-                {
-                    b.Property<string>("CustomerId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("CustomerTypeId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("CustomerId", "CustomerTypeId");
-
-                    b.ToTable("CustomerCustomerDemographic");
-                });
-
-            modelBuilder.Entity("EmployeeTerritory", b =>
-                {
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int")
-                        .HasColumnName("EmployeeID");
-
-                    b.Property<string>("TerritoryId")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("TerritoryID");
-
-                    b.HasKey("EmployeeId", "TerritoryId");
-
-                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("EmployeeId", "TerritoryId"), false);
-
-                    b.HasIndex("TerritoryId");
-
-                    b.ToTable("EmployeeTerritories", (string)null);
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.AlphabeticalListOfProduct", b =>
-                {
-                    b.Property<int?>("CategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<bool>("Discontinued")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("QuantityPerUnit")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<short?>("ReorderLevel")
-                        .HasColumnType("smallint");
-
-                    b.Property<int?>("SupplierId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("UnitPrice")
-                        .HasColumnType("money");
-
-                    b.Property<short?>("UnitsInStock")
-                        .HasColumnType("smallint");
-
-                    b.Property<short?>("UnitsOnOrder")
-                        .HasColumnType("smallint");
-
-                    b.ToView("Alphabetical list of products");
+                    b.ToTable("customer_customer_demo", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Cart", b =>
                 {
                     b.Property<int>("CartId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("cart_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CartId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CartId"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
 
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("user_id");
 
-                    b.HasKey("CartId");
+                    b.HasKey("CartId")
+                        .HasName("pk_carts");
 
                     b.HasIndex("UserId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_carts_user_id");
 
-                    b.ToTable("Carts");
+                    b.ToTable("carts", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.CartItem", b =>
                 {
                     b.Property<int>("CartId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
+                        .HasColumnName("cart_id")
                         .HasColumnOrder(0);
 
                     b.Property<int>("ProductId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id")
                         .HasColumnOrder(1);
 
                     b.Property<int>("Quantity")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
 
-                    b.HasKey("CartId", "ProductId");
+                    b.HasKey("CartId", "ProductId")
+                        .HasName("pk_cart_items");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("ix_cart_items_product_id");
 
-                    b.ToTable("CartItems");
+                    b.ToTable("cart_items", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Category", b =>
                 {
                     b.Property<int>("CategoryId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CategoryId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CategoryId"));
 
                     b.Property<string>("CategoryName")
                         .IsRequired()
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("category_name");
 
                     b.Property<string>("Description")
-                        .HasColumnType("ntext");
+                        .HasColumnType("text")
+                        .HasColumnName("description");
 
                     b.Property<byte[]>("Picture")
-                        .HasColumnType("image");
+                        .HasColumnType("bytea")
+                        .HasColumnName("picture");
 
-                    b.HasKey("CategoryId");
+                    b.HasKey("CategoryId")
+                        .HasName("pk_categories");
 
-                    b.HasIndex(new[] { "CategoryName" }, "CategoryName");
+                    b.HasIndex("CategoryName")
+                        .HasDatabaseName("ix_categories_category_name");
 
-                    b.ToTable("Categories");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.CategorySalesFor1997", b =>
-                {
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<decimal?>("CategorySales")
-                        .HasColumnType("money");
-
-                    b.ToView("Category Sales for 1997");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.CurrentProductList", b =>
-                {
-                    b.Property<int>("ProductId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ProductID");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"), 1L, 1);
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.ToView("Current Product List");
+                    b.ToTable("categories", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Customer", b =>
                 {
                     b.Property<string>("CustomerId")
                         .HasMaxLength(5)
-                        .HasColumnType("nchar(5)")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("customer_id");
 
                     b.Property<string>("Address")
                         .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("address");
 
                     b.Property<string>("City")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("city");
 
                     b.Property<string>("CompanyName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("company_name");
 
                     b.Property<string>("ContactName")
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("contact_name");
 
                     b.Property<string>("ContactTitle")
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("contact_title");
 
                     b.Property<string>("Country")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("country");
 
                     b.Property<string>("Fax")
                         .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("fax");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("phone");
 
                     b.Property<string>("PostalCode")
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("postal_code");
 
                     b.Property<string>("Region")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("region");
 
-                    b.HasKey("CustomerId");
+                    b.HasKey("CustomerId")
+                        .HasName("pk_customers");
 
-                    b.HasIndex(new[] { "City" }, "City");
+                    b.HasIndex("City")
+                        .HasDatabaseName("ix_customers_city");
 
-                    b.HasIndex(new[] { "CompanyName" }, "CompanyName");
+                    b.HasIndex("CompanyName")
+                        .HasDatabaseName("ix_customers_company_name");
 
-                    b.HasIndex(new[] { "PostalCode" }, "PostalCode");
+                    b.HasIndex("PostalCode")
+                        .HasDatabaseName("ix_customers_postal_code");
 
-                    b.HasIndex(new[] { "Region" }, "Region");
+                    b.HasIndex("Region")
+                        .HasDatabaseName("ix_customers_region");
 
-                    b.ToTable("Customers");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.CustomerAndSuppliersByCity", b =>
-                {
-                    b.Property<string>("City")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("CompanyName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("ContactName")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("Relationship")
-                        .IsRequired()
-                        .HasMaxLength(9)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(9)");
-
-                    b.ToView("Customer and Suppliers by City");
+                    b.ToTable("customers", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.CustomerDemographic", b =>
                 {
                     b.Property<string>("CustomerTypeId")
                         .HasMaxLength(10)
-                        .HasColumnType("nchar(10)")
-                        .HasColumnName("CustomerTypeID")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("customer_type_id");
 
                     b.Property<string>("CustomerDesc")
-                        .HasColumnType("ntext");
+                        .HasColumnType("text")
+                        .HasColumnName("customer_desc");
 
-                    b.HasKey("CustomerTypeId");
+                    b.HasKey("CustomerTypeId")
+                        .HasName("pk_customer_demographics");
 
-                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("CustomerTypeId"), false);
-
-                    b.ToTable("CustomerDemographics");
+                    b.ToTable("customer_demographics", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Employee", b =>
                 {
                     b.Property<int>("EmployeeId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("employee_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EmployeeId"));
 
                     b.Property<string>("Address")
                         .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("address");
 
                     b.Property<DateTime?>("BirthDate")
-                        .HasColumnType("datetime");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("birth_date");
 
                     b.Property<string>("City")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("city");
 
                     b.Property<string>("Country")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("country");
 
                     b.Property<string>("Extension")
                         .HasMaxLength(4)
-                        .HasColumnType("nvarchar(4)");
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("extension");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("first_name");
 
                     b.Property<DateTime?>("HireDate")
-                        .HasColumnType("datetime");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("hire_date");
 
                     b.Property<string>("HomePhone")
                         .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("home_phone");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("last_name");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("ntext");
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
 
                     b.Property<byte[]>("Photo")
-                        .HasColumnType("image");
+                        .HasColumnType("bytea")
+                        .HasColumnName("photo");
 
                     b.Property<string>("PhotoPath")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("photo_path");
 
                     b.Property<string>("PostalCode")
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("postal_code");
 
                     b.Property<string>("Region")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("region");
 
                     b.Property<int?>("ReportsTo")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("reports_to");
 
                     b.Property<string>("Title")
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("title");
 
                     b.Property<string>("TitleOfCourtesy")
                         .HasMaxLength(25)
-                        .HasColumnType("nvarchar(25)");
+                        .HasColumnType("character varying(25)")
+                        .HasColumnName("title_of_courtesy");
 
-                    b.HasKey("EmployeeId");
+                    b.HasKey("EmployeeId")
+                        .HasName("pk_employees");
 
-                    b.HasIndex("ReportsTo");
+                    b.HasIndex("LastName")
+                        .HasDatabaseName("ix_employees_last_name");
 
-                    b.HasIndex(new[] { "LastName" }, "LastName");
+                    b.HasIndex("PostalCode")
+                        .HasDatabaseName("ix_employees_postal_code");
 
-                    b.HasIndex(new[] { "PostalCode" }, "PostalCode")
-                        .HasDatabaseName("PostalCode1");
+                    b.HasIndex("ReportsTo")
+                        .HasDatabaseName("ix_employees_reports_to");
 
-                    b.ToTable("Employees");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.Invoice", b =>
-                {
-                    b.Property<string>("Address")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("Country")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("CustomerId")
-                        .HasMaxLength(5)
-                        .HasColumnType("nchar(5)")
-                        .HasColumnName("CustomerID")
-                        .IsFixedLength();
-
-                    b.Property<string>("CustomerName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<float>("Discount")
-                        .HasColumnType("real");
-
-                    b.Property<decimal?>("ExtendedPrice")
-                        .HasColumnType("money");
-
-                    b.Property<decimal?>("Freight")
-                        .HasColumnType("money");
-
-                    b.Property<DateTime?>("OrderDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrderID");
-
-                    b.Property<string>("PostalCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int")
-                        .HasColumnName("ProductID");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<short>("Quantity")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("Region")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<DateTime?>("RequiredDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<string>("Salesperson")
-                        .IsRequired()
-                        .HasMaxLength(31)
-                        .HasColumnType("nvarchar(31)");
-
-                    b.Property<string>("ShipAddress")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("ShipCity")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("ShipCountry")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("ShipName")
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("ShipPostalCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("ShipRegion")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<DateTime?>("ShippedDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<string>("ShipperName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("money");
-
-                    b.ToView("Invoices");
+                    b.ToTable("employees", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Order", b =>
                 {
                     b.Property<int>("OrderId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("OrderId"));
 
                     b.Property<string>("CustomerId")
                         .HasMaxLength(5)
-                        .HasColumnType("nchar(5)")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("customer_id");
 
                     b.Property<int?>("EmployeeId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("employee_id");
 
                     b.Property<decimal?>("Freight")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("money")
-                        .HasDefaultValueSql("((0))");
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("freight");
 
                     b.Property<DateTime?>("OrderDate")
-                        .HasColumnType("datetime");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("order_date");
 
                     b.Property<DateTime?>("RequiredDate")
-                        .HasColumnType("datetime");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("required_date");
 
                     b.Property<string>("ShipAddress")
                         .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("ship_address");
 
                     b.Property<string>("ShipCity")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("ship_city");
 
                     b.Property<string>("ShipCountry")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("ship_country");
 
                     b.Property<string>("ShipName")
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("ship_name");
 
                     b.Property<string>("ShipPostalCode")
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("ship_postal_code");
 
                     b.Property<string>("ShipRegion")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("ship_region");
 
                     b.Property<int?>("ShipVia")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("ship_via");
 
                     b.Property<DateTime?>("ShippedDate")
-                        .HasColumnType("datetime");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("shipped_date");
 
-                    b.HasKey("OrderId");
+                    b.HasKey("OrderId")
+                        .HasName("pk_orders");
 
-                    b.HasIndex(new[] { "CustomerId" }, "CustomerId");
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_orders_customer_id");
 
-                    b.HasIndex(new[] { "CustomerId" }, "CustomersOrders");
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_orders_employee_id");
 
-                    b.HasIndex(new[] { "EmployeeId" }, "EmployeeId");
+                    b.HasIndex("OrderDate")
+                        .HasDatabaseName("ix_orders_order_date");
 
-                    b.HasIndex(new[] { "EmployeeId" }, "EmployeesOrders");
+                    b.HasIndex("ShipPostalCode")
+                        .HasDatabaseName("ix_orders_ship_postal_code");
 
-                    b.HasIndex(new[] { "OrderDate" }, "OrderDate");
+                    b.HasIndex("ShipVia")
+                        .HasDatabaseName("ix_orders_ship_via");
 
-                    b.HasIndex(new[] { "ShipPostalCode" }, "ShipPostalCode");
+                    b.HasIndex("ShippedDate")
+                        .HasDatabaseName("ix_orders_shipped_date");
 
-                    b.HasIndex(new[] { "ShippedDate" }, "ShippedDate");
-
-                    b.HasIndex(new[] { "ShipVia" }, "ShippersOrders");
-
-                    b.ToTable("Orders");
+                    b.ToTable("orders", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.OrderDetail", b =>
                 {
                     b.Property<int>("OrderId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
 
                     b.Property<int>("ProductId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
 
                     b.Property<float>("Discount")
-                        .HasColumnType("real");
+                        .HasColumnType("real")
+                        .HasColumnName("discount");
 
                     b.Property<short>("Quantity")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValueSql("((1))");
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("quantity");
 
                     b.Property<decimal>("UnitPrice")
-                        .HasColumnType("money");
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("unit_price");
 
                     b.HasKey("OrderId", "ProductId")
-                        .HasName("PK_Order_Details");
+                        .HasName("pk_order_details");
 
-                    b.HasIndex(new[] { "OrderId" }, "OrderId");
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_order_details_order_id");
 
-                    b.HasIndex(new[] { "OrderId" }, "OrdersOrder_Details");
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("ix_order_details_product_id");
 
-                    b.HasIndex(new[] { "ProductId" }, "ProductId");
-
-                    b.HasIndex(new[] { "ProductId" }, "ProductsOrder_Details");
-
-                    b.ToTable("Order Details");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.OrderDetailsExtended", b =>
-                {
-                    b.Property<float>("Discount")
-                        .HasColumnType("real");
-
-                    b.Property<decimal?>("ExtendedPrice")
-                        .HasColumnType("money");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrderID");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int")
-                        .HasColumnName("ProductID");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<short>("Quantity")
-                        .HasColumnType("smallint");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("money");
-
-                    b.ToView("Order Details Extended");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.OrdersQry", b =>
-                {
-                    b.Property<string>("Address")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("CompanyName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("Country")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("CustomerId")
-                        .HasMaxLength(5)
-                        .HasColumnType("nchar(5)")
-                        .HasColumnName("CustomerID")
-                        .IsFixedLength();
-
-                    b.Property<int?>("EmployeeId")
-                        .HasColumnType("int")
-                        .HasColumnName("EmployeeID");
-
-                    b.Property<decimal?>("Freight")
-                        .HasColumnType("money");
-
-                    b.Property<DateTime?>("OrderDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrderID");
-
-                    b.Property<string>("PostalCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("Region")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<DateTime?>("RequiredDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<string>("ShipAddress")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("ShipCity")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("ShipCountry")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("ShipName")
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("ShipPostalCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("ShipRegion")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<int?>("ShipVia")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("ShippedDate")
-                        .HasColumnType("datetime");
-
-                    b.ToView("Orders Qry");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.OrderSubtotal", b =>
-                {
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrderID");
-
-                    b.Property<decimal?>("Subtotal")
-                        .HasColumnType("money");
-
-                    b.ToView("Order Subtotals");
+                    b.ToTable("order_details", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Product", b =>
                 {
                     b.Property<int>("ProductId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ProductId"));
 
                     b.Property<int?>("CategoryId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
 
                     b.Property<bool>("Discontinued")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean")
+                        .HasColumnName("discontinued");
 
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("product_name");
 
                     b.Property<string>("QuantityPerUnit")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("quantity_per_unit");
 
                     b.Property<short?>("ReorderLevel")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValueSql("((0))");
+                        .HasDefaultValue((short)0)
+                        .HasColumnName("reorder_level");
 
                     b.Property<int?>("SupplierId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("supplier_id");
 
                     b.Property<decimal?>("UnitPrice")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("money")
-                        .HasDefaultValueSql("((0))");
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("unit_price");
 
                     b.Property<short?>("UnitsInStock")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValueSql("((0))");
+                        .HasDefaultValue((short)0)
+                        .HasColumnName("units_in_stock");
 
                     b.Property<short?>("UnitsOnOrder")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValueSql("((0))");
+                        .HasDefaultValue((short)0)
+                        .HasColumnName("units_on_order");
 
-                    b.HasKey("ProductId");
+                    b.HasKey("ProductId")
+                        .HasName("pk_products");
 
-                    b.HasIndex(new[] { "CategoryId" }, "CategoriesProducts");
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_products_category_id");
 
-                    b.HasIndex(new[] { "CategoryId" }, "CategoryId");
+                    b.HasIndex("ProductName")
+                        .HasDatabaseName("ix_products_product_name");
 
-                    b.HasIndex(new[] { "ProductName" }, "ProductName");
+                    b.HasIndex("SupplierId")
+                        .HasDatabaseName("ix_products_supplier_id");
 
-                    b.HasIndex(new[] { "SupplierId" }, "SupplierId");
-
-                    b.HasIndex(new[] { "SupplierId" }, "SuppliersProducts");
-
-                    b.ToTable("Products");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.ProductsAboveAveragePrice", b =>
-                {
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<decimal?>("UnitPrice")
-                        .HasColumnType("money");
-
-                    b.ToView("Products Above Average Price");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.ProductSalesFor1997", b =>
-                {
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<decimal?>("ProductSales")
-                        .HasColumnType("money");
-
-                    b.ToView("Product Sales for 1997");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.ProductsByCategory", b =>
-                {
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<bool>("Discontinued")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("QuantityPerUnit")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<short?>("UnitsInStock")
-                        .HasColumnType("smallint");
-
-                    b.ToView("Products by Category");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.QuarterlyOrder", b =>
-                {
-                    b.Property<string>("City")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("CompanyName")
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("Country")
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("CustomerId")
-                        .HasMaxLength(5)
-                        .HasColumnType("nchar(5)")
-                        .HasColumnName("CustomerID")
-                        .IsFixedLength();
-
-                    b.ToView("Quarterly Orders");
+                    b.ToTable("products", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Region", b =>
                 {
                     b.Property<int>("RegionId")
-                        .HasColumnType("int")
-                        .HasColumnName("RegionID");
+                        .HasColumnType("integer")
+                        .HasColumnName("region_id");
 
                     b.Property<string>("RegionDescription")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nchar(50)")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("region_description");
 
-                    b.HasKey("RegionId");
+                    b.HasKey("RegionId")
+                        .HasName("pk_regions");
 
-                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("RegionId"), false);
-
-                    b.ToTable("Region");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.SalesByCategory", b =>
-                {
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("int")
-                        .HasColumnName("CategoryID");
-
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<decimal?>("ProductSales")
-                        .HasColumnType("money");
-
-                    b.ToView("Sales by Category");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.SalesTotalsByAmount", b =>
-                {
-                    b.Property<string>("CompanyName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrderID");
-
-                    b.Property<decimal?>("SaleAmount")
-                        .HasColumnType("money");
-
-                    b.Property<DateTime?>("ShippedDate")
-                        .HasColumnType("datetime");
-
-                    b.ToView("Sales Totals by Amount");
+                    b.ToTable("regions", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Shipper", b =>
                 {
                     b.Property<int>("ShipperId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("shipper_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ShipperId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ShipperId"));
 
                     b.Property<string>("CompanyName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("company_name");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("phone");
 
-                    b.HasKey("ShipperId");
+                    b.HasKey("ShipperId")
+                        .HasName("pk_shippers");
 
-                    b.ToTable("Shippers");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.SummaryOfSalesByQuarter", b =>
-                {
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrderID");
-
-                    b.Property<DateTime?>("ShippedDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<decimal?>("Subtotal")
-                        .HasColumnType("money");
-
-                    b.ToView("Summary of Sales by Quarter");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.SummaryOfSalesByYear", b =>
-                {
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrderID");
-
-                    b.Property<DateTime?>("ShippedDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<decimal?>("Subtotal")
-                        .HasColumnType("money");
-
-                    b.ToView("Summary of Sales by Year");
+                    b.ToTable("shippers", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Supplier", b =>
                 {
                     b.Property<int>("SupplierId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("supplier_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SupplierId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SupplierId"));
 
                     b.Property<string>("Address")
                         .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("address");
 
                     b.Property<string>("City")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("city");
 
                     b.Property<string>("CompanyName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("company_name");
 
                     b.Property<string>("ContactName")
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("contact_name");
 
                     b.Property<string>("ContactTitle")
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("contact_title");
 
                     b.Property<string>("Country")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("country");
 
                     b.Property<string>("Fax")
                         .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("fax");
 
                     b.Property<string>("HomePage")
-                        .HasColumnType("ntext");
+                        .HasColumnType("text")
+                        .HasColumnName("home_page");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("phone");
 
                     b.Property<string>("PostalCode")
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("postal_code");
 
                     b.Property<string>("Region")
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("region");
 
-                    b.HasKey("SupplierId");
+                    b.HasKey("SupplierId")
+                        .HasName("pk_suppliers");
 
-                    b.HasIndex(new[] { "CompanyName" }, "CompanyName")
-                        .HasDatabaseName("CompanyName1");
+                    b.HasIndex("CompanyName")
+                        .HasDatabaseName("ix_suppliers_company_name");
 
-                    b.HasIndex(new[] { "PostalCode" }, "PostalCode")
-                        .HasDatabaseName("PostalCode2");
+                    b.HasIndex("PostalCode")
+                        .HasDatabaseName("ix_suppliers_postal_code");
 
-                    b.ToTable("Suppliers");
+                    b.ToTable("suppliers", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Territory", b =>
                 {
                     b.Property<string>("TerritoryId")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("TerritoryID");
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("territory_id");
 
                     b.Property<int>("RegionId")
-                        .HasColumnType("int")
-                        .HasColumnName("RegionID");
+                        .HasColumnType("integer")
+                        .HasColumnName("region_id");
 
                     b.Property<string>("TerritoryDescription")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nchar(50)")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("territory_description");
 
-                    b.HasKey("TerritoryId");
+                    b.HasKey("TerritoryId")
+                        .HasName("pk_territories");
 
-                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("TerritoryId"), false);
+                    b.HasIndex("RegionId")
+                        .HasDatabaseName("ix_territories_region_id");
 
-                    b.HasIndex("RegionId");
+                    b.ToTable("territories", (string)null);
+                });
 
-                    b.ToTable("Territories");
+            modelBuilder.Entity("EmployeeTerritory", b =>
+                {
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("TerritoryId")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("territory_id");
+
+                    b.HasKey("EmployeeId", "TerritoryId")
+                        .HasName("pk_employee_territories");
+
+                    b.HasIndex("TerritoryId")
+                        .HasDatabaseName("ix_employee_territories_territory_id");
+
+                    b.ToTable("employee_territories", (string)null);
                 });
 
             modelBuilder.Entity("CustomerCustomerDemo", b =>
@@ -1100,28 +704,13 @@ namespace EShop.Data.Migrations
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .IsRequired()
-                        .HasConstraintName("FK_CustomerCustomerDemo_Customers");
+                        .HasConstraintName("fk_customer_customer_demo_customers_customer_id");
 
                     b.HasOne("EShop.Data.Entities.CustomerDemographic", null)
                         .WithMany()
                         .HasForeignKey("CustomerTypeId")
                         .IsRequired()
-                        .HasConstraintName("FK_CustomerCustomerDemo");
-                });
-
-            modelBuilder.Entity("EmployeeTerritory", b =>
-                {
-                    b.HasOne("EShop.Data.Entities.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .IsRequired()
-                        .HasConstraintName("FK_EmployeeTerritories_Employees");
-
-                    b.HasOne("EShop.Data.Entities.Territory", null)
-                        .WithMany()
-                        .HasForeignKey("TerritoryId")
-                        .IsRequired()
-                        .HasConstraintName("FK_EmployeeTerritories_Territories");
+                        .HasConstraintName("fk_customer_customer_demo_customer_demographics_customer_type_");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.CartItem", b =>
@@ -1130,13 +719,15 @@ namespace EShop.Data.Migrations
                         .WithMany("CartItems")
                         .HasForeignKey("CartId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_cart_items_carts_cart_id");
 
                     b.HasOne("EShop.Data.Entities.Product", "Product")
                         .WithMany("CartItems")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_cart_items_products_product_id");
 
                     b.Navigation("Cart");
 
@@ -1148,7 +739,7 @@ namespace EShop.Data.Migrations
                     b.HasOne("EShop.Data.Entities.Employee", "ReportsToNavigation")
                         .WithMany("InverseReportsToNavigation")
                         .HasForeignKey("ReportsTo")
-                        .HasConstraintName("FK_Employees_Employees");
+                        .HasConstraintName("fk_employees_employees_reports_to");
 
                     b.Navigation("ReportsToNavigation");
                 });
@@ -1158,17 +749,17 @@ namespace EShop.Data.Migrations
                     b.HasOne("EShop.Data.Entities.Customer", "Customer")
                         .WithMany("Orders")
                         .HasForeignKey("CustomerId")
-                        .HasConstraintName("FK_Orders_Customers");
+                        .HasConstraintName("fk_orders_customers_customer_id");
 
                     b.HasOne("EShop.Data.Entities.Employee", "Employee")
                         .WithMany("Orders")
                         .HasForeignKey("EmployeeId")
-                        .HasConstraintName("FK_Orders_Employees");
+                        .HasConstraintName("fk_orders_employees_employee_id");
 
                     b.HasOne("EShop.Data.Entities.Shipper", "ShipViaNavigation")
                         .WithMany("Orders")
                         .HasForeignKey("ShipVia")
-                        .HasConstraintName("FK_Orders_Shippers");
+                        .HasConstraintName("fk_orders_shippers_ship_via");
 
                     b.Navigation("Customer");
 
@@ -1183,13 +774,13 @@ namespace EShop.Data.Migrations
                         .WithMany("OrderDetails")
                         .HasForeignKey("OrderId")
                         .IsRequired()
-                        .HasConstraintName("FK_Order_Details_Orders");
+                        .HasConstraintName("fk_order_details_orders_order_id");
 
                     b.HasOne("EShop.Data.Entities.Product", "Product")
                         .WithMany("OrderDetails")
                         .HasForeignKey("ProductId")
                         .IsRequired()
-                        .HasConstraintName("FK_Order_Details_Products");
+                        .HasConstraintName("fk_order_details_products_product_id");
 
                     b.Navigation("Order");
 
@@ -1201,12 +792,12 @@ namespace EShop.Data.Migrations
                     b.HasOne("EShop.Data.Entities.Category", "Category")
                         .WithMany("Products")
                         .HasForeignKey("CategoryId")
-                        .HasConstraintName("FK_Products_Categories");
+                        .HasConstraintName("fk_products_categories_category_id");
 
                     b.HasOne("EShop.Data.Entities.Supplier", "Supplier")
                         .WithMany("Products")
                         .HasForeignKey("SupplierId")
-                        .HasConstraintName("FK_Products_Suppliers");
+                        .HasConstraintName("fk_products_suppliers_supplier_id");
 
                     b.Navigation("Category");
 
@@ -1219,9 +810,24 @@ namespace EShop.Data.Migrations
                         .WithMany("Territories")
                         .HasForeignKey("RegionId")
                         .IsRequired()
-                        .HasConstraintName("FK_Territories_Region");
+                        .HasConstraintName("fk_territories_regions_region_id");
 
                     b.Navigation("Region");
+                });
+
+            modelBuilder.Entity("EmployeeTerritory", b =>
+                {
+                    b.HasOne("EShop.Data.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_territories_employees_employee_id");
+
+                    b.HasOne("EShop.Data.Entities.Territory", null)
+                        .WithMany()
+                        .HasForeignKey("TerritoryId")
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_territories_territories_territory_id");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Cart", b =>

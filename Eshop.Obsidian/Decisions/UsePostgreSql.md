@@ -18,7 +18,13 @@ Replace SQL Server with PostgreSQL (Npgsql EF Core provider) after the .NET 10 /
 
 ## Consequences
 
-- Existing SQL Server migrations are replaced by a fresh initial migration.
-- SQL Server types (`money`, `image`, `ntext`, `nvarchar`) map to PostgreSQL types; snake_case naming.
+- Code-first: the schema comes from EF Core migrations (one `InitialCreate` replaces the SQL Server migrations);
+  Northwind rows are loaded from [db/northwind-data.sql](../../db/northwind-data.sql), generated from the archived dump.
+- Npgsql provider with `EFCore.NamingConventions`: tables, columns, keys and indexes are snake_case.
+- Type mapping: `money` → `numeric(19,4)`, `datetime` → `timestamp without time zone`, `ntext` → `text`,
+  `image` → `bytea`, `nchar` → `varchar`; `Cart.CreatedAt` is `timestamptz` (a UTC instant).
+- The Northwind views and stored procedures are not ported: nothing used them. Their SQL stays in `archive/`.
+- The connection string comes from configuration (user-secrets locally); the app connects as the `eshop` role,
+  which owns the `eshop` database.
 - PostgreSQL runs natively first and moves to Docker later.
 - The last SQL Server version is tagged `sqlserver-final`; SQL Server-era code that is not ported lives in `archive/`.

@@ -16,6 +16,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ClientApp/` | Angular 18 SPA | http://localhost:4200 |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
+| `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 
@@ -28,7 +29,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 GitHub is the source of truth for progress; do not copy task status into files.
 - Roadmap: `gh issue view 17`; open work: `gh issue list`; board: `gh project item-list 1 --owner FobarWB`.
 - What is merged: `git log --oneline master`.
-- SQL Server and Angular 18 are being replaced (see the roadmap); check the issue before assuming the current state.
+- Angular 18 is being replaced (see the roadmap); check the issue before assuming the current state.
 
 ## Environment
 
@@ -37,10 +38,12 @@ GitHub is the source of truth for progress; do not copy task status into files.
   Node 24, npm 11; `gh` CLI; `csharpier`; `dotnet-ef`.
 - Package versions live only in `Directory.Packages.props` (central package management);
   `PackageReference` items have no `Version`. `nuget.config` restricts package sources to nuget.org.
-- Database today: SQL Server. Only LocalDB (`(localdb)\MSSQLLocalDB`) exists on this machine, so connection strings
-  pointing to `Server=.` do not work. PostgreSQL replaces SQL Server in #14.
-- PostgreSQL 18 is installed locally (Windows service `postgresql-x64-18`, tools in `C:\Program Files\PostgreSQL\18\bin`).
-  Docker is not installed yet.
+- Database: PostgreSQL 18 installed locally (Windows service `postgresql-x64-18`; `psql` and other tools in
+  `C:\Program Files\PostgreSQL\18\bin`, not on `PATH`; pgAdmin 4 is installed with it). Docker is not installed yet.
+- The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
+  (`UserSecretsId` `eshop`, shared by the three APIs); it is never committed.
+- Windows PowerShell may block `.ps1` scripts (execution policy): use `npm.cmd` or
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
 ## Commands
 
@@ -53,6 +56,29 @@ csharpier format <file>                             # format edited C# files
 ```
 
 There are no automated tests yet (#9). After a change, build the affected projects and report which checks actually ran.
+
+## Database
+
+The schema is owned by EF Core migrations in `src/EShop.Data/Migrations`; Northwind data is loaded separately.
+`dotnet ef` needs `--startup-project`: the DbContext is configured in the API's `Program.cs`.
+
+First-time setup (role and database are created once as the `postgres` superuser in `psql`):
+
+```sql
+CREATE ROLE eshop LOGIN;
+\password eshop
+CREATE DATABASE eshop OWNER eshop ENCODING 'UTF8' TEMPLATE template0;
+```
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
+dotnet ef database update --project src/EShop.Data --startup-project src/EShop.ProductApi
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U eshop -d eshop -f db/northwind-data.sql   # empty database only
+```
+
+- Model change → `dotnet ef migrations add <Name> --project src/EShop.Data --startup-project src/EShop.ProductApi`.
+- `db/northwind-data.sql` is generated from `archive/Northwind4SQLServer.sql`; do not edit it by hand:
+  `powershell -ExecutionPolicy Bypass -File db/convert-northwind.ps1`.
 
 ## Approval rules
 
