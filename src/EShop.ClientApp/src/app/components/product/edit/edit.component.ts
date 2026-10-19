@@ -7,7 +7,6 @@ import { NgIf } from '@angular/common';
 
 @Component({
   selector: 'app-edit',
-  standalone: true,
   imports: [ReactiveFormsModule, NgIf],
   templateUrl: './edit.component.html',
   styleUrl: './edit.component.css'

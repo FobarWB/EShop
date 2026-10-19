@@ -4,7 +4,6 @@ import { EditComponent } from '../category/edit/edit.component';
 
 @Component({
   selector: 'app-modal',
-  standalone: true,
   imports: [NgComponentOutlet],
   templateUrl: './modal.component.html',
   styleUrl: './modal.component.css'

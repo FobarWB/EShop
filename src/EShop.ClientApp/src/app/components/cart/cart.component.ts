@@ -16,7 +16,6 @@ export interface ICartItemDTO
 
 @Component({
   selector: 'app-cart',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './cart.component.html',
   styleUrl: './cart.component.css'

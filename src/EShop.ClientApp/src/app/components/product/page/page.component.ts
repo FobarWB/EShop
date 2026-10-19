@@ -6,7 +6,6 @@ import { SpinnerComponent } from "../../spinner/spinner.component";
 
 @Component({
   selector: 'app-page',
-  standalone: true,
   imports: [SpinnerComponent],
   templateUrl: './page.component.html',
   styleUrl: './page.component.css'

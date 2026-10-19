@@ -13,7 +13,6 @@ import { CartService } from '../../../services/cart.service';
 
 @Component({
   selector: 'app-category-page',
-  standalone: true,
   imports: [SideBarComponent, CommonModule, RouterModule, SpinnerComponent, NgClass],
   templateUrl: './page.component.html',
   styleUrl: './page.component.css'

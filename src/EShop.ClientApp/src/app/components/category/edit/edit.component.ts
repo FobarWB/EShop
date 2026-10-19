@@ -7,7 +7,6 @@ import { CategoryService } from '../../../services/categories.service';
 
 @Component({
   selector: 'app-edit',
-  standalone: true,
   imports: [ReactiveFormsModule, NgIf, NgClass],
   templateUrl: './edit.component.html',
   styleUrl: './edit.component.css'

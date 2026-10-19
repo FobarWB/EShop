@@ -5,7 +5,6 @@ import { IFilters } from '../../../models/filters.model';
 
 @Component({
   selector: 'app-category-side-bar',
-  standalone: true,
   imports: [NgxSliderModule, FormsModule],
   templateUrl: './side-bar.component.html',
   styleUrl: './side-bar.component.css'
