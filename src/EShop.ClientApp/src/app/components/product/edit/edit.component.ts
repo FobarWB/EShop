@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { IProduct } from '../../../models/product.model';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
@@ -8,6 +8,7 @@ import { ProductService } from '../../../services/products.service';
   selector: 'app-edit',
   imports: [ReactiveFormsModule],
   templateUrl: './edit.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './edit.component.css'
 })
 export class EditComponent 

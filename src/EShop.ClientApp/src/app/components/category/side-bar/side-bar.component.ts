@@ -1,5 +1,5 @@
 import { NgxSliderModule, Options as SliderOptions } from '@angular-slider/ngx-slider';
-import { Component, Input, output } from '@angular/core';
+import { Component, Input, output, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IFilters } from '../../../models/filters.model';
 
@@ -7,6 +7,7 @@ import { IFilters } from '../../../models/filters.model';
   selector: 'app-category-side-bar',
   imports: [NgxSliderModule, FormsModule],
   templateUrl: './side-bar.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './side-bar.component.css'
 })
 export class SideBarComponent

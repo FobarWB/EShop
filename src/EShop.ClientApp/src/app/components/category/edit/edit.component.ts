@@ -1,5 +1,5 @@
 import { NgClass } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
 import { ICategory } from '../../../models/category.model';
@@ -9,6 +9,7 @@ import { CategoryService } from '../../../services/categories.service';
   selector: 'app-edit',
   imports: [ReactiveFormsModule, NgClass],
   templateUrl: './edit.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './edit.component.css'
 })
 export class EditComponent

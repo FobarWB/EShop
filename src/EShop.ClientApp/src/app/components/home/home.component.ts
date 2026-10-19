@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CategoryService } from '../../services/categories.service';
 import { ICategory } from '../../models/category.model';
 import { RouterModule } from '@angular/router';
@@ -11,6 +11,7 @@ import { SpinnerComponent } from "../spinner/spinner.component";
   selector: 'app-home',
   imports: [RouterModule, DefaultImageDirective, SpinnerComponent],
   templateUrl: './home.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './home.component.css',
 })
 export class HomeComponent

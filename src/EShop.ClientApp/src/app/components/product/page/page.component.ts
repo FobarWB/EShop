@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProductService } from '../../../services/products.service';
 import { IProduct } from '../../../models/product.model';
@@ -8,6 +8,7 @@ import { SpinnerComponent } from "../../spinner/spinner.component";
   selector: 'app-page',
   imports: [SpinnerComponent],
   templateUrl: './page.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './page.component.css'
 })
 export class PageComponent
