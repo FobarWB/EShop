@@ -1,6 +1,6 @@
 using EShop.Data.Entities;
-using Microsoft.AspNetCore.Mvc;
 using EShop.ShoppingCart.Repositories;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EShop.ShoppingCart.Controllers
 {
@@ -11,10 +11,13 @@ namespace EShop.ShoppingCart.Controllers
         private readonly IShoppingCartRepository _repository;
         private readonly ILogger<ShoppingCartController> _logger;
 
-        public ShoppingCartController(IShoppingCartRepository repository, ILogger<ShoppingCartController> logger)
+        public ShoppingCartController(
+            IShoppingCartRepository repository,
+            ILogger<ShoppingCartController> logger
+        )
         {
             _repository = repository;
-             _logger = logger;
+            _logger = logger;
         }
 
         // POST: api/carts/create
@@ -22,25 +25,22 @@ namespace EShop.ShoppingCart.Controllers
         public async Task<IActionResult> CreateCart([FromBody] Cart cartRequest)
         {
             _logger.LogInformation("Received Cart Request: {@CartRequest}", cartRequest);
-            
-            // Проверка на null
+
             if (cartRequest == null)
             {
                 return BadRequest("Cart request cannot be null.");
             }
 
-            // Проверка на наличие UserId
             if (string.IsNullOrEmpty(cartRequest.UserId))
             {
                 return BadRequest("UserId cannot be null or empty.");
             }
 
-            // Создание объекта корзины
             Cart cart = new Cart
             {
                 UserId = cartRequest.UserId,
                 CreatedAt = DateTime.UtcNow,
-                CartItems = new List<CartItem>() // Создаем пустой список элементов корзины
+                CartItems = new List<CartItem>(),
             };
 
             try
@@ -63,7 +63,11 @@ namespace EShop.ShoppingCart.Controllers
         // POST: api/carts/userId/add
         [HttpPost("{userId}/add")]
         //[ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddItemToCart(string userId, [FromBody] CartItem item)
+        public async Task<IActionResult> AddItemToCart(
+            string userId,
+            [FromBody] CartItem item,
+            CancellationToken cancellationToken
+        )
         {
             _logger.LogInformation("Received Cart Request: {@CartRequest}", item);
             if (item == null || item.ProductId == 0 || item.Quantity <= 0)
@@ -71,13 +75,13 @@ namespace EShop.ShoppingCart.Controllers
                 return BadRequest("Invalid item data.");
             }
 
-            var result = await _repository.AddItemToCartAsync(userId, item);
-            if (!result)
+            var result = await _repository.AddItemToCartAsync(userId, item, cancellationToken);
+            return result switch
             {
-                return BadRequest("Failed to add item to cart");
-            }
-            Console.WriteLine($"UserId: {userId}, ProductId: {item.ProductId}, Quantity: {item.Quantity}");
-            return Ok(new { message = "Item added to cart." });
+                AddItemResult.ProductNotFound => NotFound("Product not found."),
+                AddItemResult.InsufficientStock => Conflict("Not enough units in stock."),
+                _ => Ok(new { message = "Item added to cart." }),
+            };
         }
 
         // GET: api/carts/userId
@@ -85,17 +89,28 @@ namespace EShop.ShoppingCart.Controllers
         public async Task<IActionResult> GetCartByUserId(string userId)
         {
             var cart = await _repository.RetrieveCartByUserIdAsync(userId);
-            if (cart == null) return NotFound("Cart not found");
+            if (cart == null)
+            {
+                return NotFound("Cart not found");
+            }
+
             return Ok(cart);
         }
 
         // PUT: api/carts/userId/update/productId
         [HttpPut("{userId}/update/{productId}")]
-        public async Task<IActionResult> UpdateItemQuantity(string userId, int productId, [FromBody] int newQuantity)
+        public async Task<IActionResult> UpdateItemQuantity(
+            string userId,
+            int productId,
+            [FromBody] int newQuantity
+        )
         {
             System.Console.WriteLine(newQuantity);
             var result = await _repository.UpdateItemQuantityAsync(userId, productId, newQuantity);
-            if (!result) return BadRequest("Failed to update item quantity");
+            if (!result)
+            {
+                return BadRequest("Failed to update item quantity");
+            }
             // return Ok(new { message = "Item quantity updated." });
             return NoContent();
         }
@@ -105,7 +120,11 @@ namespace EShop.ShoppingCart.Controllers
         public async Task<IActionResult> RemoveItemFromCart(string userId, int productId)
         {
             var result = await _repository.RemoveItemFromCartAsync(userId, productId);
-            if (!result) return BadRequest("Failed to remove item from cart");
+            if (!result)
+            {
+                return BadRequest("Failed to remove item from cart");
+            }
+
             Console.WriteLine($"Delete item from cart by {userId}");
             return NoContent();
         }
@@ -115,7 +134,11 @@ namespace EShop.ShoppingCart.Controllers
         public async Task<IActionResult> ClearCart(string userId)
         {
             var result = await _repository.ClearCartAsync(userId);
-            if (!result) return BadRequest("Failed to clear cart");
+            if (!result)
+            {
+                return BadRequest("Failed to clear cart");
+            }
+
             return Ok();
         }
 

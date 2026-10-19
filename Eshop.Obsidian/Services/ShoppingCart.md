@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-16
+verified: 2026-10-19
 ---
 
 # ShoppingCart
@@ -16,7 +16,7 @@ REST API for shopping carts: one cart per user, items reference products.
 | --- | --- | --- |
 | POST | `/create` | Create a cart for a user |
 | GET | `/{userId}` | Get the cart with its items |
-| POST | `/{userId}/add` | Add a product; fails if `UnitsInStock` is too low |
+| POST | `/{userId}/add` | Add a product; creates the cart if the user has none. 404 unknown product, 409 not enough stock |
 | PUT | `/{userId}/update/{productId}` | Change item quantity |
 | DELETE | `/{userId}/remove/{productId}` | Remove an item |
 | DELETE | `/{userId}/clear` | Remove all items |
@@ -35,4 +35,4 @@ Shared DbContext (`EShopDbContext` in `EShop.Data`); reads `Products` to check s
 
 - No authentication: `userId` is taken from the client as-is.
 - Every action wraps its body in `try/catch` returning 500; EF entities are returned directly.
-- Adding an item fails with 400 when the user has no cart yet; the client never creates one ([#22](https://github.com/FobarWB/EShop/issues/22)).
+- Two concurrent first adds for the same user can both try to create a cart; the second fails on the unique `UserId` index (500).
