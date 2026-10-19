@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CartService } from '../../services/cart.service';
 import { ProductService } from '../../services/products.service';
 import { ICartItem } from '../../models/cart-item.model';
@@ -16,9 +16,9 @@ export interface ICartItemDTO
 
 @Component({
   selector: 'app-cart',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './cart.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './cart.component.css'
 })
 export class CartComponent implements OnInit

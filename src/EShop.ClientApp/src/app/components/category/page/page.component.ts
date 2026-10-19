@@ -1,4 +1,4 @@
-import { Component, TemplateRef, ViewChild, ViewContainerRef } from '@angular/core';
+import { Component, TemplateRef, ViewChild, ViewContainerRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, NgClass } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SideBarComponent } from '../side-bar/side-bar.component';
@@ -13,9 +13,9 @@ import { CartService } from '../../../services/cart.service';
 
 @Component({
   selector: 'app-category-page',
-  standalone: true,
   imports: [SideBarComponent, CommonModule, RouterModule, SpinnerComponent, NgClass],
   templateUrl: './page.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './page.component.css'
 })
 export class PageComponent

@@ -1,5 +1,4 @@
-import { Component } from '@angular/core';
-import { AsyncPipe, NgFor } from '@angular/common';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CategoryService } from '../../services/categories.service';
 import { ICategory } from '../../models/category.model';
 import { RouterModule } from '@angular/router';
@@ -10,9 +9,9 @@ import { SpinnerComponent } from "../spinner/spinner.component";
 
 @Component({
   selector: 'app-home',
-  standalone: true,
-  imports: [AsyncPipe, NgFor, RouterModule, DefaultImageDirective, SpinnerComponent],
+  imports: [RouterModule, DefaultImageDirective, SpinnerComponent],
   templateUrl: './home.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './home.component.css',
 })
 export class HomeComponent

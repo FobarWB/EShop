@@ -1,6 +1,7 @@
 <div class="py-5">
   <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-3">
-    <div class="col d-flex align-items-stretch" *ngFor="let c of categories">
+    @for (c of categories; track c.categoryId) {
+    <div class="col d-flex align-items-stretch">
       <div class="card shadow-sm w-100">
         <div class="card-img">
           <a
@@ -32,6 +33,7 @@
         </div>
       </div>
     </div>
+    }
 
     <div class="col d-flex align-items-stretch">
       <div class="card card-empty shadow-sm w-100">

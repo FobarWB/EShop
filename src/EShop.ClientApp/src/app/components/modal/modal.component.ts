@@ -1,12 +1,12 @@
 import { NgComponentOutlet } from '@angular/common';
-import { ChangeDetectorRef, Component, EventEmitter, Input, Output, Type, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, Output, Type, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { EditComponent } from '../category/edit/edit.component';
 
 @Component({
   selector: 'app-modal',
-  standalone: true,
   imports: [NgComponentOutlet],
   templateUrl: './modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './modal.component.css'
 })
 export class ModalComponent

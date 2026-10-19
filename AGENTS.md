@@ -13,7 +13,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ProductApi/` | Products REST API | https://localhost:5002 |
 | `src/EShop.CategoryApi/` | Categories REST API | https://localhost:5003 |
 | `src/EShop.ShoppingCart/` | Shopping cart REST API | https://localhost:5004 |
-| `src/EShop.ClientApp/` | Angular 18 SPA | http://localhost:4200 |
+| `src/EShop.ClientApp/` | Angular 22 SPA | http://localhost:4200 |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1` | — |
@@ -29,7 +29,6 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 GitHub is the source of truth for progress; do not copy task status into files.
 - Roadmap: `gh issue view 17`; open work: `gh issue list`; board: `gh project item-list 1 --owner FobarWB`.
 - What is merged: `git log --oneline master`.
-- Angular 18 is being replaced (see the roadmap); check the issue before assuming the current state.
 
 ## Environment
 
