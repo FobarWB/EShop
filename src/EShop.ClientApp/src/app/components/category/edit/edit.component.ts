@@ -1,4 +1,4 @@
-import { NgClass, NgIf } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
@@ -7,7 +7,7 @@ import { CategoryService } from '../../../services/categories.service';
 
 @Component({
   selector: 'app-edit',
-  imports: [ReactiveFormsModule, NgIf, NgClass],
+  imports: [ReactiveFormsModule, NgClass],
   templateUrl: './edit.component.html',
   styleUrl: './edit.component.css'
 })

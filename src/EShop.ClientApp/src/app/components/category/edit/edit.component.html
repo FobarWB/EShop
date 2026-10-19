@@ -7,15 +7,14 @@
       class="form-control"
       formControlName="categoryName"
     />
-    <div
-      *ngIf="
-        categoryForm.controls['categoryName'].invalid &&
-        categoryForm.controls['categoryName'].touched
-      "
-      class="text-danger"
-    >
+    @if (
+      categoryForm.controls['categoryName'].invalid &&
+      categoryForm.controls['categoryName'].touched
+    ) {
+    <div class="text-danger">
       Category Name is required and must be less than 15 characters
     </div>
+    }
   </div>
 
   <div class="mb-3">
@@ -32,9 +31,11 @@
     <input type="file" id="picture" class="form-control" />
   </div>
 
-  <div *ngIf="category">
+  @if (category) {
+  <div>
     <button type="button" (click)="delete()" class="btn btn-danger w-100">
       Delete
     </button>
   </div>
+  }
 </form>

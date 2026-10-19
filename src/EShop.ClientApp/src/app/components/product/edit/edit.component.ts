@@ -3,11 +3,10 @@ import { IProduct } from '../../../models/product.model';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
 import { ProductService } from '../../../services/products.service';
-import { NgIf } from '@angular/common';
 
 @Component({
   selector: 'app-edit',
-  imports: [ReactiveFormsModule, NgIf],
+  imports: [ReactiveFormsModule],
   templateUrl: './edit.component.html',
   styleUrl: './edit.component.css'
 })

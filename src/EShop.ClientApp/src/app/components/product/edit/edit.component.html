@@ -7,15 +7,14 @@
       class="form-control"
       formControlName="productName"
     />
-    <div
-      *ngIf="
-        productForm.controls['productName'].invalid &&
-        productForm.controls['productName'].touched
-      "
-      class="text-danger"
-    >
+    @if (
+      productForm.controls['productName'].invalid &&
+      productForm.controls['productName'].touched
+    ) {
+    <div class="text-danger">
       Product Name is required and must be less than 25 characters
     </div>
+    }
   </div>
 
   <div class="mb-3">
@@ -98,9 +97,11 @@
     <label class="form-check-label" for="discontinued"> Discontinued </label>
   </div>
 
-  <div *ngIf="product">
+  @if (product) {
+  <div>
     <button type="button" (click)="delete()" class="btn btn-danger w-100">
       Delete
     </button>
   </div>
+  }
 </form>
