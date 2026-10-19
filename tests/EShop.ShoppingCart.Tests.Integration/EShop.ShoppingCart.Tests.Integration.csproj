@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EShop.ShoppingCart\EShop.ShoppingCart.csproj" />
+  </ItemGroup>
+</Project>
