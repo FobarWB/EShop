@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-16
+verified: 2026-10-19
 ---
 
 # CategoryApi
@@ -23,6 +23,7 @@ REST API for product categories (CRUD).
 ## Data
 
 `Category` in the shared PostgreSQL database `eshop` (Northwind data).
+Reads go straight to PostgreSQL (no cache); a distributed cache is planned in #30.
 
 ## Dependencies
 
