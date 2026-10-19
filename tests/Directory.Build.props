@@ -1,16 +1,17 @@
 <Project>
   <!-- MSBuild stops at the nearest Directory.Build.props, so import the root one (net10.0, nullable) explicitly. -->
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
-  <PropertyGroup>
+  <!-- EShop.Tests.Common is a helper library, not a test project. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'EShop.Tests.Common'">
     <!-- xUnit v3 test projects are executables. -->
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'EShop.Tests.Common'">
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Shouldly" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'EShop.Tests.Common'">
     <Using Include="Xunit" />
     <Using Include="Shouldly" />
   </ItemGroup>
