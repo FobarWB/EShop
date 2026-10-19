@@ -96,5 +96,22 @@ public abstract class TestDatabase : IAsyncLifetime
         return product.ProductId;
     }
 
+    public async Task<T> SeedAsync<T>(T entity, CancellationToken cancellationToken)
+        where T : class
+    {
+        await using var db = CreateContext();
+        db.Add(entity);
+        await db.SaveChangesAsync(cancellationToken);
+        return entity;
+    }
+
+    // Reads on a fresh DbContext, so the result is what PostgreSQL stores.
+    public async Task<T?> FindAsync<T>(int id, CancellationToken cancellationToken)
+        where T : class
+    {
+        await using var db = CreateContext();
+        return await db.FindAsync<T>([id], cancellationToken);
+    }
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
