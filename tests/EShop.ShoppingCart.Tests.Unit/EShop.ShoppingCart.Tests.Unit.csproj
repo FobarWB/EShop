@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EShop.ShoppingCart\EShop.ShoppingCart.csproj" />
+  </ItemGroup>
+</Project>
