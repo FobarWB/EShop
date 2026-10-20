@@ -26,16 +26,6 @@ namespace EShop.ShoppingCart.Controllers
         {
             _logger.LogInformation("Received Cart Request: {@CartRequest}", cartRequest);
 
-            if (cartRequest == null)
-            {
-                return BadRequest("Cart request cannot be null.");
-            }
-
-            if (string.IsNullOrEmpty(cartRequest.UserId))
-            {
-                return BadRequest("UserId cannot be null or empty.");
-            }
-
             Cart cart = new Cart
             {
                 UserId = cartRequest.UserId,
@@ -62,7 +52,6 @@ namespace EShop.ShoppingCart.Controllers
 
         // POST: api/carts/userId/add
         [HttpPost("{userId}/add")]
-        //[ValidateAntiForgeryToken]
         public async Task<IActionResult> AddItemToCart(
             string userId,
             [FromBody] CartItem item,
@@ -70,7 +59,7 @@ namespace EShop.ShoppingCart.Controllers
         )
         {
             _logger.LogInformation("Received Cart Request: {@CartRequest}", item);
-            if (item == null || item.ProductId == 0 || item.Quantity <= 0)
+            if (item.ProductId == 0 || item.Quantity <= 0)
             {
                 return BadRequest("Invalid item data.");
             }
@@ -105,13 +94,11 @@ namespace EShop.ShoppingCart.Controllers
             [FromBody] int newQuantity
         )
         {
-            System.Console.WriteLine(newQuantity);
             var result = await _repository.UpdateItemQuantityAsync(userId, productId, newQuantity);
             if (!result)
             {
                 return BadRequest("Failed to update item quantity");
             }
-            // return Ok(new { message = "Item quantity updated." });
             return NoContent();
         }
 
@@ -125,7 +112,6 @@ namespace EShop.ShoppingCart.Controllers
                 return BadRequest("Failed to remove item from cart");
             }
 
-            Console.WriteLine($"Delete item from cart by {userId}");
             return NoContent();
         }
 

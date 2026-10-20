@@ -208,6 +208,32 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         deleted.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task UpdateItemQuantity_NoCart_ReturnsFalse()
+    {
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+
+        var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, productId, 2));
+
+        updated.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task RemoveItemFromCart_NoCart_ReturnsFalse()
+    {
+        var removed = await ActAsync(r => r.RemoveItemFromCartAsync(UserId, 999));
+
+        removed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ClearCart_NoCart_ReturnsFalse()
+    {
+        var cleared = await ActAsync(r => r.ClearCartAsync(UserId));
+
+        cleared.ShouldBeFalse();
+    }
+
     private static CartItem Item(int productId, int quantity) =>
         new() { ProductId = productId, Quantity = quantity };
 

@@ -24,15 +24,6 @@ public class ShoppingCartControllerTests
         );
     }
 
-    [Fact]
-    public async Task CreateCart_EmptyUserId_Returns400()
-    {
-        var result = await _controller.CreateCart(new Cart { UserId = "" });
-
-        StatusCodeOf(result).ShouldBe(400);
-        await _repository.DidNotReceiveWithAnyArgs().CreateCartAsync(default!);
-    }
-
     [Theory]
     [InlineData(true, 200)]
     [InlineData(false, 400)]

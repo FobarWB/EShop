@@ -54,11 +54,6 @@ namespace EShop.ProductApi.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> Create([FromBody] Product p)
         {
-            if (p is null)
-            {
-                return BadRequest(); // 400
-            }
-
             Product? addedProduct = await repository.CreateAsync(p);
 
             if (addedProduct is null)
@@ -67,7 +62,7 @@ namespace EShop.ProductApi.Controllers
             }
             else
             {
-                return CreatedAtRoute(  // 201
+                return CreatedAtRoute( // 201
                     routeName: nameof(GetProduct),
                     routeValues: new { id = addedProduct.ProductId },
                     value: addedProduct
@@ -83,7 +78,7 @@ namespace EShop.ProductApi.Controllers
         [ProducesResponseType(404)]
         public async Task<ActionResult> Update(int id, [FromBody] Product p)
         {
-            if (p is null || p.ProductId != id)
+            if (p.ProductId != id)
             {
                 return BadRequest(); // 400
             }
@@ -104,28 +99,15 @@ namespace EShop.ProductApi.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int id)
         {
-            if (!id.HasValue)
-            {
-                ProblemDetails problemDetails = new()
-                {
-                    Status = StatusCodes.Status400BadRequest,
-                    Type = "https://localhost:5002/products/failed-to-delete",
-                    Title = $"Product Id {id} found but failed to delete.",
-                    Detail = "More details like Company Name, Country and so on.",
-                    Instance = HttpContext.Request.Path
-                };
-                return BadRequest(problemDetails); // 400 Bad Request
-            }
-
-            Product? existing = await repository.RetrieveAsync(id.Value);
+            Product? existing = await repository.RetrieveAsync(id);
             if (existing == null)
             {
                 return NotFound(); // 404
             }
 
-            bool? deleted = await repository.DeleteAsync(id.Value);
+            bool? deleted = await repository.DeleteAsync(id);
 
             if (deleted.HasValue && deleted.Value)
             {
@@ -133,9 +115,7 @@ namespace EShop.ProductApi.Controllers
             }
             else
             {
-                return BadRequest(
-                    $"Product {id} was found but failed to delete"
-                ); // 400
+                return BadRequest($"Product {id} was found but failed to delete"); // 400
             }
         }
     }
