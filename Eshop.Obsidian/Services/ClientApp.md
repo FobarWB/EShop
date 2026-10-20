@@ -37,4 +37,3 @@ API base URLs are hardcoded in `src/app/services/*.service.ts`.
 ## Known issues
 
 - The cart uses the API when the user is "authenticated" and `localStorage` otherwise; the flag is currently always `true` ([#24](https://github.com/FobarWB/EShop/issues/24)).
-- The cart page does not refresh after removing an item or pressing `+`/`-` ([#26](https://github.com/FobarWB/EShop/issues/26)).

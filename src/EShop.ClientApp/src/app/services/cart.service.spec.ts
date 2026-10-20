@@ -138,9 +138,8 @@ describe('CartService', () =>
       expect(localStorage.getItem('cart')).toBeNull();
     });
 
-    // #24: the anonymous branches return of(), which completes without emitting,
-    // so a caller's next() callback (e.g. to refresh the page) never runs.
-    it.skip('emits after a change so callers can refresh', () =>
+    // Anonymous changes emit once, like the API calls, so callers can refresh.
+    it('emits after a change so callers can refresh', () =>
     {
       const next = vi.fn();
 

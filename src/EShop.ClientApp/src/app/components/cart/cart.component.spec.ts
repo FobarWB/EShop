@@ -99,8 +99,7 @@ describe('CartComponent', () =>
     expect(httpTesting.expectOne(`${cartUrl}/remove/7`).request.method).toBe('DELETE');
   });
 
-  // #26: the request succeeds, but the page keeps showing the old state until it is reloaded.
-  it.skip('"+" updates the quantity and totals on the page', () =>
+  it('"+" updates the quantity and totals on the page', () =>
   {
     loadCart(cart);
 
@@ -111,8 +110,7 @@ describe('CartComponent', () =>
     expect(text(fixture.nativeElement)).toContain('ITEMS 2 € 64'); // 18 × 3 + 10
   });
 
-  // #26
-  it.skip('"-" updates the quantity and totals on the page', () =>
+  it('"-" updates the quantity and totals on the page', () =>
   {
     loadCart(cart);
 
@@ -123,8 +121,7 @@ describe('CartComponent', () =>
     expect(text(fixture.nativeElement)).toContain('ITEMS 2 € 28'); // 18 × 1 + 10
   });
 
-  // #26
-  it.skip('removing an item removes it from the page', () =>
+  it('removing an item removes it from the page', () =>
   {
     loadCart(cart);
 
@@ -136,8 +133,7 @@ describe('CartComponent', () =>
     expect(text(fixture.nativeElement)).toContain('1 items');
   });
 
-  // #26: clearCurrentCart() reloads the whole page instead of updating it.
-  it.skip('clearing the cart empties the page without a reload', () =>
+  it('clearing the cart empties the page without a reload', () =>
   {
     loadCart(cart);
 
@@ -148,11 +144,68 @@ describe('CartComponent', () =>
     expect(itemRows()).toHaveLength(0);
   });
 
+  it('keeps the item and shows an error when removing fails', () =>
+  {
+    loadCart(cart);
+
+    removeButton(0).click();
+    httpTesting.expectOne(`${cartUrl}/remove/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(itemRows()).toHaveLength(2);
+    expect(errorAlert()?.textContent).toContain('Could not remove the item');
+  });
+
+  it('keeps the quantity and totals and shows an error when "+" fails', () =>
+  {
+    loadCart(cart);
+
+    plusButton(0).click();
+    httpTesting.expectOne(`${cartUrl}/update/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(text(fixture.nativeElement)).toContain('ITEMS 2 € 46');
+    expect(errorAlert()?.textContent).toContain('Could not change the quantity');
+  });
+
+  it('typing a quantity sends it, and a failed update restores the confirmed value', async () =>
+  {
+    loadCart(cart);
+    const input = quantityInput(0);
+
+    input.value = '5';
+    input.dispatchEvent(new Event('input'));   // ngModel updates cartItem.quantity
+    input.dispatchEvent(new Event('change'));  // (change) sends the request
+    const req = httpTesting.expectOne(`${cartUrl}/update/7`);
+    expect(req.request.body).toBe(5);
+    req.flush('Server error', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    await fixture.whenStable(); // ngModel writes the restored value to the input asynchronously
+
+    expect(input.value).toBe('2');
+    expect(text(fixture.nativeElement)).toContain('ITEMS 2 € 46');
+  });
+
+  it('clears a previous error after a successful change', () =>
+  {
+    loadCart(cart);
+    plusButton(0).click();
+    httpTesting.expectOne(`${cartUrl}/update/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    plusButton(0).click();
+    httpTesting.expectOne(`${cartUrl}/update/7`).flush(null);
+    fixture.detectChanges();
+
+    expect(errorAlert()).toBeNull();
+  });
+
   // Answers the requests the page makes on load: the cart, then each product and its category.
   function loadCart(value: ICart): void
   {
     fixture.detectChanges(); // runs ngOnInit
-    httpTesting.expectOne(cartUrl).flush(value);
+    // flush() hands over the same object and the component changes it, so every test gets its own copy.
+    httpTesting.expectOne(cartUrl).flush(structuredClone(value));
     httpTesting.expectOne(`${productsUrl}/7`).flush({ productId: 7, productName: 'Chai', unitPrice: 18, categoryId: 1 });
     httpTesting.expectOne(`${productsUrl}/9`).flush({ productId: 9, productName: 'Aniseed Syrup', unitPrice: 10, categoryId: 2 });
     httpTesting.expectOne(`${categoriesUrl}/1`).flush({ categoryId: 1, categoryName: 'Beverages' });
@@ -173,6 +226,16 @@ describe('CartComponent', () =>
   function plusButton(row: number): HTMLButtonElement
   {
     return itemRows()[row].querySelectorAll<HTMLButtonElement>('.cart-counter-button')[1];
+  }
+
+  function quantityInput(row: number): HTMLInputElement
+  {
+    return itemRows()[row].querySelector<HTMLInputElement>('.cart-counter-input')!;
+  }
+
+  function errorAlert(): HTMLElement | null
+  {
+    return fixture.nativeElement.querySelector('.alert-danger');
   }
 
   function removeButton(row: number): HTMLButtonElement

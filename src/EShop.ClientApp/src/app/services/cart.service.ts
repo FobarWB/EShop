@@ -71,10 +71,9 @@ export class CartService
       }
 
       this.saveCartToLocalStorage(cart);
-      return of();
+      return of(undefined);
     }
   }
-  // ToDo: autoUpdate page
   updateItemQuantity(productId: number, newQuantity: number): Observable<void>
   {
     if (this.isUserAuthenticated())
@@ -91,10 +90,9 @@ export class CartService
         item.quantity = newQuantity;
         this.saveCartToLocalStorage(cart);
       }
-      return of();
+      return of(undefined);
     }
   }
-  // ToDo: autoUpdate page
   removeItemFromCart(productId: number): Observable<void>
   {
     if (this.isUserAuthenticated()) 
@@ -107,10 +105,9 @@ export class CartService
       const cart = this.getCartFromLocalStorage();
       cart.cartItems = cart.cartItems.filter(i => i.productId !== productId);
       this.saveCartToLocalStorage(cart);
-      return of();
+      return of(undefined);
     }
   }
-  // ToDo: autoUpdate page
   clearCart(): Observable<void>
   {
     if (this.isUserAuthenticated())
@@ -120,7 +117,7 @@ export class CartService
     } else
     {
       localStorage.removeItem(this.localStorageKey);
-      return of();
+      return of(undefined);
     }
   }
 
