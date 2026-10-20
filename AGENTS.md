@@ -60,6 +60,7 @@ cd src/EShop.ClientApp; npm test                    # Angular unit tests (Vitest
 csharpier format <file>                             # format edited C# files
 ```
 
+CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`.
 Test rules: `.claude/rules/testing.md`. After a change, build and test the affected projects and report which checks actually ran.
 
 ## Database

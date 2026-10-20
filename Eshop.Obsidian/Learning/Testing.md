@@ -36,8 +36,9 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
   `@angular/build:unit-test`. Coverage: `Microsoft.Testing.Extensions.CodeCoverage` + ReportGenerator (`tests/coverage.ps1`).
 - Known bugs are tests with the correct expectation, skipped with the issue number; the fix enables them
   (done in #26, which also enabled the #24 test for the anonymous cart).
+- CI (`.github/workflows/ci.yml`, #10) runs `dotnet test` against a throwaway `postgres:18` service container and
+  `ng test` on every pull request and push to `master`. Coverage goes to the job summary and the `backend-test-results` artifact.
 
 ## Open questions
 
 - Move the test databases to Testcontainers in the Docker phase (one throwaway PostgreSQL container per run).
-- Run `dotnet test` and `npm test` in CI (#10), with a PostgreSQL service container.
