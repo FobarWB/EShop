@@ -33,6 +33,14 @@ API base URLs are hardcoded in `src/app/services/*.service.ts`.
 - `provideHttpClient(withXhr())` keeps the XHR backend; Angular 22 defaults to `fetch`.
 - The `initial` budget is raised to 1 MB warning / 1.5 MB error until the bundle is reduced ([#27](https://github.com/FobarWB/EShop/issues/27)).
 - Unit tests run on Vitest (`@angular/build:unit-test`, jsdom): `npm test`.
+- `tsconfig.json` is solution-style: it compiles nothing and references `tsconfig.app.json` and `tsconfig.spec.json`,
+  so editors use the spec config (Vitest types) for `*.spec.ts`. `rootDir` is `./src`: TypeScript 6 requires it with `outDir`.
+
+## Cart page
+
+The page changes its state only after the API confirms a change (remove, quantity, clear); it does not reload.
+A failed request keeps the confirmed state, restores the quantity input and shows an error message.
+In the anonymous (localStorage) mode `CartService` emits once after each change, like the API calls.
 
 ## Known issues
 
