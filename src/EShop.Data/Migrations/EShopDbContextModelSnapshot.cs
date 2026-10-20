@@ -505,7 +505,7 @@ namespace EShop.Data.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("unit_price");
 
-                    b.Property<short?>("UnitsInStock")
+                    b.Property<short>("UnitsInStock")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0)

@@ -152,7 +152,7 @@ export class PageComponent
     this.filteredProducts = this.products.filter(product =>
     {
       const meetsPriceCriteria = filters.priceRange ? product.unitPrice! >= filters.priceRange.min && product.unitPrice! <= filters.priceRange.max : true;
-      const meetsStockCriteria = filters.unitsInStock ? product.unitsInStock !== null && product.unitsInStock! > 0 : true;
+      const meetsStockCriteria = filters.unitsInStock ? product.unitsInStock > 0 : true;
       const meetsDiscountCriteria = filters.discounted ? product.discontinued === true : true;
 
       return meetsPriceCriteria && meetsStockCriteria && meetsDiscountCriteria;

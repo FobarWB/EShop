@@ -37,7 +37,7 @@ export class EditComponent
       categoryId: [null],
       quantityPerUnit: [''],
       unitPrice: [null],
-      unitsInStock: [null],
+      unitsInStock: [0, Validators.required],
       unitsOnOrder: [null],
       reorderLevel: [null],
       discontinued: [false]

@@ -75,6 +75,19 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AddItemToCart_OutOfStock_ReturnsInsufficientStockAndCreatesNoCart()
+    {
+        var productId = await _database.SeedProductAsync(0, _cancellationToken);
+
+        var result = await ActAsync(r =>
+            r.AddItemToCartAsync(UserId, Item(productId, 1), _cancellationToken)
+        );
+
+        result.ShouldBe(AddItemResult.InsufficientStock);
+        (await _database.LoadCartAsync(UserId, _cancellationToken)).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task AddItemToCart_QuantityInCartCountsTowardsStock()
     {
         var productId = await _database.SeedProductAsync(5, _cancellationToken);
@@ -129,6 +142,24 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         var productId = await SeedCartWithItemAsync(unitsInStock: 5, quantity: 1);
 
         var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, productId, 6));
+
+        updated.ShouldBeFalse();
+        (await _database.LoadCartAsync(UserId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CartItems.ShouldHaveSingleItem()
+            .Quantity.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task UpdateItemQuantity_OutOfStock_ReturnsFalseAndKeepsQuantity()
+    {
+        var productId = await _database.SeedProductAsync(0, _cancellationToken);
+        await _database.SeedAsync(
+            new Cart { UserId = UserId, CartItems = [Item(productId, 1)] },
+            _cancellationToken
+        );
+
+        var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, productId, 2));
 
         updated.ShouldBeFalse();
         (await _database.LoadCartAsync(UserId, _cancellationToken))

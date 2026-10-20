@@ -186,6 +186,46 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
+    public async Task Update_UnitsInStockNull_Returns400ValidationProblem()
+    {
+        // UnitsInStock is a non-nullable short (#31): null in JSON fails model binding.
+        var chai = await SeedProductAsync("Chai");
+
+        var response = await _client.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new
+            {
+                productId = chai.ProductId,
+                productName = "Chai",
+                unitsInStock = (short?)null,
+            },
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+    }
+
+    [Fact]
+    public async Task Update_WithoutUnitsInStock_StoresZero()
+    {
+        var chai = await _database.SeedAsync(
+            new Product { ProductName = "Chai", UnitsInStock = 39 },
+            _cancellationToken
+        );
+
+        await _client.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new { productId = chai.ProductId, productName = "Chai" },
+            _cancellationToken
+        );
+
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .UnitsInStock.ShouldBe((short)0);
+    }
+
+    [Fact]
     public async Task Delete_Existing_Returns204AndDeletesIt()
     {
         var chai = await SeedProductAsync("Chai");

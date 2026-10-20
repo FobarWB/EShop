@@ -24,6 +24,8 @@ REST API for products (CRUD).
 
 `Product` in the shared PostgreSQL database `eshop` (Northwind data), accessed through `IProductRepository`.
 Reads go straight to PostgreSQL (no cache); a distributed cache is planned in #30.
+`UnitsInStock` is required (`smallint NOT NULL DEFAULT 0`); a PUT with `"unitsInStock": null` returns 400,
+an omitted value is stored as 0 (#31).
 
 ## Dependencies
 
