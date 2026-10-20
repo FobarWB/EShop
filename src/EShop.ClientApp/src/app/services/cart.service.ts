@@ -32,7 +32,6 @@ export class CartService
     {
       const userId = this.getUserId();
       const url = `${this.apiUrl}/${userId}`;
-      console.log("Try to get velue from API:", url);
       return this.apiService.get<ICart>(url);
     }
     const cart = this.getCartFromLocalStorage();
@@ -56,7 +55,6 @@ export class CartService
     {
       const userId = this.getUserId();
       const item: Omit<ICartItem, 'cartId'> = { productId, quantity };  // Send only productId and quantity
-      console.log("Attempting to add item to cart:", `${this.apiUrl}/${userId}/add`, item);
       return this.apiService.post<void>(`${this.apiUrl}/${userId}/add`, item);
     }
     else
@@ -82,7 +80,6 @@ export class CartService
     if (this.isUserAuthenticated())
     {
       const userId = this.getUserId();
-      console.log("Try to update product by id:", `${this.apiUrl}/${userId}/update/${productId}`, newQuantity);
       return this.apiService.put<void>(`${this.apiUrl}/${userId}/update/${productId}`, newQuantity);
     }
     else
@@ -103,7 +100,6 @@ export class CartService
     if (this.isUserAuthenticated()) 
     {
       const userId = this.getUserId();
-      console.log("Try to delete item from cart:", `${this.apiUrl}/${userId}/remove/${productId}`);
       return this.apiService.delete<void>(`${this.apiUrl}/${userId}/remove/${productId}`);
     }
     else

@@ -22,8 +22,6 @@ namespace EShop.ShoppingCart.Repositories
 
         public async Task<Cart?> RetrieveCartByUserIdAsync(string userId)
         {
-            if (userId == null)
-                return null;
             return await db
                 .Carts.Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.UserId == userId);

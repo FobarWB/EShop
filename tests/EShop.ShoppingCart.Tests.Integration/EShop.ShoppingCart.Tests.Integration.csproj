@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EShop.ShoppingCart\EShop.ShoppingCart.csproj" />
+    <ProjectReference Include="..\EShop.Tests.Common\EShop.Tests.Common.csproj" />
+  </ItemGroup>
+</Project>

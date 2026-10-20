@@ -1,98 +1,49 @@
-using Microsoft.EntityFrameworkCore.ChangeTracking; // EntityEntry<T>
 using EShop.Data;
-using EShop.Data.Entities; // Product
-using System.Collections.Concurrent;
+using EShop.Data.Entities;
+using Microsoft.EntityFrameworkCore;
 
-namespace EShop.ProductApi.Repositories
+namespace EShop.ProductApi.Repositories;
+
+public class ProductRepository : IProductRepository
 {
-    public class ProductRepository : IProductRepository
+    private readonly EShopDbContext _db;
+
+    public ProductRepository(EShopDbContext db)
     {
-        private static ConcurrentDictionary<int, Product>? productCache;
-        
-        private EShopDbContext db;
+        _db = db;
+    }
 
-        public ProductRepository(EShopDbContext injectedContext)
+    public async Task<Product?> CreateAsync(Product p)
+    {
+        _db.Products.Add(p);
+        var affected = await _db.SaveChangesAsync();
+        return affected > 0 ? p : null;
+    }
+
+    public async Task<IEnumerable<Product>> RetrieveAllAsync() =>
+        await _db.Products.AsNoTracking().ToListAsync();
+
+    // Not tracked: the controller loads a product and then updates it with another instance
+    // of the same key, which would conflict with a tracked entity.
+    public Task<Product?> RetrieveAsync(int id) =>
+        _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == id);
+
+    public async Task<Product?> UpdateAsync(int id, Product p)
+    {
+        _db.Products.Update(p);
+        var affected = await _db.SaveChangesAsync();
+        return affected > 0 ? p : null;
+    }
+
+    public async Task<bool?> DeleteAsync(int id)
+    {
+        var p = await _db.Products.FindAsync(id);
+        if (p is null)
         {
-            db = injectedContext;
-            if (productCache is null)
-            {
-                productCache = new ConcurrentDictionary<int, Product>(
-                    db.Products.ToDictionary(p => p.ProductId));
-            }
-        }
-
-        public async Task<Product?> CreateAsync(Product p)
-        {
-            EntityEntry<Product> added = await db.Products.AddAsync(p);
-            int affected = await db.SaveChangesAsync();
-            if (affected > 0)
-            {
-                if (productCache is null) return p;
-
-                return productCache.AddOrUpdate(p.ProductId, p, UpdateCache);
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        public async Task<bool?> DeleteAsync(int id)
-        {
-            Product? p = db.Products.Find(id);
-            if (p is null) return null;
-            db.Products.Remove(p);
-            int affected = await db.SaveChangesAsync();
-            if (affected > 0)
-            {
-                if (productCache is null) return null;
-
-                return productCache.TryRemove(id, out p);
-            }
-            else
-            {
-                return null;
-            }
-        }
-        
-        public async Task<Product?> UpdateAsync(int id, Product p)
-        {
-            db.Products.Update(p);
-            int affected = await db.SaveChangesAsync();
-            if (affected > 0)
-            {
-                return UpdateCache(id, p);
-            }
             return null;
         }
 
-        public Task<IEnumerable<Product>> RetrieveAllAsync()
-        {
-            return Task.FromResult(productCache is null
-             ? Enumerable.Empty<Product>() : productCache.Values);
-        }
-
-        public Task<Product?> RetrieveAsync(int id)
-        {
-            if (productCache is null) return null!;
-            productCache.TryGetValue(id, out Product? p);
-            return Task.FromResult(p);
-        }
-
-        private Product UpdateCache(int id, Product p)
-        {
-            Product? old;
-            if (productCache is not null)
-            {
-                if (productCache.TryGetValue(id, out old))
-                {
-                    if(productCache.TryUpdate(id, p, old))
-                    {
-                        return p;
-                    }
-                }
-            }
-            return null!;
-        }
+        _db.Products.Remove(p);
+        return await _db.SaveChangesAsync() > 0;
     }
 }
