@@ -16,6 +16,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ClientApp/` | Angular 22 SPA | http://localhost:4200 |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
+| `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
@@ -37,6 +38,8 @@ GitHub is the source of truth for progress; do not copy task status into files.
   Node 24, npm 11; `gh` CLI; `csharpier`; `dotnet-ef`.
 - Package versions live only in `Directory.Packages.props` (central package management);
   `PackageReference` items have no `Version`. `nuget.config` restricts package sources to nuget.org.
+- Local .NET tools (ReportGenerator) are pinned in `dotnet-tools.json`: `dotnet tool restore`.
+- .NET tests run on Microsoft.Testing.Platform (`global.json`), not VSTest.
 - Database: PostgreSQL 18 installed locally (Windows service `postgresql-x64-18`; `psql` and other tools in
   `C:\Program Files\PostgreSQL\18\bin`, not on `PATH`; pgAdmin 4 is installed with it). Docker is not installed yet.
 - The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
@@ -51,10 +54,13 @@ dotnet build EShop.sln                              # whole solution
 dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart
                                                     # API reference (Development): https://localhost:<port>/scalar
 cd src/EShop.ClientApp; npm ci; npm start           # Angular dev server on :4200
+dotnet test                                         # all .NET tests; integration tests need the test database (below)
+powershell -ExecutionPolicy Bypass -File tests/coverage.ps1   # tests + coverage report in TestResults/coverage-report
+cd src/EShop.ClientApp; npm test                    # Angular unit tests (Vitest)
 csharpier format <file>                             # format edited C# files
 ```
 
-There are no automated tests yet (#9). After a change, build the affected projects and report which checks actually ran.
+Test rules: `.claude/rules/testing.md`. After a change, build and test the affected projects and report which checks actually ran.
 
 ## Database
 
@@ -78,6 +84,17 @@ dotnet ef database update --project src/EShop.Data --startup-project src/EShop.P
 - Model change → `dotnet ef migrations add <Name> --project src/EShop.Data --startup-project src/EShop.ProductApi`.
 - `db/northwind-data.sql` is generated from `archive/Northwind4SQLServer.sql`; do not edit it by hand:
   `powershell -ExecutionPolicy Bypass -File db/convert-northwind.ps1`.
+
+### Test databases
+
+Integration tests create and migrate their own databases, named `<EShopTests database>_<project>`
+(e.g. `eshop_test_shoppingcart`), and empty them before each test. Once, as `postgres`: `ALTER ROLE eshop CREATEDB;`
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:EShopTests" 'Host=localhost;Port=5432;Database=eshop_test;Username=eshop;Password=<password>' --project src/EShop.ProductApi
+```
+
+The database name must end with `_test`; the tests refuse any other database. CI can set `ConnectionStrings__EShopTests` instead.
 
 ## Approval rules
 

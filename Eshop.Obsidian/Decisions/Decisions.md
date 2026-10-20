@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-15
+verified: 2026-10-20
 ---
 
 # Decisions
@@ -11,3 +11,4 @@ Architecture decision records: the context, the decision and its consequences. N
 
 - [UsePostgreSql](UsePostgreSql.md): replace SQL Server with PostgreSQL.
 - [SeparateProductAndCategoryApis](SeparateProductAndCategoryApis.md): keep ProductApi and CategoryApi separate for now.
+- [TestAgainstRealPostgreSql](TestAgainstRealPostgreSql.md): integration tests use real PostgreSQL, one database per test project.

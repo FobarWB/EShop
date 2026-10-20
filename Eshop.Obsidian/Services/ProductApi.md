@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-19
+verified: 2026-10-20
 ---
 
 # ProductApi
@@ -29,6 +29,13 @@ Reads go straight to PostgreSQL (no cache); a distributed cache is planned in #3
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`). Called by [ClientApp](ClientApp.md).
 
+## Tests
+
+[Unit](../../tests/EShop.ProductApi.Tests.Unit/) (controller) and [integration](../../tests/EShop.ProductApi.Tests.Integration/)
+(API) tests; see [Testing](../Learning/Testing.md).
+
 ## Known issues
 
 - The list endpoint returns all products without paging.
+- Deleting a product that is still referenced (cart items, order details) returns 500 instead of 409 (#32).
+- EF entities are returned directly; filtering by category runs in memory (#33).

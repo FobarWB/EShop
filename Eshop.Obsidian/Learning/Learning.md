@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-16
+verified: 2026-10-20
 ---
 
 # Learning
@@ -11,6 +11,7 @@ Notes about technologies studied in this project. A topic note is created when t
 using `_templates/Topic.md`, and linked here.
 
 - [PostgreSql](PostgreSql.md): roles, identity and sequences, time types, naming, tooling (issue #14).
+- [Testing](Testing.md): test levels, fixtures, coverage, mutation checks (issue #9).
 
 ## Planned topics
 

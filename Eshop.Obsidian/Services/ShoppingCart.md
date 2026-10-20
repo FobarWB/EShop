@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-19
+verified: 2026-10-20
 ---
 
 # ShoppingCart
@@ -31,8 +31,14 @@ Deleting a cart deletes its items; deleting a product that is in a cart is restr
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`); reads `Products` to check stock.
 
+## Tests
+
+[Unit](../../tests/EShop.ShoppingCart.Tests.Unit/) (controller) and [integration](../../tests/EShop.ShoppingCart.Tests.Integration/)
+(repository and API) tests; see [Testing](../Learning/Testing.md).
+
 ## Known issues
 
 - No authentication: `userId` is taken from the client as-is.
-- Every action wraps its body in `try/catch` returning 500; EF entities are returned directly.
+- `CreateCart` wraps its body in `try/catch` returning 500; EF entities are returned directly (#33).
+- A product without `UnitsInStock` can be added in any quantity (#31).
 - Two concurrent first adds for the same user can both try to create a cart; the second fails on the unique `UserId` index (500).
