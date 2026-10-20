@@ -10,13 +10,16 @@
             {{ cartItems.length }} items
           </div>
           <div class="col text-end text-muted">
-            <button (click)="clearCurrentCart()" class="btn-trash">
+            <button (click)="clearCart()" class="btn-trash">
               <i class="bi bi-trash"></i>
             </button>
           </div>
         </div>
       </div>
-      @for (cartItem of cartItems; track $index) {
+      @if (errorMessage) {
+      <div class="alert alert-danger" role="alert">{{ errorMessage }}</div>
+      }
+      @for (cartItem of cartItems; track cartItem.productId) {
       <div class="row border-top border-bottom">
         <div class="row main align-items-center">
           <div class="col-2">
@@ -36,9 +39,7 @@
           </div>
           <div class="col">
             <button
-              (click)="
-                updateQuantity(cartItem.productId, cartItem.quantity - 1)
-              "
+              (click)="changeQuantity(cartItem, cartItem.quantity - 1)"
               [disabled]="cartItem.quantity <= 1"
               class="cart-counter-button"
             >
@@ -48,13 +49,11 @@
               type="number"
               class="cart-counter-input"
               [(ngModel)]="cartItem.quantity"
-              (change)="onQuantityChange(cartItem)"
+              (change)="changeQuantity(cartItem, cartItem.quantity)"
               min="1"
             />
             <button
-              (click)="
-                updateQuantity(cartItem.productId, cartItem.quantity + 1)
-              "
+              (click)="changeQuantity(cartItem, cartItem.quantity + 1)"
               class="cart-counter-button"
             >
               +
@@ -67,7 +66,7 @@
             <span class="close">&#10005;</span>
           </div>
           <button
-            (click)="deleteCurrentItem(cartItem)"
+            (click)="removeItem(cartItem)"
             type="button"
             class="btn-close"
             aria-label="Close"

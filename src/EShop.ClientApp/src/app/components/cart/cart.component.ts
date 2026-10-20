@@ -25,6 +25,9 @@ export class CartComponent implements OnInit
 {
   cartItems: ICartItem[] = [];
   cartItemsDTO: { [productId: number]: ICartItemDTO } = {};
+  protected errorMessage: string | null = null;
+  // Quantities the server has confirmed; the input's ngModel changes cartItem.quantity before the request.
+  private confirmedQuantities: { [productId: number]: number } = {};
 
   constructor(
     private cartService: CartService,
@@ -43,9 +46,11 @@ export class CartComponent implements OnInit
     this.cartService.getCartByUserId().subscribe(cart =>
     {
       this.cartItems = cart.cartItems;
+      this.confirmedQuantities = {};
       this.cartItemsDTO = {};
       this.cartItems.forEach(cartItem =>
       {
+        this.confirmedQuantities[cartItem.productId] = cartItem.quantity;
         this.cartItemsDTO[cartItem.productId] = {};
         this.productService.getProduct(cartItem.productId).subscribe(product =>
         {
@@ -93,42 +98,52 @@ export class CartComponent implements OnInit
     return sum;
   }
 
-  clearCurrentCart()
+  protected clearCart(): void
   {
-    this.cartService.clearCart().subscribe(() =>
-    {
-      this.loadCartItems();
+    this.cartService.clearCart().subscribe({
+      next: () =>
+      {
+        this.cartItems = [];
+        this.errorMessage = null;
+      },
+      error: () => this.errorMessage = 'Could not clear the cart. Please try again.'
     });
-    window.location.reload();
   }
 
-  deleteCurrentItem(cartItem: ICartItem)
+  protected removeItem(cartItem: ICartItem): void
   {
-    this.cartService.removeItemFromCart(cartItem.productId).subscribe();
-    // .subscribe(() =>
-    // {
-    //   this.loadCartItems();
-    // });
-    //window.location.reload();
+    this.cartService.removeItemFromCart(cartItem.productId).subscribe({
+      next: () =>
+      {
+        this.cartItems = this.cartItems.filter(i => i.productId !== cartItem.productId);
+        this.errorMessage = null;
+      },
+      error: () => this.errorMessage = 'Could not remove the item. Please try again.'
+    });
   }
 
-  updateQuantity(productId: number, newQuantity: number): void
+  protected changeQuantity(cartItem: ICartItem, newQuantity: number): void
   {
-    if (newQuantity < 1) return;
+    const confirmedQuantity = this.confirmedQuantities[cartItem.productId];
+    // Also rejects NaN from an emptied input.
+    if (!(newQuantity >= 1))
+    {
+      cartItem.quantity = confirmedQuantity;
+      return;
+    }
 
-    this.cartService.updateItemQuantity(productId, newQuantity).subscribe();
-    // .subscribe(() =>
-    // {
-    //   this.loadCartItems();
-    // });
-    //window.location.reload();
+    this.cartService.updateItemQuantity(cartItem.productId, newQuantity).subscribe({
+      next: () =>
+      {
+        cartItem.quantity = newQuantity;
+        this.confirmedQuantities[cartItem.productId] = newQuantity;
+        this.errorMessage = null;
+      },
+      error: () =>
+      {
+        cartItem.quantity = confirmedQuantity;
+        this.errorMessage = 'Could not change the quantity. Please try again.';
+      }
+    });
   }
-
-  onQuantityChange(cartItem: ICartItem): void
-  {
-    const newQuantity = cartItem.quantity < 1 ? 1 : cartItem.quantity;
-    this.updateQuantity(cartItem.productId, newQuantity);
-    //window.location.reload();
-  }
-
 }
