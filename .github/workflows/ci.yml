@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# A new push to the same PR cancels the run that is still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    # Throwaway PostgreSQL for the integration tests; the tests create and migrate their own databases.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: eshop
+          POSTGRES_PASSWORD: eshop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eshop"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ConnectionStrings__EShopTests: Host=localhost;Port=5432;Database=eshop_test;Username=eshop;Password=eshop
+      DOTNET_NOLOGO: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - run: dotnet restore EShop.sln
+      - run: dotnet build EShop.sln --no-restore
+      - run: dotnet test --no-build --coverage --coverage-output-format cobertura
+
+      - name: Coverage report
+        if: ${{ !cancelled() }}
+        run: |
+          dotnet tool restore
+          dotnet tool run reportgenerator \
+            "-reports:TestResults/*.cobertura.xml" \
+            "-targetdir:TestResults/coverage-report" \
+            "-reporttypes:Html;MarkdownSummaryGithub" \
+            "-assemblyfilters:+EShop.*;-EShop.*.Tests.*;-EShop.Tests.Common" \
+            "-classfilters:-EShop.Data.Migrations.*;-Microsoft.AspNetCore.OpenApi.Generated*;-System.Runtime.CompilerServices*"
+          cat TestResults/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v5
+        if: ${{ !cancelled() }}
+        with:
+          name: backend-test-results
+          path: TestResults/
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src/EShop.ClientApp
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/EShop.ClientApp/package-lock.json
+
+      - run: npm ci
+      - run: npx ng build
+      - run: npx ng test --watch=false
