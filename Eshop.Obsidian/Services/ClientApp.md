@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-19
+verified: 2026-10-20
 ---
 
 # ClientApp
@@ -32,7 +32,7 @@ API base URLs are hardcoded in `src/app/services/*.service.ts`.
   the pre-22 behavior): the code changes state inside `subscribe` and relies on it. New components default to `OnPush`.
 - `provideHttpClient(withXhr())` keeps the XHR backend; Angular 22 defaults to `fetch`.
 - The `initial` budget is raised to 1 MB warning / 1.5 MB error until the bundle is reduced ([#27](https://github.com/FobarWB/EShop/issues/27)).
-- Unit tests still run on Karma + Jasmine; the spec files are CLI-generated stubs ([#9](https://github.com/FobarWB/EShop/issues/9)).
+- Unit tests run on Vitest (`@angular/build:unit-test`, jsdom): `npm test`.
 
 ## Known issues
 
