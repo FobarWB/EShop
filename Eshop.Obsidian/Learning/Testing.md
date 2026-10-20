@@ -19,7 +19,7 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
   real HTTP through `TestServer`, real PostgreSQL).
 - **Frontend.** Services are tested against `HttpTestingController` (URL, method, body, error handling);
   components are rendered in jsdom and checked after user actions. "The request was sent" is not enough:
-  the cart bug #26 sends a correct request and still shows stale data.
+  the cart bug #26 sent a correct request and still showed stale data; only the "page updated" tests failed.
 - **Coverage shows what ran, not what was checked.** Its value is the list of uncovered lines: here it found dead
   code and an untested `UnitsInStock == null` branch (#31). Test quality is checked by breaking the code on purpose
   (mutation testing): restoring the old static cache failed 5 API tests, tracking in `RetrieveAsync` failed exactly 1.
@@ -34,7 +34,8 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
   separate databases; tests inside a project run sequentially.
 - xUnit v3 and Vitest run on their current platforms: Microsoft.Testing.Platform (`global.json`) and
   `@angular/build:unit-test`. Coverage: `Microsoft.Testing.Extensions.CodeCoverage` + ReportGenerator (`tests/coverage.ps1`).
-- Known bugs are tests with the correct expectation, skipped with the issue number (#24, #26).
+- Known bugs are tests with the correct expectation, skipped with the issue number; the fix enables them
+  (done in #26, which also enabled the #24 test for the anonymous cart).
 
 ## Open questions
 
