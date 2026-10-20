@@ -8,7 +8,7 @@ export interface IProduct
     categoryId: number | null;
     quantityPerUnit: string | null;
     unitPrice: number | null;
-    unitsInStock: number | null;
+    unitsInStock: number;
     unitsOnOrder: number | null;
     reorderLevel: number | null;
     discontinued: boolean;

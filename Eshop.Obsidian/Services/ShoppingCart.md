@@ -40,5 +40,4 @@ Shared DbContext (`EShopDbContext` in `EShop.Data`); reads `Products` to check s
 
 - No authentication: `userId` is taken from the client as-is.
 - `CreateCart` wraps its body in `try/catch` returning 500; EF entities are returned directly (#33).
-- A product without `UnitsInStock` can be added in any quantity (#31).
 - Two concurrent first adds for the same user can both try to create a cart; the second fails on the unique `UserId` index (500).
