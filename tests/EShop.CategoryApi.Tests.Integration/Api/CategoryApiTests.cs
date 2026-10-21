@@ -229,6 +229,22 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         ).ShouldNotBeNull();
     }
 
+    [Theory]
+    [InlineData("http://localhost:4200", true)]
+    [InlineData("https://evil.example", false)]
+    public async Task Preflight_AllowsOnlyConfiguredOrigin(string origin, bool allowed)
+    {
+        // Origins come from Cors:AllowedOrigins in appsettings.json.
+        using var request = new HttpRequestMessage(HttpMethod.Options, "api/categories");
+        request.Headers.Add("Origin", origin);
+        request.Headers.Add("Access-Control-Request-Method", "GET");
+
+        var response = await _client.SendAsync(request, _cancellationToken);
+
+        response.Headers.TryGetValues("Access-Control-Allow-Origin", out var values);
+        (values?.SingleOrDefault()).ShouldBe(allowed ? origin : null);
+    }
+
     private Task<Category> SeedCategoryAsync(string name) =>
         _database.SeedAsync(new Category { CategoryName = name }, _cancellationToken);
 

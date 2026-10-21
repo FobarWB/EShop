@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using EShop.Data.Entities;
 using EShop.ShoppingCart.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -91,7 +92,7 @@ namespace EShop.ShoppingCart.Controllers
         public async Task<IActionResult> UpdateItemQuantity(
             string userId,
             int productId,
-            [FromBody] int newQuantity
+            [FromBody, Range(1, int.MaxValue)] int newQuantity
         )
         {
             var result = await _repository.UpdateItemQuantityAsync(userId, productId, newQuantity);

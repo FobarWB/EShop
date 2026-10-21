@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EShop.Data;
-using EShop.ShoppingCart;
 using EShop.ShoppingCart.Repositories;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.HttpLogging;
@@ -10,10 +9,21 @@ using Microsoft.AspNetCore.Mvc.Formatters;
 using Scalar.AspNetCore;
 using static System.Console;
 
+const string ClientCorsPolicy = "Client";
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddCors();
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+    options.AddPolicy(
+        ClientCorsPolicy,
+        policy =>
+            policy
+                .WithOrigins(allowedOrigins)
+                .WithMethods("GET", "POST", "PUT", "DELETE")
+                .AllowAnyHeader()
+    )
+);
 
 builder.Services.AddEShopDbContext(builder.Configuration);
 
@@ -49,17 +59,6 @@ builder
     .AddXmlSerializerFormatters()
     .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
-// .ConfigureApiBehaviorOptions(options =>
-// {
-//     // Customize API behavior options here if needed
-//     options.SuppressModelStateInvalidFilter = false; // Example: suppress automatic 400 response
-// });
-// builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
-// builder.Services.AddControllersWithViews(options =>
-// {
-//    // options.Filters.Add(new ValidateAntiForgeryTokenAttribute());
-// });
-
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer(
@@ -74,9 +73,10 @@ builder.Services.AddOpenApi(options =>
 
 builder.Services.AddHttpLogging(options =>
 {
-    options.LoggingFields = HttpLoggingFields.All;
-    options.RequestBodyLogLimit = 4096; // default is 32k
-    options.ResponseBodyLogLimit = 4096; // default is 32k
+    options.LoggingFields =
+        HttpLoggingFields.RequestPropertiesAndHeaders
+        | HttpLoggingFields.ResponsePropertiesAndHeaders
+        | HttpLoggingFields.Duration;
 });
 
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
@@ -85,27 +85,15 @@ var app = builder.Build();
 
 app.UseHttpLogging();
 
-app.UseCors(configurePolicy: options =>
-{
-    options.WithMethods("GET", "POST", "PUT", "DELETE");
-    options.WithOrigins(
-        "http://localhost:4200" // Angular client
-    );
-    options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
-});
-
-app.UseCors("AllowSpecificOrigins");
+app.UseCors(ClientCorsPolicy);
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi(); // OpenAPI document: /openapi/v1.json
     app.MapScalarApiReference(); // interactive UI: /scalar
 }
-app.UseHttpLogging();
 
 app.UseHttpsRedirection();
-
-app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthorization();
 
