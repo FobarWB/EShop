@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using EShop.CategoryApi.Repositories;
 using EShop.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
@@ -98,26 +99,22 @@ namespace EShop.CategoryApi.Controllers
         // DELETE: api/categories/[id]
         [HttpDelete("{id}")]
         [ProducesResponseType(204)]
-        [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Delete(int id)
+        [ProducesResponseType(409)]
+        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
         {
-            Category? existing = await repository.RetrieveAsync(id);
-            if (existing is null)
+            var result = await repository.DeleteAsync(id, cancellationToken);
+            return result switch
             {
-                return NotFound();
-            }
-
-            bool? deleted = await repository.DeleteAsync(id);
-
-            if (deleted.HasValue && deleted.Value)
-            {
-                return NoContent();
-            }
-            else
-            {
-                return BadRequest($"Category {id} was found but failed to delete");
-            }
+                DeleteResult.Deleted => NoContent(),
+                DeleteResult.NotFound => NotFound(),
+                DeleteResult.InUse => Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Category is in use",
+                    detail: $"Category {id} still has products."
+                ),
+                _ => throw new UnreachableException(),
+            };
         }
     }
 }

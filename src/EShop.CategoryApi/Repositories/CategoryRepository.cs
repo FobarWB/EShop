@@ -35,15 +35,23 @@ public class CategoryRepository : ICategoryRepository
         return affected > 0 ? c : null;
     }
 
-    public async Task<bool?> DeleteAsync(int id)
+    public async Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var c = await _db.Categories.FindAsync(id);
+        var c = await _db.Categories.FindAsync([id], cancellationToken);
         if (c is null)
         {
-            return null;
+            return DeleteResult.NotFound;
+        }
+
+        // products reference categories without cascade: PostgreSQL would reject
+        // the DELETE (23503), so check first and let the controller return 409.
+        if (await _db.Products.AnyAsync(p => p.CategoryId == id, cancellationToken))
+        {
+            return DeleteResult.InUse;
         }
 
         _db.Categories.Remove(c);
-        return await _db.SaveChangesAsync() > 0;
+        await _db.SaveChangesAsync(cancellationToken);
+        return DeleteResult.Deleted;
     }
 }

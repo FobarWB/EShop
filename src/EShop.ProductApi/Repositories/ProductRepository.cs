@@ -35,15 +35,26 @@ public class ProductRepository : IProductRepository
         return affected > 0 ? p : null;
     }
 
-    public async Task<bool?> DeleteAsync(int id)
+    public async Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var p = await _db.Products.FindAsync(id);
+        var p = await _db.Products.FindAsync([id], cancellationToken);
         if (p is null)
         {
-            return null;
+            return DeleteResult.NotFound;
+        }
+
+        // cart_items and order_details reference products without cascade: PostgreSQL would reject
+        // the DELETE (23503), so check first and let the controller return 409.
+        var inUse =
+            await _db.CartItems.AnyAsync(i => i.ProductId == id, cancellationToken)
+            || await _db.OrderDetails.AnyAsync(d => d.ProductId == id, cancellationToken);
+        if (inUse)
+        {
+            return DeleteResult.InUse;
         }
 
         _db.Products.Remove(p);
-        return await _db.SaveChangesAsync() > 0;
+        await _db.SaveChangesAsync(cancellationToken);
+        return DeleteResult.Deleted;
     }
 }

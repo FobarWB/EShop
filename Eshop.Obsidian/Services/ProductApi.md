@@ -20,6 +20,8 @@ REST API for products (CRUD).
 | PUT | `/{id}` | Update a product |
 | DELETE | `/{id}` | Delete a product |
 
+DELETE returns 409 ProblemDetails while cart items or order details reference the product (#32).
+
 ## Data
 
 `Product` in the shared PostgreSQL database `eshop` (Northwind data), accessed through `IProductRepository`.
@@ -39,5 +41,5 @@ Shared DbContext (`EShopDbContext` in `EShop.Data`). Called by [ClientApp](Clien
 ## Known issues
 
 - The list endpoint returns all products without paging.
-- Deleting a product that is still referenced (cart items, order details) returns 500 instead of 409 (#32).
+- A product added to a cart between the reference check and the `DELETE` still fails with 500 (foreign key, race).
 - EF entities are returned directly; filtering by category runs in memory (#33).

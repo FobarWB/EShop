@@ -8,6 +8,6 @@ namespace EShop.CategoryApi.Repositories
         Task<IEnumerable<Category>> RetrieveAllAsync();
         Task<Category?> RetrieveAsync(int id);
         Task<Category?> UpdateAsync(int id, Category c);
-        Task<bool?> DeleteAsync(int id);
+        Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken);
     }
 }
