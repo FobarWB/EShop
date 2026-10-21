@@ -117,26 +117,15 @@ public class ProductApiControllerTests
         await _repository.Received(1).UpdateAsync(ProductId, product);
     }
 
-    [Fact]
-    public async Task Delete_Missing_Returns404()
-    {
-        _repository.RetrieveAsync(ProductId).Returns((Product?)null);
-
-        var result = await _controller.Delete(ProductId);
-
-        StatusCodeOf(result).ShouldBe(404);
-    }
-
     [Theory]
-    [InlineData(true, 204)]
-    [InlineData(false, 400)]
-    [InlineData(null, 400)]
-    public async Task Delete_Exists_MapsRepositoryResultToStatusCode(bool? deleted, int expected)
+    [InlineData(DeleteResult.Deleted, 204)]
+    [InlineData(DeleteResult.NotFound, 404)]
+    [InlineData(DeleteResult.InUse, 409)]
+    public async Task Delete_MapsRepositoryResultToStatusCode(DeleteResult deleted, int expected)
     {
-        _repository.RetrieveAsync(ProductId).Returns(Product(ProductId));
-        _repository.DeleteAsync(ProductId).Returns(deleted);
+        _repository.DeleteAsync(ProductId, Arg.Any<CancellationToken>()).Returns(deleted);
 
-        var result = await _controller.Delete(ProductId);
+        var result = await _controller.Delete(ProductId, TestContext.Current.CancellationToken);
 
         StatusCodeOf(result).ShouldBe(expected);
     }

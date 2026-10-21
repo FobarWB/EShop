@@ -20,6 +20,8 @@ REST API for product categories (CRUD).
 | PUT | `/{id}` | Update a category |
 | DELETE | `/{id}` | Delete a category |
 
+DELETE returns 409 ProblemDetails while products still belong to the category (#32).
+
 ## Data
 
 `Category` in the shared PostgreSQL database `eshop` (Northwind data).
@@ -37,7 +39,7 @@ Kept separate from ProductApi for now: see [SeparateProductAndCategoryApis](../D
 
 ## Known issues
 
-- Deleting a category that still has products returns 500 instead of 409 (#32).
+- A product added to a category between the reference check and the `DELETE` still fails with 500 (foreign key, race).
 - EF entities are returned directly; filtering by name runs in memory (#33).
 
 - The XML output formatter cannot serialize entities with navigation collections (`Category.Products`);

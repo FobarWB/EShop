@@ -247,6 +247,59 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task Delete_ProductInCart_Returns409AndKeepsProduct()
+    {
+        var chai = await SeedProductAsync("Chai");
+        await _database.SeedAsync(
+            new Cart
+            {
+                UserId = "user-1",
+                CartItems = [new CartItem { ProductId = chai.ProductId, Quantity = 1 }],
+            },
+            _cancellationToken
+        );
+
+        var response = await _client.DeleteAsync(
+            $"api/products/{chai.ProductId}",
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Delete_ProductInOrder_Returns409AndKeepsProduct()
+    {
+        var chai = await SeedProductAsync("Chai");
+        await _database.SeedAsync(
+            new Order
+            {
+                OrderDetails =
+                [
+                    new OrderDetail
+                    {
+                        ProductId = chai.ProductId,
+                        UnitPrice = 18,
+                        Quantity = 1,
+                    },
+                ],
+            },
+            _cancellationToken
+        );
+
+        var response = await _client.DeleteAsync(
+            $"api/products/{chai.ProductId}",
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+    }
+
     private Task<Product> SeedProductAsync(string name, int? categoryId = null) =>
         _database.SeedAsync(
             new Product { ProductName = name, CategoryId = categoryId },

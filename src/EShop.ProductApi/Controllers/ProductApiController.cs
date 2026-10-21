@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using EShop.Data.Entities;
 using EShop.ProductApi.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -97,26 +98,22 @@ namespace EShop.ProductApi.Controllers
         // DELETE: api/products/[id]
         [HttpDelete("{id}")]
         [ProducesResponseType(204)]
-        [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Delete(int id)
+        [ProducesResponseType(409)]
+        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
         {
-            Product? existing = await repository.RetrieveAsync(id);
-            if (existing == null)
+            var result = await repository.DeleteAsync(id, cancellationToken);
+            return result switch
             {
-                return NotFound(); // 404
-            }
-
-            bool? deleted = await repository.DeleteAsync(id);
-
-            if (deleted.HasValue && deleted.Value)
-            {
-                return new NoContentResult(); // 204
-            }
-            else
-            {
-                return BadRequest($"Product {id} was found but failed to delete"); // 400
-            }
+                DeleteResult.Deleted => NoContent(),
+                DeleteResult.NotFound => NotFound(),
+                DeleteResult.InUse => Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Product is in use",
+                    detail: $"Product {id} is referenced by cart items or order details."
+                ),
+                _ => throw new UnreachableException(),
+            };
         }
     }
 }

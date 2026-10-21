@@ -208,6 +208,27 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task Delete_CategoryWithProducts_Returns409AndKeepsCategory()
+    {
+        var beverages = await SeedCategoryAsync("Beverages");
+        await _database.SeedAsync(
+            new Product { ProductName = "Chai", CategoryId = beverages.CategoryId },
+            _cancellationToken
+        );
+
+        var response = await _client.DeleteAsync(
+            $"api/categories/{beverages.CategoryId}",
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (
+            await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken)
+        ).ShouldNotBeNull();
+    }
+
     private Task<Category> SeedCategoryAsync(string name) =>
         _database.SeedAsync(new Category { CategoryName = name }, _cancellationToken);
 
