@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-20
+verified: 2026-10-21
 issue: 14
 ---
 
@@ -37,8 +37,14 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 - **Literals.** `bytea` hex: `'\x0A1B…'`; booleans are `true`/`false` (an integer is not cast automatically);
   ISO dates `'1996-07-04'` do not depend on `DateStyle`.
 
+- **Backup and move.** `pg_dump -Fc` writes a compressed custom-format archive of one database (schema, data,
+  `__EFMigrationsHistory`); `pg_restore` loads it, can restore selected objects and run in parallel. Roles live outside
+  a database (they are cluster-wide), so they are not in the dump: create them first, restore with `--no-owner`.
+
 ## Applied in this project
 
+- PostgreSQL runs in Docker since #47 ([Docker](Docker.md)); the data of the former Windows service was moved with
+  `pg_dump -Fc` → `pg_restore`.
 - Schema from EF Core migrations, data from [db/northwind-data.sql](../../db/northwind-data.sql), loaded with `psql -f`.
   The script sets `\set ON_ERROR_STOP on`, `client_encoding = 'UTF8'` and runs in one transaction.
 - EF Core takes an advisory lock (`pg_advisory_lock`) while applying migrations, so parallel app instances do not
@@ -51,6 +57,6 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 
 ## Open questions
 
-- The database collation is the Windows locale `English_world.1251`; in Docker (Linux, ICU or `en_US.utf8`)
-  `ORDER BY` on text may differ.
+- The former Windows service used the collation `English_world.1251`; the container uses `en_US.utf8` (glibc),
+  as CI does. `ORDER BY` on text may differ from the old database; ICU collations would make it independent of the OS.
 - Northwind dates have no time part: `DateOnly` + `date` would be more precise than `DateTime` + `timestamp`.

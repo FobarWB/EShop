@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "EShop (Docker)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "eshop",
+      "Username": "eshop",
+      "SSLMode": "prefer"
+    }
+  }
+}
