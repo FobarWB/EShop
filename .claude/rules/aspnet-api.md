@@ -17,6 +17,8 @@ Layering: controller → repository → DbContext. Controllers contain no EF que
 - Errors: `AddProblemDetails()` + `UseExceptionHandler()`; actions do not wrap everything in `try/catch` or build 500 responses themselves.
 - Pass the action `CancellationToken` down to repositories.
 - Structured logging with message templates: `_logger.LogInformation("Cart {UserId} created", userId)`, never string interpolation.
+- Never log raw request or response bodies (passwords, tokens); `AddHttpLogging` without body fields.
 - Service-to-service HTTP uses `IHttpClientFactory`, never `new HttpClient()`.
 - Background work (hosted services, message consumers) never captures `HttpContext` or a request-scoped `DbContext`; create a scope with `IServiceScopeFactory`.
-- Ports and CORS origins are duplicated in the Angular services (see AGENTS.md); change both sides together.
+- Ports are duplicated in the Angular services (see AGENTS.md); change both sides together.
+- CORS: one named policy per API, origins from `Cors:AllowedOrigins` in configuration; never `AllowAnyOrigin()`.

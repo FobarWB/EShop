@@ -23,7 +23,8 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 
 - All APIs share one database through the common DbContext.
 - API ports are set by `applicationUrl` in each project's `Properties/launchSettings.json` and duplicated as `apiUrl`
-  in `src/EShop.ClientApp/src/app/services/*.service.ts`. Change both sides together; CORS allows `http://localhost:4200`.
+  in `src/EShop.ClientApp/src/app/services/*.service.ts`. Change both sides together.
+- CORS origins come from `Cors:AllowedOrigins` in each API's `appsettings.json` (`http://localhost:4200`).
 
 ### Project status
 

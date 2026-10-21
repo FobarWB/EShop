@@ -300,6 +300,22 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
     }
 
+    [Theory]
+    [InlineData("http://localhost:4200", true)]
+    [InlineData("https://evil.example", false)]
+    public async Task Preflight_AllowsOnlyConfiguredOrigin(string origin, bool allowed)
+    {
+        // Origins come from Cors:AllowedOrigins in appsettings.json.
+        using var request = new HttpRequestMessage(HttpMethod.Options, "api/products");
+        request.Headers.Add("Origin", origin);
+        request.Headers.Add("Access-Control-Request-Method", "GET");
+
+        var response = await _client.SendAsync(request, _cancellationToken);
+
+        response.Headers.TryGetValues("Access-Control-Allow-Origin", out var values);
+        (values?.SingleOrDefault()).ShouldBe(allowed ? origin : null);
+    }
+
     private Task<Product> SeedProductAsync(string name, int? categoryId = null) =>
         _database.SeedAsync(
             new Product { ProductName = name, CategoryId = categoryId },

@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using EShop.Data.Entities;
+using EShop.Tests.Common;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace EShop.ShoppingCart.Tests.Integration.Api;
 
@@ -12,12 +15,14 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     private const string ProblemJson = "application/problem+json";
 
     private readonly ShoppingCartDatabase _database;
+    private readonly ShoppingCartApiFactory _factory;
     private readonly HttpClient _client;
     private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
     public ShoppingCartApiTests(ShoppingCartDatabase database, ShoppingCartApiFactory factory)
     {
         _database = database;
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -217,6 +222,65 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var response = await _client.DeleteAsync($"api/carts/{UserId}", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task UpdateQuantity_NotPositive_Returns400AndKeepsQuantity(int newQuantity)
+    {
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        await AddItemAsync(productId, quantity: 1);
+
+        var response = await _client.PutAsJsonAsync(
+            $"api/carts/{UserId}/update/{productId}",
+            newQuantity,
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (await _database.LoadCartAsync(UserId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CartItems.ShouldHaveSingleItem()
+            .Quantity.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("http://localhost:4200", true)]
+    [InlineData("https://evil.example", false)]
+    public async Task Preflight_AllowsOnlyConfiguredOrigin(string origin, bool allowed)
+    {
+        // Origins come from Cors:AllowedOrigins in appsettings.json.
+        using var request = new HttpRequestMessage(HttpMethod.Options, $"api/carts/{UserId}");
+        request.Headers.Add("Origin", origin);
+        request.Headers.Add("Access-Control-Request-Method", "GET");
+
+        var response = await _client.SendAsync(request, _cancellationToken);
+
+        response.Headers.TryGetValues("Access-Control-Allow-Origin", out var values);
+        (values?.SingleOrDefault()).ShouldBe(allowed ? origin : null);
+    }
+
+    [Fact]
+    public async Task Request_BodyIsNotLogged()
+    {
+        // Request bodies will carry passwords and tokens (#41): they must never reach the logs.
+        // The marker is in a property the API ignores, so only a body logger could write it.
+        const string Marker = "body-marker-40";
+        var logs = new CapturingLoggerProvider();
+        using var client = _factory
+            .WithWebHostBuilder(builder => builder.ConfigureLogging(l => l.AddProvider(logs)))
+            .CreateClient();
+
+        await client.PostAsJsonAsync(
+            "api/carts/create",
+            new { userId = UserId, note = Marker },
+            _cancellationToken
+        );
+
+        logs.Messages.ShouldNotBeEmpty();
+        logs.Messages.ShouldNotContain(m => m.Contains(Marker));
     }
 
     private Task<HttpResponseMessage> AddItemAsync(int productId, int quantity) =>
