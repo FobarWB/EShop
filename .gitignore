@@ -232,3 +232,5 @@ _Pvt_Extensions
 
 # FAKE - F# Make
 .fake/
+# Docker Compose secrets (copy .env.example)
+.env

@@ -17,7 +17,8 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
-| `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1` | — |
+| `docker-compose.yml` | Local infrastructure: PostgreSQL 18 and pgAdmin (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050 |
+| `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 
@@ -41,8 +42,10 @@ GitHub is the source of truth for progress; do not copy task status into files.
   `PackageReference` items have no `Version`. `nuget.config` restricts package sources to nuget.org.
 - Local .NET tools (ReportGenerator) are pinned in `dotnet-tools.json`: `dotnet tool restore`.
 - .NET tests run on Microsoft.Testing.Platform (`global.json`), not VSTest.
-- Database: PostgreSQL 18 installed locally (Windows service `postgresql-x64-18`; `psql` and other tools in
-  `C:\Program Files\PostgreSQL\18\bin`, not on `PATH`; pgAdmin 4 is installed with it). Docker is not installed yet.
+- Docker Desktop (WSL2 backend), installed per user in `%LOCALAPPDATA%\Programs\DockerDesktop`.
+- Database: PostgreSQL 18 in Docker (`docker-compose.yml`, see Database). The Windows service `postgresql-x64-18`
+  is stopped (startup type Manual); its client tools (`psql`, `pg_dump`) in `C:\Program Files\PostgreSQL\18\bin`
+  (not on `PATH`) still work against the container.
 - The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
   (`UserSecretsId` `eshop`, shared by the three APIs); it is never committed.
 - Windows PowerShell may block `.ps1` scripts (execution policy): use `npm.cmd` or
@@ -50,7 +53,11 @@ GitHub is the source of truth for progress; do not copy task status into files.
 
 ## Commands
 
+The APIs and the integration tests need the database: start Docker Desktop and `docker compose up -d` first
+(the containers do not start on their own). Unit tests and Angular tests do not need it.
+
 ```powershell
+docker compose up -d                                # PostgreSQL + pgAdmin; docker compose stop when done
 dotnet build EShop.sln                              # whole solution
 dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart
                                                     # API reference (Development): https://localhost:<port>/scalar
@@ -69,20 +76,23 @@ Test rules: `.claude/rules/testing.md`. After a change, build and test the affec
 The schema is owned by EF Core migrations in `src/EShop.Data/Migrations`; Northwind data is loaded separately.
 `dotnet ef` needs `--startup-project`: the DbContext is configured in the API's `Program.cs`.
 
-First-time setup (role and database are created once as the `postgres` superuser in `psql`):
-
-```sql
-CREATE ROLE eshop LOGIN;
-\password eshop
-CREATE DATABASE eshop OWNER eshop ENCODING 'UTF8' TEMPLATE template0;
-```
+First-time setup (the first `docker compose up` creates the role `eshop` with `CREATEDB` and the database `eshop`,
+see `db/init/`):
 
 ```powershell
+Copy-Item .env.example .env          # set the passwords; ESHOP_DB_PASSWORD is the password of the role eshop
+docker compose up -d                 # PostgreSQL + pgAdmin; docker compose ps shows postgres as "healthy"
 dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
 dotnet ef database update --project src/EShop.Data --startup-project src/EShop.ProductApi
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U eshop -d eshop -f db/northwind-data.sql   # empty database only
+docker compose cp db/northwind-data.sql postgres:/tmp/northwind-data.sql                                   # empty database only
+docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-data.sql
 ```
 
+The data is loaded with the container's `psql` (no local PostgreSQL needed); copying the file avoids piping it through
+PowerShell 5.1, which would change the encoding of non-ASCII Northwind names.
+
+- `docker compose down` keeps the data (named volume `eshop_postgres-data`); `docker compose down -v` deletes it,
+  and the next `up` runs `db/init/` again.
 - Model change → `dotnet ef migrations add <Name> --project src/EShop.Data --startup-project src/EShop.ProductApi`.
 - `db/northwind-data.sql` is generated from `archive/Northwind4SQLServer.sql`; do not edit it by hand:
   `powershell -ExecutionPolicy Bypass -File db/convert-northwind.ps1`.
@@ -90,7 +100,7 @@ dotnet ef database update --project src/EShop.Data --startup-project src/EShop.P
 ### Test databases
 
 Integration tests create and migrate their own databases, named `<EShopTests database>_<project>`
-(e.g. `eshop_test_shoppingcart`), and empty them before each test. Once, as `postgres`: `ALTER ROLE eshop CREATEDB;`
+(e.g. `eshop_test_shoppingcart`), and empty them before each test; the role `eshop` has `CREATEDB` (`db/init/`).
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:EShopTests" 'Host=localhost;Port=5432;Database=eshop_test;Username=eshop;Password=<password>' --project src/EShop.ProductApi
