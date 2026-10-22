@@ -93,8 +93,6 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(); // interactive UI: /scalar
 }
 
-app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
 app.MapControllers();

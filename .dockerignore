@@ -1,0 +1,18 @@
+# Build context of docker build is the repository root: keep it small and never send secrets.
+.env
+.git/
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.angular/
+**/TestResults/
+**/*.user
+.vs/
+.vscode/
+.idea/
+.github/
+archive/
+db/
+tests/
+Eshop.Obsidian/
