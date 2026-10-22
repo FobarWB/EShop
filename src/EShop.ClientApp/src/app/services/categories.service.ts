@@ -9,7 +9,7 @@ import { CacheService } from './cache.service';
 })
 export class CategoryService
 {
-  private apiUrl = 'https://localhost:5003/api/categories';
+  private apiUrl = '/api/categories';
   public refreshRequired = new Subject<void>;
 
   constructor(

@@ -9,7 +9,7 @@ import { ICartItem } from '../models/cart-item.model';
 })
 export class CartService
 {
-  private apiUrl = 'https://localhost:5004/api/carts';
+  private apiUrl = '/api/carts';
   private localStorageKey = 'cart';
   private isAuthenticated = true;
 
