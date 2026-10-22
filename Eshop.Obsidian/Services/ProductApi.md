@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-20
+verified: 2026-10-22
 ---
 
 # ProductApi
@@ -9,6 +9,7 @@ REST API for products (CRUD).
 
 - Project: [EShop.ProductApi](../../src/EShop.ProductApi/)
 - Local URL: https://localhost:5002 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
+- Container: service `productapi`, through nginx at http://localhost:8080/api/products ([Dockerfile](../../src/EShop.ProductApi/Dockerfile))
 
 ## Endpoints (`api/products`)
 
@@ -32,6 +33,7 @@ an omitted value is stored as 0 (#31).
 ## Dependencies
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`). Called by [ClientApp](ClientApp.md).
+Startup project of the EF Core tools and of the migrations bundle: building the migrator runs its `Program.cs`.
 
 ## Tests
 

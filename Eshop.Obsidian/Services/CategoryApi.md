@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-20
+verified: 2026-10-22
 ---
 
 # CategoryApi
@@ -9,6 +9,7 @@ REST API for product categories (CRUD).
 
 - Project: [EShop.CategoryApi](../../src/EShop.CategoryApi/)
 - Local URL: https://localhost:5003 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
+- Container: service `categoryapi`, through nginx at http://localhost:8080/api/categories ([Dockerfile](../../src/EShop.CategoryApi/Dockerfile))
 
 ## Endpoints (`api/categories`)
 
