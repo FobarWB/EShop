@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-20
+verified: 2026-10-22
 ---
 
 # ShoppingCart
@@ -9,6 +9,7 @@ REST API for shopping carts: one cart per user, items reference products.
 
 - Project: [EShop.ShoppingCart](../../src/EShop.ShoppingCart/)
 - Local URL: https://localhost:5004 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
+- Container: service `shoppingcart`, through nginx at http://localhost:8080/api/carts ([Dockerfile](../../src/EShop.ShoppingCart/Dockerfile))
 
 ## Endpoints (`api/carts`)
 

@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-21
+verified: 2026-10-22
 ---
 
 # Services
@@ -22,5 +22,10 @@ Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 - Logging: HttpLogging writes request and response metadata only (method, path, status, headers with
   non-allowlisted ones redacted, duration), never bodies: bodies will carry passwords and tokens (#40).
   It is enabled by the log level in `appsettings.Development.json`.
+- Health: `GET /health` checks the database connection (200 Healthy, 503 Unhealthy); not logged by HttpLogging.
+- Containers: `src/EShop.<Service>/Dockerfile`, services of the compose profile `app` with `ASPNETCORE_ENVIRONMENT=Development`.
+  Inside the network the APIs listen on HTTP 8080 and are reachable from the host only through nginx
+  (http://localhost:8080/api/...); see [RelativeApiUrlsBehindProxy](../Decisions/RelativeApiUrlsBehindProxy.md).
+  No `UseHttpsRedirection()`: HTTPS ends at the entry point.
 
 The archived `Northwind.Mvc` lives in `archive/` and is not documented here.

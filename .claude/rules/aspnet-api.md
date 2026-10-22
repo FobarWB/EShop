@@ -20,5 +20,6 @@ Layering: controller → repository → DbContext. Controllers contain no EF que
 - Never log raw request or response bodies (passwords, tokens); `AddHttpLogging` without body fields.
 - Service-to-service HTTP uses `IHttpClientFactory`, never `new HttpClient()`.
 - Background work (hosted services, message consumers) never captures `HttpContext` or a request-scoped `DbContext`; create a scope with `IServiceScopeFactory`.
-- Ports are duplicated in the Angular services (see AGENTS.md); change both sides together.
+- API ports are duplicated in `src/EShop.ClientApp/proxy.conf.json` (see AGENTS.md); change both sides together.
+- Keep `MapHealthChecks("/health")`: the container health checks depend on it.
 - CORS: one named policy per API, origins from `Cors:AllowedOrigins` in configuration; never `AllowAnyOrigin()`.

@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 import { CartService } from './cart.service';
 import { ICart } from '../models/cart.model';
 
-const apiUrl = 'https://localhost:5004/api/carts';
+const apiUrl = '/api/carts';
 
 describe('CartService', () =>
 {

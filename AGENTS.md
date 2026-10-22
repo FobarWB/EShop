@@ -13,19 +13,25 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ProductApi/` | Products REST API | https://localhost:5002 |
 | `src/EShop.CategoryApi/` | Categories REST API | https://localhost:5003 |
 | `src/EShop.ShoppingCart/` | Shopping cart REST API | https://localhost:5004 |
-| `src/EShop.ClientApp/` | Angular 22 SPA | http://localhost:4200 |
-| `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`) | — |
+| `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
+| `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
-| `docker-compose.yml` | Local infrastructure: PostgreSQL 18 and pgAdmin (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050 |
+| `docker-compose.yml` | Local environment: PostgreSQL 18 and pgAdmin; with the profile `app` also the migrator, the three APIs and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050 |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 
 - All APIs share one database through the common DbContext.
-- API ports are set by `applicationUrl` in each project's `Properties/launchSettings.json` and duplicated as `apiUrl`
-  in `src/EShop.ClientApp/src/app/services/*.service.ts`. Change both sides together.
-- CORS origins come from `Cors:AllowedOrigins` in each API's `appsettings.json` (`http://localhost:4200`).
+- The Angular services call relative URLs (`/api/products`); the server that delivered the page forwards them:
+  `ng serve` through `src/EShop.ClientApp/proxy.conf.json`, the client container through `nginx.conf`.
+- API ports are set by `applicationUrl` in each project's `Properties/launchSettings.json` and duplicated
+  in `proxy.conf.json`. Change both sides together. A new route prefix (`/api/orders`) needs an entry in
+  `proxy.conf.json` and in `nginx.conf`.
+- In containers the APIs listen on HTTP port 8080 inside the compose network and are not published to the host:
+  only nginx (`client`) is. Each API maps `GET /health` (database connectivity) for the container health checks.
+- CORS origins come from `Cors:AllowedOrigins` in each API's `appsettings.json` (`http://localhost:4200`);
+  our client is same-origin through the proxies and does not need it.
 
 ### Project status
 
@@ -37,10 +43,11 @@ GitHub is the source of truth for progress; do not copy task status into files.
 
 - Windows 11, PowerShell 5.1 (no `&&`); Git Bash is also available.
 - .NET SDK 10 (pinned by `global.json`; `net10.0` is set for all projects in `Directory.Build.props`);
-  Node 24, npm 11; `gh` CLI; `csharpier`; `dotnet-ef`.
+  Node 24, npm 11; `gh` CLI; `csharpier`.
 - Package versions live only in `Directory.Packages.props` (central package management);
   `PackageReference` items have no `Version`. `nuget.config` restricts package sources to nuget.org.
-- Local .NET tools (ReportGenerator) are pinned in `dotnet-tools.json`: `dotnet tool restore`.
+- Local .NET tools (ReportGenerator, dotnet-ef) are pinned in `dotnet-tools.json`: `dotnet tool restore`.
+  The dotnet-ef version matches the EF Core packages; the migrator image restores it too.
 - .NET tests run on Microsoft.Testing.Platform (`global.json`), not VSTest.
 - Docker Desktop (WSL2 backend), installed per user in `%LOCALAPPDATA%\Programs\DockerDesktop`.
 - Database: PostgreSQL 18 in Docker (`docker-compose.yml`, see Database). The Windows service `postgresql-x64-18`
@@ -58,6 +65,8 @@ The APIs and the integration tests need the database: start Docker Desktop and `
 
 ```powershell
 docker compose up -d                                # PostgreSQL + pgAdmin; docker compose stop when done
+docker compose --profile app up -d --build --wait   # the whole shop in containers: http://localhost:8080
+docker compose --profile app down                   # stop the shop and the infrastructure (data stays)
 dotnet build EShop.sln                              # whole solution
 dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart
                                                     # API reference (Development): https://localhost:<port>/scalar
@@ -94,6 +103,9 @@ PowerShell 5.1, which would change the encoding of non-ASCII Northwind names.
 - `docker compose down` keeps the data (named volume `eshop_postgres-data`); `docker compose down -v` deletes it,
   and the next `up` runs `db/init/` again.
 - Model change → `dotnet ef migrations add <Name> --project src/EShop.Data --startup-project src/EShop.ProductApi`.
+- In the profile `app` the one-off service `migrator` (an EF Core migrations bundle, `src/EShop.Data/Dockerfile`)
+  applies pending migrations before the APIs start; it runs on every `up`. Migrations are compiled into its image:
+  after a new migration use `--build`. Northwind data is still loaded manually (above).
 - `db/northwind-data.sql` is generated from `archive/Northwind4SQLServer.sql`; do not edit it by hand:
   `powershell -ExecutionPolicy Bypass -File db/convert-northwind.ps1`.
 

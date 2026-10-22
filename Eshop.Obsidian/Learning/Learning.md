@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-21
+verified: 2026-10-22
 ---
 
 # Learning
@@ -12,7 +12,8 @@ using `_templates/Topic.md`, and linked here.
 
 - [PostgreSql](PostgreSql.md): roles, identity and sequences, time types, naming, tooling (issue #14).
 - [Testing](Testing.md): test levels, fixtures, coverage, mutation checks (issue #9).
-- [Docker](Docker.md): images, containers, volumes, ports, compose, init scripts (issue #47).
+- [Docker](Docker.md): images, containers, volumes, ports, compose, init scripts (#47); own images, multi-stage,
+  migrator, reverse proxy, health checks (#48).
 
 ## Planned topics
 

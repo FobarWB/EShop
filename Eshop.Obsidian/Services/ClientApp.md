@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-20
+verified: 2026-10-22
 ---
 
 # ClientApp
@@ -8,7 +8,7 @@ verified: 2026-10-20
 Angular 22 single-page application: catalog, product pages and the shopping cart.
 
 - Project: [EShop.ClientApp](../../src/EShop.ClientApp/)
-- Local URL: http://localhost:4200 (`npm start`)
+- Local URL: http://localhost:4200 (`npm start`); in containers http://localhost:8080 (service `client`)
 
 ## Routes
 
@@ -23,7 +23,10 @@ Angular 22 single-page application: catalog, product pages and the shopping cart
 ## Dependencies
 
 Calls [ProductApi](ProductApi.md), [CategoryApi](CategoryApi.md) and [ShoppingCart](ShoppingCart.md).
-API base URLs are hardcoded in `src/app/services/*.service.ts`.
+The services call relative URLs (`/api/products`, `/api/categories`, `/api/carts`): `ng serve` forwards them with
+[proxy.conf.json](../../src/EShop.ClientApp/proxy.conf.json) (`secure: false`: Node does not trust the Windows
+certificate store), nginx with [nginx.conf](../../src/EShop.ClientApp/nginx.conf).
+See [RelativeApiUrlsBehindProxy](../Decisions/RelativeApiUrlsBehindProxy.md).
 
 ## Build
 
@@ -33,6 +36,9 @@ API base URLs are hardcoded in `src/app/services/*.service.ts`.
 - `provideHttpClient(withXhr())` keeps the XHR backend; Angular 22 defaults to `fetch`.
 - The `initial` budget is raised to 1 MB warning / 1.5 MB error until the bundle is reduced ([#27](https://github.com/FobarWB/EShop/issues/27)).
 - Unit tests run on Vitest (`@angular/build:unit-test`, jsdom): `npm test`.
+- Docker image ([Dockerfile](../../src/EShop.ClientApp/Dockerfile)): built on `node:24-alpine` (`npm ci`, `npm run build`),
+  served by `nginxinc/nginx-unprivileged` on port 8080 from `dist/eshop.client-app/browser`; nginx falls back to
+  `index.html` for Angular routes.
 - `tsconfig.json` is solution-style: it compiles nothing and references `tsconfig.app.json` and `tsconfig.spec.json`,
   so editors use the spec config (Vitest types) for `*.spec.ts`. `rootDir` is `./src`: TypeScript 6 requires it with `outDir`.
 

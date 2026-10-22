@@ -28,6 +28,14 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     }
 
     [Fact]
+    public async Task GetHealth_DatabaseAvailable_ReturnsOk()
+    {
+        var response = await _client.GetAsync("health", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task GetCategories_ReturnsAllCategories()
     {
         await SeedCategoryAsync("Beverages");

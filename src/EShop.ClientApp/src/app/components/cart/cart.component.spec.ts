@@ -5,9 +5,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { CartComponent } from './cart.component';
 import { ICart } from '../../models/cart.model';
 
-const cartUrl = 'https://localhost:5004/api/carts/1';
-const productsUrl = 'https://localhost:5002/api/products';
-const categoriesUrl = 'https://localhost:5003/api/categories';
+const cartUrl = '/api/carts/1';
+const productsUrl = '/api/products';
+const categoriesUrl = '/api/categories';
 
 // Chai 18 € × 2 + Aniseed Syrup 10 € × 1 = 46 €; total with 5 € shipping = 51 €.
 const cart: ICart = {

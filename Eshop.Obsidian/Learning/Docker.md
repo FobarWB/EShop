@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-21
+verified: 2026-10-22
 issue: 47
 ---
 
@@ -50,15 +50,61 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
   strings in user-secrets did not change.
 - Moved the data of the Windows service: `pg_dump -Fc` (77 products, 830 orders, 1 cart) → `pg_restore --no-owner`;
   the pending migration from #31 was applied afterwards.
-- No restart policy on purpose: the containers run only when started (`docker compose up -d` before working on the
-  APIs or running integration tests). The launch configurations (`.vscode/launch.json`, `launchSettings.json`) did not
-  change: the APIs still connect to `localhost:5432`.
+- No restart policy for postgres and pgAdmin on purpose: they run only when started (`docker compose up -d` before
+  working on the APIs or running integration tests). The launch configurations (`.vscode/launch.json`,
+  `launchSettings.json`) did not change: the APIs still connect to `localhost:5432`.
 - Northwind data is loaded with the container's `psql` (`docker compose cp` + `exec psql -f`), so a new developer needs
   no local PostgreSQL.
 - Useful commands: `docker compose up -d`, `ps`, `logs -f postgres`, `stop`/`start`, `down`, `down -v`,
   `exec postgres psql -U eshop -d eshop`, `pull`.
 
+## Own images (#48)
+
+- **Dockerfile → image → container.** A Dockerfile is the recipe in Git; `docker build` makes a local image;
+  `docker run` / compose starts containers from it; `docker push` to a registry is for servers (#36).
+- **Multi-stage.** Build in a heavy image (`sdk:10.0`, `node:24`), copy only the result into a small runtime image
+  (`aspnet:10.0`, nginx). The SDK, sources and package caches never ship: API 354 MB, migrator 389 MB, client 125 MB.
+- **Layers and cache.** Each instruction is a cached layer, reused while its inputs do not change. Copy the project
+  files (`*.csproj`, `Directory.*.props`, `package*.json`) and restore first, the code later: a code change rebuilds
+  in seconds. The migrator starts with the same instructions as ProductApi and reuses its restore layers.
+- **Build context.** Everything `docker build` may `COPY`; ours is the repository root (projects reference each
+  other and the root props). `.dockerignore` keeps `bin/`, `obj/`, `node_modules/`, `.git/` and `.env` out of it.
+- **Non-root.** The .NET images have the user `app` (`USER $APP_UID`) and listen on 8080; `nginx-unprivileged`
+  runs as `nginx` on 8080. Ports below 1024 need root.
+- **One-off containers.** The migrator applies migrations and exits; the APIs wait for
+  `depends_on: condition: service_completed_successfully`, so they never run on an outdated schema. EF Core locks
+  `__EFMigrationsHistory` while applying, so parallel runs wait for each other. "Exited (0)" in Docker Desktop is
+  its normal state. The ▶ button reruns the old image: new migrations need `--build`.
+- **Migrations bundle.** `dotnet ef migrations bundle` compiles the migrations into `efbundle`. Building and running
+  it executes ProductApi's `Program.cs` up to `Build()` to get the DbContext, so the build needs a placeholder
+  connection string (`RUN VAR=value cmd` sets it for that command only; `ENV` would store it in the image).
+  The real one comes from the environment at run time.
+- **Profiles.** Services with `profiles: [app]` start only with `--profile app`; `docker compose up -d` still starts
+  only the infrastructure. Both modes share one postgres container and one database.
+- **Reverse proxy.** nginx serves the Angular files and forwards `/api/...` by prefix to the API containers; the SPA
+  fallback (`try_files ... /index.html`) returns `index.html` for client routes. With a plain host name in
+  `proxy_pass` nginx resolves it once at start: a recreated API with a new IP gives 502, and a missing API stops nginx.
+  A variable plus `resolver 127.0.0.11` (Docker DNS) resolves per request.
+- **TLS termination.** HTTPS ends at the entry point (nginx, a load balancer, an ingress), which holds the
+  certificate; inside the private network the services talk HTTP. The proxy passes the original scheme and client
+  address in `X-Forwarded-*` headers. Services encrypt internal traffic too only under stricter requirements
+  (zero trust, mTLS through a service mesh).
+- **Health checks.** `GET /health` (`AddDbContextCheck`) returns 200, or 503 when the database is unreachable.
+  The aspnet image has no `curl`/`wget` (smaller attack surface), so compose checks through bash `/dev/tcp`.
+  `--wait` blocks until everything is healthy. Compose only marks a container `unhealthy`; restarting it is
+  an orchestrator's job.
+- **Kerberos message.** Npgsql first tries GSSAPI encryption and logs "Cannot load library libgssapi_krb5.so.2":
+  the .NET 10 images do not include it. We do not use Kerberos: `GssEncryptionMode=Disable` in the connection string.
+- **SPA has no server of its own.** `ng serve` / Vite are development tools; in production a static server serves
+  the build. A Node server appears only with server-side rendering (Next.js, Angular SSR).
+
+Applied: `src/EShop.*/Dockerfile` (three APIs, `EShop.Data` = migrator, `EShop.ClientApp` = nginx), `.dockerignore`,
+services `migrator`, `productapi`, `categoryapi`, `shoppingcart`, `client` in [docker-compose.yml](../../docker-compose.yml)
+(`restart: unless-stopped` for the shop services). Manual cycle:
+`docker build -f src/EShop.ProductApi/Dockerfile -t eshop-productapi:dev .`, `docker history`, `docker run --network
+eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
+
 ## Open questions
 
 - Pin exact image versions (`postgres:18.x`) or follow the major tag; who updates them (Dependabot can).
-- Apply EF migrations automatically when the APIs run in compose (#48) or keep `dotnet ef database update` manual.
+- Separate roles: the migrator as the schema owner, the APIs with data rights only.
