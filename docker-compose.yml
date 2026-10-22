@@ -1,6 +1,20 @@
-# Local infrastructure for development: PostgreSQL and pgAdmin.
-# Start: docker compose up -d    Stop: docker compose down (data stays in the named volumes)
+# Local environment.
+#   docker compose up -d                          PostgreSQL and pgAdmin (run the APIs and the client from the IDE)
+#   docker compose --profile app up -d --build    the whole shop on http://localhost:8080
+#   docker compose --profile app down             stop everything (data stays in the named volumes)
 name: eshop
+
+# Shared settings of the API containers (YAML anchor, merged with <<: below).
+x-api: &api
+  profiles: [app]
+  environment:
+    ASPNETCORE_ENVIRONMENT: Development
+    # Host "postgres" is the service name on the compose network. GSSAPI is off: the .NET images have no Kerberos library.
+    ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+  depends_on:
+    migrator:
+      condition: service_completed_successfully
+  restart: unless-stopped
 
 services:
   postgres:
@@ -35,6 +49,50 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  # One-off: applies the EF Core migrations and exits; the APIs start only after it succeeds.
+  migrator:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: src/EShop.Data/Dockerfile
+    environment:
+      ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  productapi:
+    <<: *api
+    build:
+      context: .
+      dockerfile: src/EShop.ProductApi/Dockerfile
+
+  categoryapi:
+    <<: *api
+    build:
+      context: .
+      dockerfile: src/EShop.CategoryApi/Dockerfile
+
+  shoppingcart:
+    <<: *api
+    build:
+      context: .
+      dockerfile: src/EShop.ShoppingCart/Dockerfile
+
+  # nginx: the only shop service published to the host; it serves the client and proxies /api to the APIs.
+  client:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: src/EShop.ClientApp/Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - productapi
+      - categoryapi
+      - shoppingcart
+    restart: unless-stopped
 
 volumes:
   postgres-data:
