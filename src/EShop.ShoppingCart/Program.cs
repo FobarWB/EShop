@@ -26,6 +26,7 @@ builder.Services.AddCors(options =>
 );
 
 builder.Services.AddEShopDbContext(builder.Configuration);
+builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 
 builder
     .Services.AddControllers(options =>
@@ -96,5 +97,8 @@ if (app.Environment.IsDevelopment())
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Liveness and database connectivity for Docker and the proxy; health probes are not worth an HTTP log entry.
+app.MapHealthChecks("/health").WithHttpLogging(HttpLoggingFields.None);
 
 app.Run();

@@ -28,6 +28,14 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetHealth_DatabaseAvailable_ReturnsOk()
+    {
+        var response = await _client.GetAsync("health", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task GetProducts_ReturnsAllProducts()
     {
         await SeedProductAsync("Chai");
