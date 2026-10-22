@@ -104,6 +104,27 @@ services `migrator`, `productapi`, `categoryapi`, `shoppingcart`, `client` in [d
 `docker build -f src/EShop.ProductApi/Dockerfile -t eshop-productapi:dev .`, `docker history`, `docker run --network
 eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
 
+## Registry and CD (#36)
+
+- **CI checks the code, CD turns it into images.** The job `images` in `ci.yml` needs the test jobs, builds the five
+  images on every run (a broken Dockerfile fails the PR) and pushes them only from `master`. Nothing is built on a
+  server: every machine pulls the same image.
+- **Registry and tags.** ghcr.io stores the images next to the repository (Packages). `sha-<commit>` is immutable:
+  it tells exactly what runs and allows a rollback; `latest` moves with `master` and is for trying things out only.
+  Image names must be lowercase (`fobarwb`, not `FobarWB`).
+- **Least privilege.** The workflow keeps `contents: read`; only `images` gets `packages: write`. It logs in with
+  `GITHUB_TOKEN`, a token issued for one run, so no registry secret is stored anywhere.
+- **Cache on a fresh machine.** Every run starts without Docker's layer cache; `cache-to/cache-from: type=gha`
+  keep the layers in the GitHub Actions cache, one `scope` per image; `mode=max` also stores the build stage (restore).
+- **Concurrency.** Runs on a PR cancel each other; runs on `master` are never cancelled, so no merge loses its images.
+- **Continuous delivery, not deployment.** Every `master` commit becomes images ready to run; putting them on a
+  server (HTTPS, `Production`, own database and secrets, `UseForwardedHeaders`) is the next step.
+- **Private vs public packages.** New packages are private: pulling needs `docker login ghcr.io` with a
+  `read:packages` token. To publish one: Packages → the package → Package settings → Danger Zone → Change visibility
+  → Public, per package. **Irreversible**: a public package cannot become private again, only be deleted. Check the
+  layers (`docker history`) for secrets first. The repository itself is public, so private packages hide only the
+  ready-made images, not the code.
+
 ## Open questions
 
 - Pin exact image versions (`postgres:18.x`) or follow the major tag; who updates them (Dependabot can).

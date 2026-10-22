@@ -77,7 +77,11 @@ cd src/EShop.ClientApp; npm test                    # Angular unit tests (Vitest
 csharpier format <file>                             # format edited C# files
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`.
+CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`,
+then builds the five Docker images (job `images`); only on `master` it pushes them to ghcr.io as
+`ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|client|migrator>` with the tags `sha-<commit>` and `latest`.
+The packages are private: `docker login ghcr.io -u FobarWB` with a classic token that has `read:packages`,
+then `docker pull ghcr.io/fobarwb/eshop-productapi:latest`.
 Test rules: `.claude/rules/testing.md`. After a change, build and test the affected projects and report which checks actually ran.
 
 ## Database
