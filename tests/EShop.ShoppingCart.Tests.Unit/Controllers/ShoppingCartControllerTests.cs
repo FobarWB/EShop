@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using EShop.Data.Entities;
 using EShop.ShoppingCart.Controllers;
 using EShop.ShoppingCart.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,21 +23,19 @@ public class ShoppingCartControllerTests
         _controller = new ShoppingCartController(
             _repository,
             NullLogger<ShoppingCartController>.Instance
-        );
-    }
-
-    [Theory]
-    [InlineData(true, 200)]
-    [InlineData(false, 400)]
-    public async Task CreateCart_MapsRepositoryResultToStatusCode(bool created, int expected)
-    {
-        _repository
-            .CreateCartAsync(Arg.Any<Cart>())
-            .Returns(call => created ? call.Arg<Cart>() : null);
-
-        var result = await _controller.CreateCart(new Cart { UserId = UserId });
-
-        StatusCodeOf(result).ShouldBe(expected);
+        )
+        {
+            // The signed-in user: the controller takes the user id from the token's sub claim.
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(
+                        new ClaimsIdentity([new Claim("sub", UserId)], "Test")
+                    ),
+                },
+            },
+        };
     }
 
     [Theory]
@@ -52,7 +52,7 @@ public class ShoppingCartControllerTests
             .AddItemToCartAsync(UserId, item, Arg.Any<CancellationToken>())
             .Returns(repositoryResult);
 
-        var result = await _controller.AddItemToCart(UserId, item, CancellationToken.None);
+        var result = await _controller.AddItemToCart(item, CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
@@ -68,7 +68,7 @@ public class ShoppingCartControllerTests
     {
         var item = new CartItem { ProductId = productId, Quantity = quantity };
 
-        var result = await _controller.AddItemToCart(UserId, item, CancellationToken.None);
+        var result = await _controller.AddItemToCart(item, CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(400);
         await _repository
@@ -86,28 +86,28 @@ public class ShoppingCartControllerTests
         var item = new CartItem { ProductId = ProductId, Quantity = 1 };
         using var cts = new CancellationTokenSource();
 
-        await _controller.AddItemToCart(UserId, item, cts.Token);
+        await _controller.AddItemToCart(item, cts.Token);
 
         await _repository.Received(1).AddItemToCartAsync(UserId, item, cts.Token);
     }
 
     [Fact]
-    public async Task GetCartByUserId_CartMissing_Returns404()
+    public async Task GetCart_CartMissing_Returns404()
     {
         _repository.RetrieveCartByUserIdAsync(UserId).Returns((Cart?)null);
 
-        var result = await _controller.GetCartByUserId(UserId);
+        var result = await _controller.GetCart();
 
         StatusCodeOf(result).ShouldBe(404);
     }
 
     [Fact]
-    public async Task GetCartByUserId_CartExists_Returns200WithCart()
+    public async Task GetCart_CartExists_Returns200WithCart()
     {
         var cart = new Cart { UserId = UserId };
         _repository.RetrieveCartByUserIdAsync(UserId).Returns(cart);
 
-        var result = await _controller.GetCartByUserId(UserId);
+        var result = await _controller.GetCart();
 
         result.ShouldBeOfType<OkObjectResult>().Value.ShouldBe(cart);
     }
@@ -122,7 +122,7 @@ public class ShoppingCartControllerTests
     {
         _repository.UpdateItemQuantityAsync(UserId, ProductId, 3).Returns(updated);
 
-        var result = await _controller.UpdateItemQuantity(UserId, ProductId, 3);
+        var result = await _controller.UpdateItemQuantity(ProductId, 3);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
@@ -137,7 +137,7 @@ public class ShoppingCartControllerTests
     {
         _repository.RemoveItemFromCartAsync(UserId, ProductId).Returns(removed);
 
-        var result = await _controller.RemoveItemFromCart(UserId, ProductId);
+        var result = await _controller.RemoveItemFromCart(ProductId);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
@@ -149,7 +149,7 @@ public class ShoppingCartControllerTests
     {
         _repository.ClearCartAsync(UserId).Returns(cleared);
 
-        var result = await _controller.ClearCart(UserId);
+        var result = await _controller.ClearCart();
 
         StatusCodeOf(result).ShouldBe(expected);
     }
@@ -162,7 +162,7 @@ public class ShoppingCartControllerTests
     {
         _repository.DeleteCartAsync(UserId).Returns(deleted);
 
-        var result = await _controller.DeleteCart(UserId);
+        var result = await _controller.DeleteCart();
 
         StatusCodeOf(result).ShouldBe(expected);
     }

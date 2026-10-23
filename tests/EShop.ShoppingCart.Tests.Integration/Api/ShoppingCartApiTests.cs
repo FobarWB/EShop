@@ -23,7 +23,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     {
         _database = database;
         _factory = factory;
-        _client = factory.CreateClient();
+        _client = factory.CreateClient().AsUser(UserId);
     }
 
     public async ValueTask InitializeAsync() => await _database.ResetAsync(_cancellationToken);
@@ -40,33 +40,6 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var response = await _client.GetAsync("health", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    }
-
-    [Fact]
-    public async Task CreateCart_Returns200AndStoresCart()
-    {
-        var response = await _client.PostAsJsonAsync(
-            "api/carts/create",
-            new { userId = UserId },
-            _cancellationToken
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await _database.LoadCartAsync(UserId, _cancellationToken)).ShouldNotBeNull();
-    }
-
-    [Fact]
-    public async Task CreateCart_EmptyUserId_Returns400ValidationProblem()
-    {
-        // [Required] on Cart.UserId: [ApiController] rejects the request before the action runs.
-        var response = await _client.PostAsJsonAsync(
-            "api/carts/create",
-            new { userId = "" },
-            _cancellationToken
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
     }
 
     [Fact]
@@ -117,11 +90,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         // The action's own "item == null" check never runs: [ApiController] answers first.
         using var empty = new StringContent("", Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync(
-            $"api/carts/{UserId}/add",
-            empty,
-            _cancellationToken
-        );
+        var response = await _client.PostAsync("api/carts/me/items", empty, _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
@@ -133,7 +102,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 2);
 
-        var cart = await _client.GetFromJsonAsync<Cart>($"api/carts/{UserId}", _cancellationToken);
+        var cart = await _client.GetFromJsonAsync<Cart>("api/carts/me", _cancellationToken);
 
         cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem().ProductId.ShouldBe(productId);
     }
@@ -141,7 +110,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task GetCart_Unknown_Returns404()
     {
-        var response = await _client.GetAsync($"api/carts/{UserId}", _cancellationToken);
+        var response = await _client.GetAsync("api/carts/me", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -154,7 +123,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
 
         // The body is a bare JSON number: [FromBody] int newQuantity.
         var response = await _client.PutAsJsonAsync(
-            $"api/carts/{UserId}/update/{productId}",
+            $"api/carts/me/items/{productId}",
             4,
             _cancellationToken
         );
@@ -173,7 +142,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         await AddItemAsync(productId, quantity: 1);
 
         var response = await _client.PutAsJsonAsync(
-            $"api/carts/{UserId}/update/{productId}",
+            $"api/carts/me/items/{productId}",
             3,
             _cancellationToken
         );
@@ -188,7 +157,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         await AddItemAsync(productId, quantity: 1);
 
         var response = await _client.DeleteAsync(
-            $"api/carts/{UserId}/remove/{productId}",
+            $"api/carts/me/items/{productId}",
             _cancellationToken
         );
 
@@ -204,7 +173,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
-        var response = await _client.DeleteAsync($"api/carts/{UserId}/clear", _cancellationToken);
+        var response = await _client.DeleteAsync("api/carts/me/items", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await _database.LoadCartAsync(UserId, _cancellationToken))
@@ -218,7 +187,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
-        var response = await _client.DeleteAsync($"api/carts/{UserId}", _cancellationToken);
+        var response = await _client.DeleteAsync("api/carts/me", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await _database.LoadCartAsync(UserId, _cancellationToken)).ShouldBeNull();
@@ -227,7 +196,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task DeleteCart_Unknown_Returns404()
     {
-        var response = await _client.DeleteAsync($"api/carts/{UserId}", _cancellationToken);
+        var response = await _client.DeleteAsync("api/carts/me", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -241,7 +210,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         await AddItemAsync(productId, quantity: 1);
 
         var response = await _client.PutAsJsonAsync(
-            $"api/carts/{UserId}/update/{productId}",
+            $"api/carts/me/items/{productId}",
             newQuantity,
             _cancellationToken
         );
@@ -260,7 +229,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     public async Task Preflight_AllowsOnlyConfiguredOrigin(string origin, bool allowed)
     {
         // Origins come from Cors:AllowedOrigins in appsettings.json.
-        using var request = new HttpRequestMessage(HttpMethod.Options, $"api/carts/{UserId}");
+        using var request = new HttpRequestMessage(HttpMethod.Options, "api/carts/me");
         request.Headers.Add("Origin", origin);
         request.Headers.Add("Access-Control-Request-Method", "GET");
 
@@ -279,11 +248,17 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var logs = new CapturingLoggerProvider();
         using var client = _factory
             .WithWebHostBuilder(builder => builder.ConfigureLogging(l => l.AddProvider(logs)))
-            .CreateClient();
+            .CreateClient()
+            .AsUser(UserId);
 
         await client.PostAsJsonAsync(
-            "api/carts/create",
-            new { userId = UserId, note = Marker },
+            "api/carts/me/items",
+            new
+            {
+                productId = 1,
+                quantity = 1,
+                note = Marker,
+            },
             _cancellationToken
         );
 
@@ -291,9 +266,47 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         logs.Messages.ShouldNotContain(m => m.Contains(Marker));
     }
 
+    [Theory]
+    [InlineData("GET", "api/carts/me")]
+    [InlineData("POST", "api/carts/me/items")]
+    [InlineData("PUT", "api/carts/me/items/1")]
+    [InlineData("DELETE", "api/carts/me/items/1")]
+    [InlineData("DELETE", "api/carts/me/items")]
+    [InlineData("DELETE", "api/carts/me")]
+    public async Task CartEndpoints_Anonymous_Return401(string method, string url)
+    {
+        using var anonymous = _factory.CreateClient();
+
+        var response = await anonymous.SendAsync(
+            new HttpRequestMessage(new HttpMethod(method), url)
+            {
+                Content = JsonContent.Create(new { }),
+            },
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetCart_AnotherUser_SeesOnlyOwnCart()
+    {
+        // The user id comes from the token: user-2 cannot reach the cart of user-1 by any URL.
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        await AddItemAsync(productId, quantity: 2);
+        using var otherUser = _factory.CreateClient().AsUser("user-2");
+
+        var response = await otherUser.GetAsync("api/carts/me", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await _database.LoadCartAsync(UserId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CartItems.ShouldHaveSingleItem();
+    }
+
     private Task<HttpResponseMessage> AddItemAsync(int productId, int quantity) =>
         _client.PostAsJsonAsync(
-            $"api/carts/{UserId}/add",
+            "api/carts/me/items",
             new { productId, quantity },
             _cancellationToken
         );

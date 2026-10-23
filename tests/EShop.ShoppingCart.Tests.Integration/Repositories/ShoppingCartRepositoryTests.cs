@@ -105,12 +105,12 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateCart_SecondCartForSameUser_IsRejectedByUniqueIndex()
+    public async Task Cart_SecondCartForSameUser_IsRejectedByUniqueIndex()
     {
-        await ActAsync(r => r.CreateCartAsync(new Cart { UserId = UserId }));
+        await _database.SeedAsync(new Cart { UserId = UserId }, _cancellationToken);
 
         await Should.ThrowAsync<DbUpdateException>(
-            ActAsync(r => r.CreateCartAsync(new Cart { UserId = UserId }))
+            _database.SeedAsync(new Cart { UserId = UserId }, _cancellationToken)
         );
     }
 
