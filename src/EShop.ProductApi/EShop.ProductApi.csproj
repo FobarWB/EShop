@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
+    <ProjectReference Include="..\EShop.ServiceDefaults\EShop.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

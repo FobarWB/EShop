@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using EShop.Data.Entities;
+using EShop.Tests.Common;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace EShop.CategoryApi.Tests.Integration.Api;
 
@@ -10,13 +13,17 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     private const string ProblemJson = "application/problem+json";
 
     private readonly CategoryApiDatabase _database;
+    private readonly CategoryApiFactory _factory;
     private readonly HttpClient _client;
+    private readonly HttpClient _admin;
     private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
     public CategoryApiTests(CategoryApiDatabase database, CategoryApiFactory factory)
     {
         _database = database;
+        _factory = factory;
         _client = factory.CreateClient();
+        _admin = factory.CreateClient().AsAdmin();
     }
 
     public async ValueTask InitializeAsync() => await _database.ResetAsync(_cancellationToken);
@@ -24,6 +31,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     public ValueTask DisposeAsync()
     {
         _client.Dispose();
+        _admin.Dispose();
         return ValueTask.CompletedTask;
     }
 
@@ -101,7 +109,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     [Fact]
     public async Task Create_Returns201WithLocationAndStoresCategory()
     {
-        var response = await _client.PostAsJsonAsync(
+        var response = await _admin.PostAsJsonAsync(
             "api/categories",
             new { categoryName = "Beverages" },
             _cancellationToken
@@ -123,7 +131,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     public async Task Create_WithoutName_Returns400ValidationProblem()
     {
         // CategoryName is a non-nullable string, so MVC treats it as [Required].
-        var response = await _client.PostAsJsonAsync(
+        var response = await _admin.PostAsJsonAsync(
             "api/categories",
             new { description = "Soft drinks" },
             _cancellationToken
@@ -137,7 +145,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     public async Task Create_NameTooLong_Returns400ValidationProblem()
     {
         // [StringLength(15)] is checked by [ApiController] before PostgreSQL would reject varchar(15).
-        var response = await _client.PostAsJsonAsync(
+        var response = await _admin.PostAsJsonAsync(
             "api/categories",
             new { categoryName = new string('x', 16) },
             _cancellationToken
@@ -154,7 +162,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         // this only works because RetrieveAsync does not track the entity.
         var beverages = await SeedCategoryAsync("Beverages");
 
-        var response = await _client.PutAsJsonAsync(
+        var response = await _admin.PutAsJsonAsync(
             $"api/categories/{beverages.CategoryId}",
             new { categoryId = beverages.CategoryId, categoryName = "Drinks" },
             _cancellationToken
@@ -171,7 +179,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     {
         var beverages = await SeedCategoryAsync("Beverages");
 
-        var response = await _client.PutAsJsonAsync(
+        var response = await _admin.PutAsJsonAsync(
             $"api/categories/{beverages.CategoryId}",
             new { categoryId = beverages.CategoryId + 1, categoryName = "Drinks" },
             _cancellationToken
@@ -183,7 +191,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     [Fact]
     public async Task Update_Unknown_Returns404()
     {
-        var response = await _client.PutAsJsonAsync(
+        var response = await _admin.PutAsJsonAsync(
             "api/categories/999",
             new { categoryId = 999, categoryName = "Drinks" },
             _cancellationToken
@@ -197,7 +205,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     {
         var beverages = await SeedCategoryAsync("Beverages");
 
-        var response = await _client.DeleteAsync(
+        var response = await _admin.DeleteAsync(
             $"api/categories/{beverages.CategoryId}",
             _cancellationToken
         );
@@ -211,7 +219,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     [Fact]
     public async Task Delete_Unknown_Returns404()
     {
-        var response = await _client.DeleteAsync("api/categories/999", _cancellationToken);
+        var response = await _admin.DeleteAsync("api/categories/999", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -225,7 +233,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
             _cancellationToken
         );
 
-        var response = await _client.DeleteAsync(
+        var response = await _admin.DeleteAsync(
             $"api/categories/{beverages.CategoryId}",
             _cancellationToken
         );
@@ -235,6 +243,55 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         (
             await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken)
         ).ShouldNotBeNull();
+    }
+
+    [Theory]
+    [InlineData("POST", "api/categories")]
+    [InlineData("PUT", "api/categories/1")]
+    [InlineData("DELETE", "api/categories/1")]
+    public async Task WriteEndpoints_Anonymous_Return401(string method, string url)
+    {
+        var response = await SendJsonAsync(_client, method, url);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory]
+    [InlineData("POST", "api/categories")]
+    [InlineData("PUT", "api/categories/1")]
+    [InlineData("DELETE", "api/categories/1")]
+    public async Task WriteEndpoints_WithoutAdminRole_Return403(string method, string url)
+    {
+        using var user = _factory.CreateClient().AsUser("user-1");
+
+        var response = await SendJsonAsync(user, method, url);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task GetOpenApiDocument_Anonymous_Returns200()
+    {
+        var response = await _client.GetAsync("openapi/v1.json", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Request_AuthorizationHeaderIsNotLogged()
+    {
+        // HttpLogging writes request headers; a bearer token in the logs could be replayed by anyone who reads them.
+        const string Marker = "token-marker-41";
+        var logs = new CapturingLoggerProvider();
+        using var client = _factory
+            .WithWebHostBuilder(builder => builder.ConfigureLogging(l => l.AddProvider(logs)))
+            .CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", Marker);
+
+        await client.GetAsync("api/categories", _cancellationToken);
+
+        logs.Messages.ShouldContain(m => m.Contains("Authorization"));
+        logs.Messages.ShouldNotContain(m => m.Contains(Marker));
     }
 
     [Theory]
@@ -258,4 +315,13 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
 
     private async Task<List<Category>> GetCategoriesAsync(string url) =>
         (await _client.GetFromJsonAsync<List<Category>>(url, _cancellationToken)).ShouldNotBeNull();
+
+    private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>
+        client.SendAsync(
+            new HttpRequestMessage(new HttpMethod(method), url)
+            {
+                Content = JsonContent.Create(new { }),
+            },
+            _cancellationToken
+        );
 }

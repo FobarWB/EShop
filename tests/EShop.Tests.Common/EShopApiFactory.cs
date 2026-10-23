@@ -1,6 +1,8 @@
 using EShop.Data;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -26,6 +28,15 @@ public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
         builder.UseSetting(
             $"ConnectionStrings:{EShopDbContextExtensions.ConnectionStringName}",
             _database.ConnectionString
+        );
+        // Tests never reach Keycloak: the test scheme becomes the default one instead of JwtBearer.
+        builder.ConfigureTestServices(services =>
+            services
+                .AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                    TestAuthHandler.SchemeName,
+                    null
+                )
         );
     }
 
