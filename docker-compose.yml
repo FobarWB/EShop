@@ -13,9 +13,14 @@ x-api: &api
     ASPNETCORE_ENVIRONMENT: Development
     # Host "postgres" is the service name on the compose network. GSSAPI is off: the .NET images have no Kerberos library.
     ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+    # Tokens are issued for http://localhost:8180 (Authority in appsettings.json), but inside the network
+    # Keycloak is keycloak:8080: the signing keys are read through the internal address.
+    Authentication__MetadataAddress: http://keycloak:8080/realms/eshop/.well-known/openid-configuration
   depends_on:
     migrator:
       condition: service_completed_successfully
+    keycloak:
+      condition: service_healthy
   restart: unless-stopped
   healthcheck:
     # The aspnet image has no curl or wget: bash opens a TCP connection and sends a minimal HTTP request.
