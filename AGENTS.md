@@ -66,6 +66,8 @@ The APIs and the integration tests need the database: start Docker Desktop and `
 ```powershell
 docker compose up -d                                # PostgreSQL + pgAdmin; docker compose stop when done
 docker compose --profile app up -d --build --wait   # the whole shop in containers: http://localhost:8080
+                                                    # from CI images instead: ESHOP_TAG=latest (or sha-<commit>),
+                                                    # docker compose --profile app pull; up -d --no-build --wait
 docker compose --profile app down                   # stop the shop and the infrastructure (data stays)
 dotnet build EShop.sln                              # whole solution
 dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart
@@ -80,8 +82,7 @@ csharpier format <file>                             # format edited C# files
 CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`,
 then builds the five Docker images (job `images`); only on `master` it pushes them to ghcr.io as
 `ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|client|migrator>` with the tags `sha-<commit>` and `latest`.
-The packages are private: `docker login ghcr.io -u FobarWB` with a classic token that has `read:packages`,
-then `docker pull ghcr.io/fobarwb/eshop-productapi:latest`.
+The packages are public (they inherit the visibility of this public repository): `docker pull` needs no login.
 Test rules: `.claude/rules/testing.md`. After a change, build and test the affected projects and report which checks actually ran.
 
 ## Database

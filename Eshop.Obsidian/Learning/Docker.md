@@ -116,14 +116,20 @@ eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
   `GITHUB_TOKEN`, a token issued for one run, so no registry secret is stored anywhere.
 - **Cache on a fresh machine.** Every run starts without Docker's layer cache; `cache-to/cache-from: type=gha`
   keep the layers in the GitHub Actions cache, one `scope` per image; `mode=max` also stores the build stage (restore).
+- **Build or pull.** Every shop service in compose has both `build:` and
+  `image: ghcr.io/fobarwb/eshop-<name>:${ESHOP_TAG:-local}`. Local builds are tagged `:local`, so they never shadow
+  `latest` from the registry; `ESHOP_TAG=latest` or `sha-<commit>` with `pull` + `up --no-build` runs the CI images
+  (a server needs only the compose file, `db/`, its own `.env` and access to the packages). The explicit
+  `--build` / `--no-build` flags decide instead of compose.
 - **Concurrency.** Runs on a PR cancel each other; runs on `master` are never cancelled, so no merge loses its images.
 - **Continuous delivery, not deployment.** Every `master` commit becomes images ready to run; putting them on a
   server (HTTPS, `Production`, own database and secrets, `UseForwardedHeaders`) is the next step.
-- **Private vs public packages.** New packages are private: pulling needs `docker login ghcr.io` with a
-  `read:packages` token. To publish one: Packages → the package → Package settings → Danger Zone → Change visibility
-  → Public, per package. **Irreversible**: a public package cannot become private again, only be deleted. Check the
-  layers (`docker history`) for secrets first. The repository itself is public, so private packages hide only the
-  ready-made images, not the code.
+- **Package visibility.** Expected private (the ghcr default), but the packages published by this public repository's
+  workflow were public from the first push: anonymous `docker pull` and `tags/list` work (checked on 2026-10-23).
+  A public package cannot become private again, only be deleted. Nothing secret is inside: passwords come from `.env`
+  at run time, `.env` never enters the build context, and the code is public anyway. A private package needs
+  `docker login ghcr.io` with a classic token that has `read:packages`, and read access per person
+  (Package settings → Manage access).
 
 ## Open questions
 

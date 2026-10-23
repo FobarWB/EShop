@@ -1,7 +1,9 @@
 # Local environment.
 #   docker compose up -d                          PostgreSQL and pgAdmin (run the APIs and the client from the IDE)
 #   docker compose --profile app up -d --build    the whole shop on http://localhost:8080
-#   docker compose --profile app down             stop everything (data stays in the named volumes)
+#   ESHOP_TAG=latest (or sha-<commit>): docker compose --profile app pull, then up -d --no-build
+#                                                 runs the images published by CI instead of local builds
+#   docker compose --profile app down            stop everything (data stays in the named volumes)
 name: eshop
 
 # Shared settings of the API containers (YAML anchor, merged with <<: below).
@@ -60,6 +62,8 @@ services:
   # One-off: applies the EF Core migrations and exits; the APIs start only after it succeeds.
   migrator:
     profiles: [app]
+    # Local builds are tagged :local; ESHOP_TAG=latest or sha-<commit> selects the images published by CI.
+    image: ghcr.io/fobarwb/eshop-migrator:${ESHOP_TAG:-local}
     build:
       context: .
       dockerfile: src/EShop.Data/Dockerfile
@@ -71,18 +75,21 @@ services:
 
   productapi:
     <<: *api
+    image: ghcr.io/fobarwb/eshop-productapi:${ESHOP_TAG:-local}
     build:
       context: .
       dockerfile: src/EShop.ProductApi/Dockerfile
 
   categoryapi:
     <<: *api
+    image: ghcr.io/fobarwb/eshop-categoryapi:${ESHOP_TAG:-local}
     build:
       context: .
       dockerfile: src/EShop.CategoryApi/Dockerfile
 
   shoppingcart:
     <<: *api
+    image: ghcr.io/fobarwb/eshop-shoppingcart:${ESHOP_TAG:-local}
     build:
       context: .
       dockerfile: src/EShop.ShoppingCart/Dockerfile
@@ -90,6 +97,7 @@ services:
   # nginx: the only shop service published to the host; it serves the client and proxies /api to the APIs.
   client:
     profiles: [app]
+    image: ghcr.io/fobarwb/eshop-client:${ESHOP_TAG:-local}
     build:
       context: .
       dockerfile: src/EShop.ClientApp/Dockerfile
