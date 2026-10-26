@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using EShop.Data.Entities;
+using EShop.ProductApi.Dtos;
 using EShop.ProductApi.Repositories;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Authorization;
@@ -25,27 +25,24 @@ namespace EShop.ProductApi.Controllers
         // this will always return a list of products (but it might be empty)
         [HttpGet]
         [AllowAnonymous]
-        [ProducesResponseType(200, Type = typeof(IEnumerable<Product>))]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
+        [ProducesResponseType(200, Type = typeof(IEnumerable<ProductResponse>))]
+        public async Task<ActionResult<IEnumerable<ProductResponse>>> GetProducts(
             int? categoryId,
             CancellationToken cancellationToken
         )
         {
-            IEnumerable<Product> products = await repository.RetrieveAllAsync(
-                categoryId,
-                cancellationToken
-            );
+            var products = await repository.RetrieveAllAsync(categoryId, cancellationToken);
             return Ok(products);
         }
 
         // GET: api/products/[id]
         [HttpGet("{id}", Name = nameof(GetProduct))]
         [AllowAnonymous]
-        [ProducesResponseType(200, Type = typeof(Product))]
+        [ProducesResponseType(200, Type = typeof(ProductResponse))]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetProduct(int id, CancellationToken cancellationToken)
         {
-            Product? p = await repository.RetrieveAsync(id, cancellationToken);
+            var p = await repository.RetrieveAsync(id, cancellationToken);
             if (p is null)
             {
                 return NotFound();
@@ -54,57 +51,40 @@ namespace EShop.ProductApi.Controllers
         }
 
         // POST: api/products
-        // BODY: Product (JSON)
+        // BODY: ProductRequest (JSON)
         [HttpPost]
-        [ProducesResponseType(201, Type = typeof(Product))]
+        [ProducesResponseType(201, Type = typeof(ProductResponse))]
         [ProducesResponseType(400)]
         public async Task<IActionResult> Create(
-            [FromBody] Product p,
+            [FromBody] ProductRequest request,
             CancellationToken cancellationToken
         )
         {
-            Product? addedProduct = await repository.CreateAsync(p, cancellationToken);
-
-            if (addedProduct is null)
-            {
-                return BadRequest("Repository failed to create product");
-            }
-            else
-            {
-                return CreatedAtRoute( // 201
-                    routeName: nameof(GetProduct),
-                    routeValues: new { id = addedProduct.ProductId },
-                    value: addedProduct
-                );
-            }
+            var addedProduct = await repository.CreateAsync(request, cancellationToken);
+            return CreatedAtRoute( // 201
+                routeName: nameof(GetProduct),
+                routeValues: new { id = addedProduct.ProductId },
+                value: addedProduct
+            );
         }
 
         // PUT: api/products/[id]
-        // BODY: Product (JSON)
+        // BODY: ProductRequest (JSON); the id comes from the route only
         [HttpPut("{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         public async Task<ActionResult> Update(
             int id,
-            [FromBody] Product p,
+            [FromBody] ProductRequest request,
             CancellationToken cancellationToken
         )
         {
-            if (p.ProductId != id)
-            {
-                return BadRequest(); // 400
-            }
-
-            Product? existing = await repository.RetrieveAsync(id, cancellationToken);
-
-            if (existing is null)
+            if (!await repository.UpdateAsync(id, request, cancellationToken))
             {
                 return NotFound(); // 404
             }
-
-            await repository.UpdateAsync(id, p, cancellationToken);
-            return new NoContentResult(); //204
+            return NoContent(); // 204
         }
 
         // DELETE: api/products/[id]

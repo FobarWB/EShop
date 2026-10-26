@@ -1,16 +1,25 @@
-using EShop.Data.Entities; // Category
+using EShop.CategoryApi.Dtos;
 
 namespace EShop.CategoryApi.Repositories
 {
     public interface ICategoryRepository
     {
-        Task<Category?> CreateAsync(Category c, CancellationToken cancellationToken);
-        Task<IEnumerable<Category>> RetrieveAllAsync(
+        Task<CategoryResponse> CreateAsync(
+            CategoryRequest request,
+            CancellationToken cancellationToken
+        );
+        Task<IReadOnlyList<CategoryResponse>> RetrieveAllAsync(
             string? name,
             CancellationToken cancellationToken
         );
-        Task<Category?> RetrieveAsync(int id, CancellationToken cancellationToken);
-        Task<Category?> UpdateAsync(int id, Category c, CancellationToken cancellationToken);
+        Task<CategoryResponse?> RetrieveAsync(int id, CancellationToken cancellationToken);
+
+        // false: no category with this id.
+        Task<bool> UpdateAsync(
+            int id,
+            CategoryRequest request,
+            CancellationToken cancellationToken
+        );
         Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken);
     }
 }

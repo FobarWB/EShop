@@ -17,18 +17,13 @@
     }
   </div>
 
-  <div class="mb-3">
+  <div [class.mb-3]="category">
     <label class="form-label">Description</label>
     <textarea
       id="description"
       class="form-control"
       formControlName="description"
     ></textarea>
-  </div>
-
-  <div [ngClass]="{ 'mb-3': category }">
-    <label class="form-label">Picture</label>
-    <input type="file" id="picture" class="form-control" />
   </div>
 
   @if (category) {

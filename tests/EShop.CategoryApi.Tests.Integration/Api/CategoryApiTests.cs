@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using EShop.CategoryApi.Dtos;
 using EShop.Data;
 using EShop.Data.Entities;
 using EShop.Tests.Common;
@@ -105,7 +106,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     {
         var beverages = await SeedCategoryAsync("Beverages");
 
-        var category = await _client.GetFromJsonAsync<Category>(
+        var category = await _client.GetFromJsonAsync<CategoryResponse>(
             $"api/categories/{beverages.CategoryId}",
             _cancellationToken
         );
@@ -132,7 +133,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var created = (
-            await response.Content.ReadFromJsonAsync<Category>(_cancellationToken)
+            await response.Content.ReadFromJsonAsync<CategoryResponse>(_cancellationToken)
         ).ShouldNotBeNull();
         response
             .Headers.Location.ShouldNotBeNull()
@@ -173,8 +174,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     [Fact]
     public async Task Update_Existing_Returns204AndStoresChanges()
     {
-        // The controller loads the category before updating it with the request body:
-        // this only works because RetrieveAsync does not track the entity.
+        // Only the columns in the request change; the id comes from the route.
         var beverages = await SeedCategoryAsync("Beverages");
 
         var response = await _admin.PutAsJsonAsync(
@@ -190,8 +190,9 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     }
 
     [Fact]
-    public async Task Update_IdMismatch_Returns400()
+    public async Task Update_IdInBodyIsIgnored()
     {
+        // The id comes from the route only.
         var beverages = await SeedCategoryAsync("Beverages");
 
         var response = await _admin.PutAsJsonAsync(
@@ -200,7 +201,32 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
             _cancellationToken
         );
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CategoryName.ShouldBe("Drinks");
+    }
+
+    [Fact]
+    public async Task Update_KeepsPicture()
+    {
+        // The request has no picture: an update must not overwrite the stored one with NULL.
+        var beverages = await _database.SeedAsync(
+            new Category { CategoryName = "Beverages", Picture = [1, 2, 3] },
+            _cancellationToken
+        );
+
+        await _admin.PutAsJsonAsync(
+            $"api/categories/{beverages.CategoryId}",
+            new { categoryId = beverages.CategoryId, categoryName = "Drinks" },
+            _cancellationToken
+        );
+
+        var stored = (
+            await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken)
+        ).ShouldNotBeNull();
+        stored.CategoryName.ShouldBe("Drinks");
+        stored.Picture.ShouldBe([1, 2, 3]);
     }
 
     [Fact]
@@ -365,8 +391,10 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     private Task<Category> SeedCategoryAsync(string name) =>
         _database.SeedAsync(new Category { CategoryName = name }, _cancellationToken);
 
-    private async Task<List<Category>> GetCategoriesAsync(string url) =>
-        (await _client.GetFromJsonAsync<List<Category>>(url, _cancellationToken)).ShouldNotBeNull();
+    private async Task<List<CategoryResponse>> GetCategoriesAsync(string url) =>
+        (
+            await _client.GetFromJsonAsync<List<CategoryResponse>>(url, _cancellationToken)
+        ).ShouldNotBeNull();
 
     private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>
         client.SendAsync(

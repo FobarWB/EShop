@@ -1,11 +1,32 @@
+using System.Linq.Expressions;
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ProductApi.Dtos;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.ProductApi.Repositories;
 
 public class ProductRepository : IProductRepository
 {
+    // An expression, not a method: EF Core translates it to SQL and reads only these columns.
+    private static readonly Expression<Func<Product, ProductResponse>> ToResponse =
+        p => new ProductResponse(
+            p.ProductId,
+            p.ProductName,
+            p.SupplierId,
+            p.CategoryId,
+            p.QuantityPerUnit,
+            p.UnitPrice,
+            p.UnitsInStock,
+            p.UnitsOnOrder,
+            p.ReorderLevel,
+            p.Discontinued
+        );
+
+    // The same mapping for an entity already in memory (after Create).
+    private static readonly Func<Product, ProductResponse> ToResponseCompiled =
+        ToResponse.Compile();
+
     private readonly EShopDbContext _db;
 
     public ProductRepository(EShopDbContext db)
@@ -13,15 +34,20 @@ public class ProductRepository : IProductRepository
         _db = db;
     }
 
-    public async Task<Product?> CreateAsync(Product p, CancellationToken cancellationToken)
+    public async Task<ProductResponse> CreateAsync(
+        ProductRequest request,
+        CancellationToken cancellationToken
+    )
     {
-        _db.Products.Add(p);
-        var affected = await _db.SaveChangesAsync(cancellationToken);
-        return affected > 0 ? p : null;
+        var product = new Product();
+        Apply(request, product);
+        _db.Products.Add(product);
+        await _db.SaveChangesAsync(cancellationToken);
+        return ToResponseCompiled(product);
     }
 
     // categoryId null: all products.
-    public async Task<IEnumerable<Product>> RetrieveAllAsync(
+    public async Task<IReadOnlyList<ProductResponse>> RetrieveAllAsync(
         int? categoryId,
         CancellationToken cancellationToken
     )
@@ -31,19 +57,31 @@ public class ProductRepository : IProductRepository
         {
             query = query.Where(p => p.CategoryId == categoryId);
         }
-        return await query.ToListAsync(cancellationToken);
+        return await query.Select(ToResponse).ToListAsync(cancellationToken);
     }
 
-    // Not tracked: the controller loads a product and then updates it with another instance
-    // of the same key, which would conflict with a tracked entity.
-    public Task<Product?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
-        _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == id, cancellationToken);
+    public Task<ProductResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
+        _db
+            .Products.Where(p => p.ProductId == id)
+            .Select(ToResponse)
+            .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<Product?> UpdateAsync(int id, Product p, CancellationToken cancellationToken)
+    // Loads the tracked entity and copies the request onto it: SaveChanges updates only the changed columns.
+    public async Task<bool> UpdateAsync(
+        int id,
+        ProductRequest request,
+        CancellationToken cancellationToken
+    )
     {
-        _db.Products.Update(p);
-        var affected = await _db.SaveChangesAsync(cancellationToken);
-        return affected > 0 ? p : null;
+        var product = await _db.Products.FindAsync([id], cancellationToken);
+        if (product is null)
+        {
+            return false;
+        }
+
+        Apply(request, product);
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken)
@@ -67,5 +105,18 @@ public class ProductRepository : IProductRepository
         _db.Products.Remove(p);
         await _db.SaveChangesAsync(cancellationToken);
         return DeleteResult.Deleted;
+    }
+
+    private static void Apply(ProductRequest request, Product product)
+    {
+        product.ProductName = request.ProductName;
+        product.SupplierId = request.SupplierId;
+        product.CategoryId = request.CategoryId;
+        product.QuantityPerUnit = request.QuantityPerUnit;
+        product.UnitPrice = request.UnitPrice;
+        product.UnitsInStock = request.UnitsInStock;
+        product.UnitsOnOrder = request.UnitsOnOrder;
+        product.ReorderLevel = request.ReorderLevel;
+        product.Discontinued = request.Discontinued;
     }
 }

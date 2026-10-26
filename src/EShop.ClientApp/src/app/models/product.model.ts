@@ -1,5 +1,3 @@
-import { ICategory } from "./category.model";
-
 export interface IProduct
 {
     productId: number;
@@ -12,5 +10,4 @@ export interface IProduct
     unitsOnOrder: number | null;
     reorderLevel: number | null;
     discontinued: boolean;
-    category: ICategory | null;
 }

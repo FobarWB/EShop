@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ProductApi.Dtos;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -94,7 +96,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     {
         var chai = await SeedProductAsync("Chai");
 
-        var product = await _client.GetFromJsonAsync<Product>(
+        var product = await _client.GetFromJsonAsync<ProductResponse>(
             $"api/products/{chai.ProductId}",
             _cancellationToken
         );
@@ -121,7 +123,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var created = (
-            await response.Content.ReadFromJsonAsync<Product>(_cancellationToken)
+            await response.Content.ReadFromJsonAsync<ProductResponse>(_cancellationToken)
         ).ShouldNotBeNull();
         response
             .Headers.Location.ShouldNotBeNull()
@@ -162,8 +164,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     [Fact]
     public async Task Update_Existing_Returns204AndStoresChanges()
     {
-        // The controller loads the product before updating it with the request body:
-        // this only works because RetrieveAsync does not track the entity.
+        // Only the columns in the request change; the id comes from the route.
         var chai = await SeedProductAsync("Chai");
 
         var response = await _admin.PutAsJsonAsync(
@@ -179,20 +180,6 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Update_IdMismatch_Returns400()
-    {
-        var chai = await SeedProductAsync("Chai");
-
-        var response = await _admin.PutAsJsonAsync(
-            $"api/products/{chai.ProductId}",
-            new { productId = chai.ProductId + 1, productName = "Chai" },
-            _cancellationToken
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
     public async Task Update_Unknown_Returns404()
     {
         var response = await _admin.PutAsJsonAsync(
@@ -202,6 +189,45 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         );
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Update_IdInBodyIsIgnored()
+    {
+        // The id comes from the route only.
+        var chai = await SeedProductAsync("Chai");
+
+        var response = await _admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new { productId = chai.ProductId + 1, productName = "Chai Latte" },
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .ProductName.ShouldBe("Chai Latte");
+    }
+
+    [Fact]
+    public async Task Update_WithNestedCategory_DoesNotStoreIt()
+    {
+        // Overposting: the request body has no related data, so a client cannot insert rows through it.
+        var chai = await SeedProductAsync("Chai");
+
+        await _admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new
+            {
+                productId = chai.ProductId,
+                productName = "Chai",
+                category = new { categoryName = "Injected" },
+            },
+            _cancellationToken
+        );
+
+        await using var db = _database.CreateContext();
+        (await db.Categories.AnyAsync(_cancellationToken)).ShouldBeFalse();
     }
 
     [Fact]
@@ -429,8 +455,10 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             .CreateClient()
             .AsAdmin();
 
-    private async Task<List<Product>> GetProductsAsync(string url) =>
-        (await _client.GetFromJsonAsync<List<Product>>(url, _cancellationToken)).ShouldNotBeNull();
+    private async Task<List<ProductResponse>> GetProductsAsync(string url) =>
+        (
+            await _client.GetFromJsonAsync<List<ProductResponse>>(url, _cancellationToken)
+        ).ShouldNotBeNull();
 
     private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>
         client.SendAsync(

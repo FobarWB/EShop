@@ -1,6 +1,6 @@
 using System.Diagnostics;
+using EShop.CategoryApi.Dtos;
 using EShop.CategoryApi.Repositories;
-using EShop.Data.Entities;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,28 +25,25 @@ namespace EShop.CategoryApi.Controllers
         // this will always return a list of categories (but it might be empty)
         [HttpGet]
         [AllowAnonymous]
-        [ProducesResponseType(200, Type = typeof(IEnumerable<Category>))]
-        public async Task<ActionResult<IEnumerable<Category>>> GetCategories(
+        [ProducesResponseType(200, Type = typeof(IEnumerable<CategoryResponse>))]
+        public async Task<ActionResult<IEnumerable<CategoryResponse>>> GetCategories(
             string? categoryName,
             CancellationToken cancellationToken
         )
         {
             var name = string.IsNullOrWhiteSpace(categoryName) ? null : categoryName;
-            IEnumerable<Category> categories = await repository.RetrieveAllAsync(
-                name,
-                cancellationToken
-            );
+            var categories = await repository.RetrieveAllAsync(name, cancellationToken);
             return Ok(categories);
         }
 
         // GET: api/categories/[id]
         [HttpGet("{id}", Name = nameof(GetCategory))]
         [AllowAnonymous]
-        [ProducesResponseType(200, Type = typeof(Category))]
+        [ProducesResponseType(200, Type = typeof(CategoryResponse))]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetCategory(int id, CancellationToken cancellationToken)
         {
-            Category? c = await repository.RetrieveAsync(id, cancellationToken);
+            var c = await repository.RetrieveAsync(id, cancellationToken);
             if (c is null)
             {
                 return NotFound();
@@ -55,56 +52,39 @@ namespace EShop.CategoryApi.Controllers
         }
 
         // POST: api/categories
-        // BODY: Category (JSON)
+        // BODY: CategoryRequest (JSON)
         [HttpPost]
-        [ProducesResponseType(201, Type = typeof(Category))]
+        [ProducesResponseType(201, Type = typeof(CategoryResponse))]
         [ProducesResponseType(400)]
         public async Task<IActionResult> Create(
-            [FromBody] Category c,
+            [FromBody] CategoryRequest request,
             CancellationToken cancellationToken
         )
         {
-            Category? addedCategory = await repository.CreateAsync(c, cancellationToken);
-
-            if (addedCategory is null)
-            {
-                return BadRequest("Repository failed to create category");
-            }
-            else
-            {
-                return CreatedAtRoute(
-                    routeName: nameof(GetCategory),
-                    routeValues: new { id = addedCategory.CategoryId },
-                    value: addedCategory
-                );
-            }
+            var addedCategory = await repository.CreateAsync(request, cancellationToken);
+            return CreatedAtRoute(
+                routeName: nameof(GetCategory),
+                routeValues: new { id = addedCategory.CategoryId },
+                value: addedCategory
+            );
         }
 
         // PUT: api/categories/[id]
-        // BODY: Category (JSON)
+        // BODY: CategoryRequest (JSON); the id comes from the route only
         [HttpPut("{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Update(
             int id,
-            [FromBody] Category c,
+            [FromBody] CategoryRequest request,
             CancellationToken cancellationToken
         )
         {
-            if (c.CategoryId != id)
-            {
-                return BadRequest();
-            }
-
-            Category? existing = await repository.RetrieveAsync(id, cancellationToken);
-
-            if (existing is null)
+            if (!await repository.UpdateAsync(id, request, cancellationToken))
             {
                 return NotFound();
             }
-
-            await repository.UpdateAsync(id, c, cancellationToken);
             return NoContent();
         }
 

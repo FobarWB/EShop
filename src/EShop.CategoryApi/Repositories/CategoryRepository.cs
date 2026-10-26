@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using System.Text.RegularExpressions;
+using EShop.CategoryApi.Dtos;
 using EShop.Data;
 using EShop.Data.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,14 @@ namespace EShop.CategoryApi.Repositories;
 
 public class CategoryRepository : ICategoryRepository
 {
+    // An expression, not a method: EF Core translates it to SQL and never reads the picture column.
+    private static readonly Expression<Func<Category, CategoryResponse>> ToResponse =
+        c => new CategoryResponse(c.CategoryId, c.CategoryName, c.Description);
+
+    // The same mapping for an entity already in memory (after Create).
+    private static readonly Func<Category, CategoryResponse> ToResponseCompiled =
+        ToResponse.Compile();
+
     private readonly EShopDbContext _db;
 
     public CategoryRepository(EShopDbContext db)
@@ -14,15 +24,20 @@ public class CategoryRepository : ICategoryRepository
         _db = db;
     }
 
-    public async Task<Category?> CreateAsync(Category c, CancellationToken cancellationToken)
+    public async Task<CategoryResponse> CreateAsync(
+        CategoryRequest request,
+        CancellationToken cancellationToken
+    )
     {
-        _db.Categories.Add(c);
-        var affected = await _db.SaveChangesAsync(cancellationToken);
-        return affected > 0 ? c : null;
+        var category = new Category();
+        Apply(request, category);
+        _db.Categories.Add(category);
+        await _db.SaveChangesAsync(cancellationToken);
+        return ToResponseCompiled(category);
     }
 
     // name null: all categories; otherwise a case-insensitive "contains".
-    public async Task<IEnumerable<Category>> RetrieveAllAsync(
+    public async Task<IReadOnlyList<CategoryResponse>> RetrieveAllAsync(
         string? name,
         CancellationToken cancellationToken
     )
@@ -34,25 +49,32 @@ public class CategoryRepository : ICategoryRepository
             var pattern = $"%{Regex.Replace(name, @"[\\%_]", @"\$0")}%";
             query = query.Where(c => EF.Functions.ILike(c.CategoryName, pattern));
         }
-        return await query.ToListAsync(cancellationToken);
+        return await query.Select(ToResponse).ToListAsync(cancellationToken);
     }
 
-    // Not tracked: the controller loads a category and then updates it with another instance
-    // of the same key, which would conflict with a tracked entity.
-    public Task<Category?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
+    public Task<CategoryResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
         _db
-            .Categories.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.CategoryId == id, cancellationToken);
+            .Categories.Where(c => c.CategoryId == id)
+            .Select(ToResponse)
+            .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<Category?> UpdateAsync(
+    // Loads the tracked entity and copies the request onto it: SaveChanges updates only the changed
+    // columns, so the stored picture stays.
+    public async Task<bool> UpdateAsync(
         int id,
-        Category c,
+        CategoryRequest request,
         CancellationToken cancellationToken
     )
     {
-        _db.Categories.Update(c);
-        var affected = await _db.SaveChangesAsync(cancellationToken);
-        return affected > 0 ? c : null;
+        var category = await _db.Categories.FindAsync([id], cancellationToken);
+        if (category is null)
+        {
+            return false;
+        }
+
+        Apply(request, category);
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken)
@@ -73,5 +95,11 @@ public class CategoryRepository : ICategoryRepository
         _db.Categories.Remove(c);
         await _db.SaveChangesAsync(cancellationToken);
         return DeleteResult.Deleted;
+    }
+
+    private static void Apply(CategoryRequest request, Category category)
+    {
+        category.CategoryName = request.CategoryName;
+        category.Description = request.Description;
     }
 }

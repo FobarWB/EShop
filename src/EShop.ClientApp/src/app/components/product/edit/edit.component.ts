@@ -52,7 +52,6 @@ export class EditComponent
   update()
   {
     const product = {
-      productId: this.product.productId,
       productName: this.productForm.get('productName')?.value,
       supplierId: this.productForm.get('supplierId')?.value,
       categoryId: this.productForm.get('categoryId')?.value,

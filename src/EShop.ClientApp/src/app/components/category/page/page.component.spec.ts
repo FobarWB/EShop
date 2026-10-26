@@ -65,11 +65,11 @@ describe('Category PageComponent', () =>
   {
     await harness.navigateByUrl('/Beverages/c1', PageComponent);
     httpTesting.expectOne('/api/categories/1')
-      .flush({ categoryId: 1, categoryName: 'Beverages', description: null, picture: null, products: [] });
+      .flush({ categoryId: 1, categoryName: 'Beverages', description: null });
     await harness.fixture.whenStable();
     httpTesting.expectOne('/api/products?categoryId=1').flush([{
       productId: 7, productName: 'Chai', supplierId: null, categoryId: 1, quantityPerUnit: null, unitPrice: 18,
-      unitsInStock: 39, unitsOnOrder: null, reorderLevel: null, discontinued: false, category: null
+      unitsInStock: 39, unitsOnOrder: null, reorderLevel: null, discontinued: false
     }]);
     harness.detectChanges();
   }
