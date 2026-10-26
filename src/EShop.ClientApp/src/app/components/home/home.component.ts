@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CategoryService } from '../../services/categories.service';
 import { ICategory } from '../../models/category.model';
 import { RouterModule } from '@angular/router';
@@ -6,6 +6,7 @@ import { EditComponent } from '../category/edit/edit.component';
 import { ModalService } from '../../services/modal.service';
 import { DefaultImageDirective } from '../../directives/default-image.directive';
 import { SpinnerComponent } from "../spinner/spinner.component";
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-home',
@@ -16,6 +17,7 @@ import { SpinnerComponent } from "../spinner/spinner.component";
 })
 export class HomeComponent
 {
+  protected readonly auth = inject(AuthService);
   isLoading: boolean = false;
   categories: ICategory[] = [];
 

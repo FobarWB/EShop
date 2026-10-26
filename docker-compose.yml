@@ -38,7 +38,10 @@ services:
       ESHOP_DB_PASSWORD: ${ESHOP_DB_PASSWORD:?Set ESHOP_DB_PASSWORD in .env}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
     ports:
+      # Also on ::1: on Windows "localhost" tries ::1 first, and a refused connection costs ~2 s before the
+      # fallback to 127.0.0.1 (every new pooled connection of the APIs, dotnet ef, psql).
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      - "[::1]:${POSTGRES_PORT:-5432}:5432"
     volumes:
       # postgres:18 keeps its data in /var/lib/postgresql/18/docker; mounting the parent lets a future
       # major version (19) live next to it for pg_upgrade.
@@ -84,7 +87,9 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
     ports:
+      # Also on ::1, as for postgres: the APIs started from the IDE read the metadata from localhost:8180.
       - "127.0.0.1:8180:8080"
+      - "[::1]:8180:8080"
     volumes:
       - ./keycloak/realms:/opt/keycloak/data/import:ro
     healthcheck:
