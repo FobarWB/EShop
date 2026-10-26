@@ -43,7 +43,7 @@ export class CartComponent implements OnInit
 
   private loadCartItems(): void
   {
-    this.cartService.getCartByUserId().subscribe(cart =>
+    this.cartService.getCart().subscribe(cart =>
     {
       this.cartItems = cart.cartItems;
       this.confirmedQuantities = {};

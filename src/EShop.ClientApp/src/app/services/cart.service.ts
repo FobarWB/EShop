@@ -1,7 +1,9 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ApiService } from './api.service';
+import { AuthService } from './auth.service';
 import { ICart } from '../models/cart.model';
-import { Observable, of } from 'rxjs';
+import { catchError, Observable, of, throwError } from 'rxjs';
 import { ICartItem } from '../models/cart-item.model';
 
 @Injectable({
@@ -9,53 +11,38 @@ import { ICartItem } from '../models/cart-item.model';
 })
 export class CartService
 {
-  private apiUrl = '/api/carts';
+  // The API takes the user from the access token, so the URLs carry no user id.
+  private apiUrl = '/api/carts/me';
   private localStorageKey = 'cart';
-  private isAuthenticated = true;
+  private readonly auth = inject(AuthService);
 
   constructor(private apiService: ApiService) { }
 
-  setUserAuthentication(status: boolean): void
-  {
-    this.isAuthenticated = status;
-  }
-
-  // Check if user is logged in or anonymous
+  // Signed-in users keep the cart on the server, anonymous users in localStorage (moving it on sign-in: #24).
   private isUserAuthenticated(): boolean
   {
-    return this.isAuthenticated;
+    return this.auth.isAuthenticated();
   }
 
-  getCartByUserId(): Observable<ICart>
+  getCart(): Observable<ICart>
   {
     if (this.isUserAuthenticated())
     {
-      const userId = this.getUserId();
-      const url = `${this.apiUrl}/${userId}`;
-      return this.apiService.get<ICart>(url);
+      // The server creates the cart with the first item; until then 404 means an empty cart.
+      return this.apiService.get<ICart>(this.apiUrl).pipe(
+        catchError((error: HttpErrorResponse) =>
+          error.status === 404 ? of(this.emptyCart()) : throwError(() => error))
+      );
     }
-    const cart = this.getCartFromLocalStorage();
-    return of(cart);
+    return of(this.getCartFromLocalStorage());
   }
-
-  createCart(): Observable<ICart>
-  {
-    if (this.isUserAuthenticated())
-    {
-      const userId = this.getUserId();
-      return this.apiService.post<ICart>(`${this.apiUrl}/create`, { userId });
-    }
-    return of(); // No need to create a cart for anonymous users, handled via localStorage
-  }
-
 
   addItemToCart(productId: number, quantity: number): Observable<void>
   {
     if (this.isUserAuthenticated())
     {
-      const userId = this.getUserId();
       const item: Omit<ICartItem, 'cartId'> = { productId, quantity };  // Send only productId and quantity
-      return this.apiService.post<void>(`${this.apiUrl}/${userId}/add`, item);
+      return this.apiService.post<void>(`${this.apiUrl}/items`, item);
     }
     else
     {
@@ -78,8 +65,7 @@ export class CartService
   {
     if (this.isUserAuthenticated())
     {
-      const userId = this.getUserId();
-      return this.apiService.put<void>(`${this.apiUrl}/${userId}/update/${productId}`, newQuantity);
+      return this.apiService.put<void>(`${this.apiUrl}/items/${productId}`, newQuantity);
     }
     else
     {
@@ -95,10 +81,9 @@ export class CartService
   }
   removeItemFromCart(productId: number): Observable<void>
   {
-    if (this.isUserAuthenticated()) 
+    if (this.isUserAuthenticated())
     {
-      const userId = this.getUserId();
-      return this.apiService.delete<void>(`${this.apiUrl}/${userId}/remove/${productId}`);
+      return this.apiService.delete<void>(`${this.apiUrl}/items/${productId}`);
     }
     else
     {
@@ -112,8 +97,7 @@ export class CartService
   {
     if (this.isUserAuthenticated())
     {
-      const userId = this.getUserId();
-      return this.apiService.delete<void>(`${this.apiUrl}/${userId}/clear`);
+      return this.apiService.delete<void>(`${this.apiUrl}/items`);
     } else
     {
       localStorage.removeItem(this.localStorageKey);
@@ -121,17 +105,11 @@ export class CartService
     }
   }
 
-  deleteCart(): Observable<any>
-  {
-    const userId = this.getUserId();
-    return this.apiService.delete<void>(`${this.apiUrl}/${userId}`);
-  }
-
   // Helper to get cart from localStorage
   private getCartFromLocalStorage(): ICart
   {
     const cartJson = localStorage.getItem(this.localStorageKey);
-    return cartJson ? JSON.parse(cartJson) : { cartId: 0, userId: null, createdAt: new Date(), cartItems: [] };
+    return cartJson ? JSON.parse(cartJson) : this.emptyCart();
   }
   // Helper to save cart to localStorage
   private saveCartToLocalStorage(cart: ICart): void
@@ -139,10 +117,8 @@ export class CartService
     localStorage.setItem(this.localStorageKey, JSON.stringify(cart));
   }
 
-  // Mock method to get user ID (for authenticated users)
-  private getUserId(): string
+  private emptyCart(): ICart
   {
-    // Replace in future with actual method of getting the authenticated user ID
-    return '1';
+    return { cartId: 0, userId: null, createdAt: new Date(), cartItems: [] };
   }
 }
