@@ -55,7 +55,7 @@ namespace EShop.CategoryApi.Controllers
         }
 
         // POST: api/categories
-        // BODY: Category (JSON, XML)
+        // BODY: Category (JSON)
         [HttpPost]
         [ProducesResponseType(201, Type = typeof(Category))]
         [ProducesResponseType(400)]
@@ -81,7 +81,7 @@ namespace EShop.CategoryApi.Controllers
         }
 
         // PUT: api/categories/[id]
-        // BODY: Category (JSON, XML)
+        // BODY: Category (JSON)
         [HttpPut("{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]

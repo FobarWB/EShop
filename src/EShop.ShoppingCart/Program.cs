@@ -6,9 +6,7 @@ using EShop.ShoppingCart.Repositories;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Formatters;
 using Scalar.AspNetCore;
-using static System.Console;
 
 const string ClientCorsPolicy = "Client";
 
@@ -32,35 +30,7 @@ builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 
 builder
-    .Services.AddControllers(options =>
-    {
-        // Use ILogger for logging
-        var loggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Information);
-        });
-        var logger = loggerFactory.CreateLogger("OutputFormatters");
-
-        logger.LogInformation("Default output formatters:");
-        foreach (IOutputFormatter formatter in options.OutputFormatters)
-        {
-            if (formatter is OutputFormatter mediaFormatter)
-            {
-                logger.LogInformation(
-                    " {0}, Media types: {1}",
-                    mediaFormatter.GetType().Name,
-                    string.Join(", ", mediaFormatter.SupportedMediaTypes)
-                );
-            }
-            else
-            {
-                logger.LogInformation($" {formatter.GetType().Name}");
-            }
-        }
-    })
-    .AddXmlDataContractSerializerFormatters()
-    .AddXmlSerializerFormatters()
+    .Services.AddControllers()
     .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 builder.Services.AddOpenApi(options =>

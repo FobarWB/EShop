@@ -2,9 +2,7 @@ using EShop.Data;
 using EShop.ProductApi.Repositories;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.HttpLogging;
-using Microsoft.AspNetCore.Mvc.Formatters;
 using Scalar.AspNetCore;
-using static System.Console;
 
 const string ClientCorsPolicy = "Client";
 
@@ -28,29 +26,7 @@ builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 
-builder
-    .Services.AddControllers(options =>
-    {
-        WriteLine("Default output formatters:");
-        foreach (IOutputFormatter formatter in options.OutputFormatters)
-        {
-            OutputFormatter? mediaFormatter = formatter as OutputFormatter;
-            if (mediaFormatter == null)
-            {
-                WriteLine($" {formatter.GetType().Name}");
-            }
-            else
-            {
-                WriteLine(
-                    " {0}, Media types: {1}",
-                    arg0: mediaFormatter.GetType().Name,
-                    arg1: string.Join(", ", mediaFormatter.SupportedMediaTypes)
-                );
-            }
-        }
-    })
-    .AddXmlDataContractSerializerFormatters()
-    .AddXmlSerializerFormatters();
+builder.Services.AddControllers();
 
 builder.Services.AddOpenApi(options =>
 {

@@ -54,7 +54,7 @@ namespace EShop.ProductApi.Controllers
         }
 
         // POST: api/products
-        // BODY: Product (JSON, XML)
+        // BODY: Product (JSON)
         [HttpPost]
         [ProducesResponseType(201, Type = typeof(Product))]
         [ProducesResponseType(400)]
@@ -80,7 +80,7 @@ namespace EShop.ProductApi.Controllers
         }
 
         // PUT: api/products/[id]
-        // BODY: Product (JSON, XML)
+        // BODY: Product (JSON)
         [HttpPut("{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
