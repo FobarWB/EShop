@@ -49,7 +49,7 @@ public class CategoryApiControllerTests
 
         var result = await _controller.GetCategory(CategoryId, _cancellationToken);
 
-        StatusCodeOf(result).ShouldBe(404);
+        StatusCodeOf(result.Result).ShouldBe(404);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class CategoryApiControllerTests
 
         var result = await _controller.GetCategory(CategoryId, _cancellationToken);
 
-        ValueOf<CategoryResponse>(result).ShouldBe(category);
+        result.Value.ShouldBe(category);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class CategoryApiControllerTests
 
         var result = await _controller.Create(request, _cancellationToken);
 
-        var created = result.ShouldBeOfType<CreatedAtRouteResult>();
+        var created = result.Result.ShouldBeOfType<CreatedAtRouteResult>();
         created.RouteName.ShouldBe(nameof(CategoryAPIController.GetCategory));
         created.RouteValues!["id"].ShouldBe(CategoryId);
     }

@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using EShop.Data;
 using EShop.Data.Entities;
 using EShop.ProductApi.Dtos;
@@ -8,25 +7,6 @@ namespace EShop.ProductApi.Repositories;
 
 public class ProductRepository : IProductRepository
 {
-    // An expression, not a method: EF Core translates it to SQL and reads only these columns.
-    private static readonly Expression<Func<Product, ProductResponse>> ToResponse =
-        p => new ProductResponse(
-            p.ProductId,
-            p.ProductName,
-            p.SupplierId,
-            p.CategoryId,
-            p.QuantityPerUnit,
-            p.UnitPrice,
-            p.UnitsInStock,
-            p.UnitsOnOrder,
-            p.ReorderLevel,
-            p.Discontinued
-        );
-
-    // The same mapping for an entity already in memory (after Create).
-    private static readonly Func<Product, ProductResponse> ToResponseCompiled =
-        ToResponse.Compile();
-
     private readonly EShopDbContext _db;
 
     public ProductRepository(EShopDbContext db)
@@ -40,30 +20,35 @@ public class ProductRepository : IProductRepository
     )
     {
         var product = new Product();
-        Apply(request, product);
+        request.ApplyTo(product);
         _db.Products.Add(product);
         await _db.SaveChangesAsync(cancellationToken);
-        return ToResponseCompiled(product);
+
+        // Read back through the same projection: no second copy of the mapping.
+        return await _db
+            .Products.Where(p => p.ProductId == product.ProductId)
+            .ToResponse()
+            .SingleAsync(cancellationToken);
     }
 
-    // categoryId null: all products.
+    // categoryId null: all products. A projection to a DTO is never tracked.
     public async Task<IReadOnlyList<ProductResponse>> RetrieveAllAsync(
         int? categoryId,
         CancellationToken cancellationToken
     )
     {
-        var query = _db.Products.AsNoTracking();
+        IQueryable<Product> query = _db.Products;
         if (categoryId.HasValue)
         {
             query = query.Where(p => p.CategoryId == categoryId);
         }
-        return await query.Select(ToResponse).ToListAsync(cancellationToken);
+        return await query.ToResponse().ToListAsync(cancellationToken);
     }
 
     public Task<ProductResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
         _db
             .Products.Where(p => p.ProductId == id)
-            .Select(ToResponse)
+            .ToResponse()
             .FirstOrDefaultAsync(cancellationToken);
 
     // Loads the tracked entity and copies the request onto it: SaveChanges updates only the changed columns.
@@ -79,7 +64,7 @@ public class ProductRepository : IProductRepository
             return false;
         }
 
-        Apply(request, product);
+        request.ApplyTo(product);
         await _db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -105,18 +90,5 @@ public class ProductRepository : IProductRepository
         _db.Products.Remove(p);
         await _db.SaveChangesAsync(cancellationToken);
         return DeleteResult.Deleted;
-    }
-
-    private static void Apply(ProductRequest request, Product product)
-    {
-        product.ProductName = request.ProductName;
-        product.SupplierId = request.SupplierId;
-        product.CategoryId = request.CategoryId;
-        product.QuantityPerUnit = request.QuantityPerUnit;
-        product.UnitPrice = request.UnitPrice;
-        product.UnitsInStock = request.UnitsInStock;
-        product.UnitsOnOrder = request.UnitsOnOrder;
-        product.ReorderLevel = request.ReorderLevel;
-        product.Discontinued = request.Discontinued;
     }
 }

@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using EShop.CategoryApi.Dtos;
 using EShop.Data;
@@ -9,14 +8,6 @@ namespace EShop.CategoryApi.Repositories;
 
 public class CategoryRepository : ICategoryRepository
 {
-    // An expression, not a method: EF Core translates it to SQL and never reads the picture column.
-    private static readonly Expression<Func<Category, CategoryResponse>> ToResponse =
-        c => new CategoryResponse(c.CategoryId, c.CategoryName, c.Description);
-
-    // The same mapping for an entity already in memory (after Create).
-    private static readonly Func<Category, CategoryResponse> ToResponseCompiled =
-        ToResponse.Compile();
-
     private readonly EShopDbContext _db;
 
     public CategoryRepository(EShopDbContext db)
@@ -30,32 +21,38 @@ public class CategoryRepository : ICategoryRepository
     )
     {
         var category = new Category();
-        Apply(request, category);
+        request.ApplyTo(category);
         _db.Categories.Add(category);
         await _db.SaveChangesAsync(cancellationToken);
-        return ToResponseCompiled(category);
+
+        // Read back through the same projection: no second copy of the mapping.
+        return await _db
+            .Categories.Where(c => c.CategoryId == category.CategoryId)
+            .ToResponse()
+            .SingleAsync(cancellationToken);
     }
 
     // name null: all categories; otherwise a case-insensitive "contains".
+    // A projection to a DTO is never tracked.
     public async Task<IReadOnlyList<CategoryResponse>> RetrieveAllAsync(
         string? name,
         CancellationToken cancellationToken
     )
     {
-        var query = _db.Categories.AsNoTracking();
+        IQueryable<Category> query = _db.Categories;
         if (name is not null)
         {
             // % and _ are LIKE wildcards and \ is its escape character: match them literally.
             var pattern = $"%{Regex.Replace(name, @"[\\%_]", @"\$0")}%";
             query = query.Where(c => EF.Functions.ILike(c.CategoryName, pattern));
         }
-        return await query.Select(ToResponse).ToListAsync(cancellationToken);
+        return await query.ToResponse().ToListAsync(cancellationToken);
     }
 
     public Task<CategoryResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
         _db
             .Categories.Where(c => c.CategoryId == id)
-            .Select(ToResponse)
+            .ToResponse()
             .FirstOrDefaultAsync(cancellationToken);
 
     // Loads the tracked entity and copies the request onto it: SaveChanges updates only the changed
@@ -72,7 +69,7 @@ public class CategoryRepository : ICategoryRepository
             return false;
         }
 
-        Apply(request, category);
+        request.ApplyTo(category);
         await _db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -95,11 +92,5 @@ public class CategoryRepository : ICategoryRepository
         _db.Categories.Remove(c);
         await _db.SaveChangesAsync(cancellationToken);
         return DeleteResult.Deleted;
-    }
-
-    private static void Apply(CategoryRequest request, Category category)
-    {
-        category.CategoryName = request.CategoryName;
-        category.Description = request.Description;
     }
 }

@@ -42,7 +42,7 @@ public class ProductApiControllerTests
 
         var result = await _controller.GetProduct(ProductId, _cancellationToken);
 
-        StatusCodeOf(result).ShouldBe(404);
+        StatusCodeOf(result.Result).ShouldBe(404);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class ProductApiControllerTests
 
         var result = await _controller.GetProduct(ProductId, _cancellationToken);
 
-        ValueOf<ProductResponse>(result).ShouldBe(product);
+        result.Value.ShouldBe(product);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class ProductApiControllerTests
 
         var result = await _controller.Create(request, _cancellationToken);
 
-        var created = result.ShouldBeOfType<CreatedAtRouteResult>();
+        var created = result.Result.ShouldBeOfType<CreatedAtRouteResult>();
         created.RouteName.ShouldBe(nameof(ProductApiController.GetProduct));
         created.RouteValues!["id"].ShouldBe(ProductId);
     }
