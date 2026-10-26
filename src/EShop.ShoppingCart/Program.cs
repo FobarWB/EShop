@@ -29,6 +29,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddEShopDbContext(builder.Configuration);
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
+builder.Services.AddEShopProblemDetails();
 
 builder
     .Services.AddControllers(options =>
@@ -85,6 +86,9 @@ builder.Services.AddHttpLogging(options =>
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 
 var app = builder.Build();
+
+// First in the pipeline: catches exceptions thrown by everything after it.
+app.UseExceptionHandler();
 
 app.UseHttpLogging();
 

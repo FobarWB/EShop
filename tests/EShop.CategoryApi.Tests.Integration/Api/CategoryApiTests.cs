@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using EShop.Data;
 using EShop.Data.Entities;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace EShop.CategoryApi.Tests.Integration.Api;
@@ -245,6 +248,31 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         ).ShouldNotBeNull();
     }
 
+    [Fact]
+    public async Task Delete_CategoryGetsProductAfterCheck_Returns409AndKeepsCategory()
+    {
+        // The race from #32: another request adds a product to the category after the in-use check;
+        // PostgreSQL rejects the DELETE (23503) and the exception handler turns it into 409.
+        var beverages = await SeedCategoryAsync("Beverages");
+        using var admin = CreateAdminWithConcurrentWrite(() =>
+            _database.SeedAsync(
+                new Product { ProductName = "Chai", CategoryId = beverages.CategoryId },
+                _cancellationToken
+            )
+        );
+
+        var response = await admin.DeleteAsync(
+            $"api/categories/{beverages.CategoryId}",
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (
+            await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken)
+        ).ShouldNotBeNull();
+    }
+
     [Theory]
     [InlineData("POST", "api/categories")]
     [InlineData("PUT", "api/categories/1")]
@@ -309,6 +337,18 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         response.Headers.TryGetValues("Access-Control-Allow-Origin", out var values);
         (values?.SingleOrDefault()).ShouldBe(allowed ? origin : null);
     }
+
+    private HttpClient CreateAdminWithConcurrentWrite(Func<Task> write) =>
+        _factory
+            .WithWebHostBuilder(builder =>
+                builder.ConfigureTestServices(services =>
+                    services.ConfigureDbContext<EShopDbContext>(options =>
+                        options.AddInterceptors(new BeforeSaveChangesInterceptor(write))
+                    )
+                )
+            )
+            .CreateClient()
+            .AsAdmin();
 
     private Task<Category> SeedCategoryAsync(string name) =>
         _database.SeedAsync(new Category { CategoryName = name }, _cancellationToken);

@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using EShop.Data;
 using EShop.Data.Entities;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace EShop.ProductApi.Tests.Integration.Api;
@@ -316,6 +319,33 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
     }
 
+    [Fact]
+    public async Task Delete_ProductAddedToCartAfterCheck_Returns409AndKeepsProduct()
+    {
+        // The race from #32: another request puts the product into a cart after the in-use check;
+        // PostgreSQL rejects the DELETE (23503) and the exception handler turns it into 409.
+        var chai = await SeedProductAsync("Chai");
+        using var admin = CreateAdminWithConcurrentWrite(() =>
+            _database.SeedAsync(
+                new Cart
+                {
+                    UserId = "user-1",
+                    CartItems = [new CartItem { ProductId = chai.ProductId, Quantity = 1 }],
+                },
+                _cancellationToken
+            )
+        );
+
+        var response = await admin.DeleteAsync(
+            $"api/products/{chai.ProductId}",
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+    }
+
     [Theory]
     [InlineData("POST", "api/products")]
     [InlineData("PUT", "api/products/1")]
@@ -386,6 +416,18 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             new Product { ProductName = name, CategoryId = categoryId },
             _cancellationToken
         );
+
+    private HttpClient CreateAdminWithConcurrentWrite(Func<Task> write) =>
+        _factory
+            .WithWebHostBuilder(builder =>
+                builder.ConfigureTestServices(services =>
+                    services.ConfigureDbContext<EShopDbContext>(options =>
+                        options.AddInterceptors(new BeforeSaveChangesInterceptor(write))
+                    )
+                )
+            )
+            .CreateClient()
+            .AsAdmin();
 
     private async Task<List<Product>> GetProductsAsync(string url) =>
         (await _client.GetFromJsonAsync<List<Product>>(url, _cancellationToken)).ShouldNotBeNull();

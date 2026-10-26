@@ -5,4 +5,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- EF Core and Npgsql for ForeignKeyViolationHandler; every API references EShop.Data anyway. -->
+    <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
+  </ItemGroup>
 </Project>
