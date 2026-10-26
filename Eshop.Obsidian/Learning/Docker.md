@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-22
+verified: 2026-10-26
 issue: 47
 ---
 
@@ -46,6 +46,11 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
   database `eshop`. The password comes from the environment and is passed as a psql variable (`:'eshop_password'`),
   so psql quotes it as a literal instead of the shell pasting it into SQL.
 - [db/pgadmin/servers.json](../../db/pgadmin/servers.json) registers the server in pgAdmin on first start.
+- `postgres` and `keycloak` publish their ports on `127.0.0.1` and `[::1]` (#41). On Windows `localhost` resolves to
+  `::1` first; with only an IPv4 binding a refused IPv6 connection costs about 2 s before the fallback to `127.0.0.1`.
+  Clients that try addresses in order (Npgsql, libpq, .NET `HttpClient`) paid it on every new connection: the first
+  request after start took 4–6 s, the first after ~5 min idle (pooled connections closed) about 2 s. Measured with
+  `psql -h localhost`: 2.1–2.3 s before, 33–79 ms after. Browsers try both families at once and did not notice.
 - The Windows service `postgresql-x64-18` is stopped and set to Manual; the container uses port 5432, so connection
   strings in user-secrets did not change.
 - Moved the data of the Windows service: `pg_dump -Fc` (77 products, 830 orders, 1 cart) → `pg_restore --no-owner`;

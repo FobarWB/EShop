@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-22
+verified: 2026-10-26
 ---
 
 # CategoryApi
@@ -20,6 +20,9 @@ REST API for product categories (CRUD).
 | POST | `/` | Create a category |
 | PUT | `/{id}` | Update a category |
 | DELETE | `/{id}` | Delete a category |
+
+GET is public; POST, PUT and DELETE need the `admin` role (401 without a token, 403 without the role),
+see [Authentication](../Learning/Authentication.md).
 
 DELETE returns 409 ProblemDetails while products still belong to the category (#32).
 
