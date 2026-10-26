@@ -139,6 +139,19 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateItemQuantity_SameQuantity_ReturnsTrue()
+    {
+        // Nothing to write: SaveChanges affects no rows, but the request still succeeded.
+        var productId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 2);
+
+        var updated = await ActAsync(r =>
+            r.UpdateItemQuantityAsync(UserId, productId, 2, _cancellationToken)
+        );
+
+        updated.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task UpdateItemQuantity_AboveStock_ReturnsFalseAndKeepsQuantity()
     {
         var productId = await SeedCartWithItemAsync(unitsInStock: 5, quantity: 1);
@@ -228,6 +241,17 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         (await _database.LoadCartAsync(UserId, _cancellationToken))
             .ShouldNotBeNull()
             .CartItems.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ClearCart_EmptyCart_ReturnsTrue()
+    {
+        // Nothing to delete: SaveChanges affects no rows, but the cart is empty as requested.
+        await _database.SeedAsync(new Cart { UserId = UserId }, _cancellationToken);
+
+        var cleared = await ActAsync(r => r.ClearCartAsync(UserId, _cancellationToken));
+
+        cleared.ShouldBeTrue();
     }
 
     [Fact]

@@ -20,8 +20,19 @@ public class ProductRepository : IProductRepository
         return affected > 0 ? p : null;
     }
 
-    public async Task<IEnumerable<Product>> RetrieveAllAsync(CancellationToken cancellationToken) =>
-        await _db.Products.AsNoTracking().ToListAsync(cancellationToken);
+    // categoryId null: all products.
+    public async Task<IEnumerable<Product>> RetrieveAllAsync(
+        int? categoryId,
+        CancellationToken cancellationToken
+    )
+    {
+        var query = _db.Products.AsNoTracking();
+        if (categoryId.HasValue)
+        {
+            query = query.Where(p => p.CategoryId == categoryId);
+        }
+        return await query.ToListAsync(cancellationToken);
+    }
 
     // Not tracked: the controller loads a product and then updates it with another instance
     // of the same key, which would conflict with a tracked entity.

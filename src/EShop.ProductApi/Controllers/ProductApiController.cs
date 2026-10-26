@@ -31,15 +31,11 @@ namespace EShop.ProductApi.Controllers
             CancellationToken cancellationToken
         )
         {
-            IEnumerable<Product> products = await repository.RetrieveAllAsync(cancellationToken);
-            if (!categoryId.HasValue)
-            {
-                return Ok(products);
-            }
-            else
-            {
-                return Ok(products.Where(p => p.CategoryId == categoryId));
-            }
+            IEnumerable<Product> products = await repository.RetrieveAllAsync(
+                categoryId,
+                cancellationToken
+            );
+            return Ok(products);
         }
 
         // GET: api/products/[id]

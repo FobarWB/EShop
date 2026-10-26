@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using EShop.Data;
 using EShop.Data.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -20,9 +21,21 @@ public class CategoryRepository : ICategoryRepository
         return affected > 0 ? c : null;
     }
 
+    // name null: all categories; otherwise a case-insensitive "contains".
     public async Task<IEnumerable<Category>> RetrieveAllAsync(
+        string? name,
         CancellationToken cancellationToken
-    ) => await _db.Categories.AsNoTracking().ToListAsync(cancellationToken);
+    )
+    {
+        var query = _db.Categories.AsNoTracking();
+        if (name is not null)
+        {
+            // % and _ are LIKE wildcards and \ is its escape character: match them literally.
+            var pattern = $"%{Regex.Replace(name, @"[\\%_]", @"\$0")}%";
+            query = query.Where(c => EF.Functions.ILike(c.CategoryName, pattern));
+        }
+        return await query.ToListAsync(cancellationToken);
+    }
 
     // Not tracked: the controller loads a category and then updates it with another instance
     // of the same key, which would conflict with a tracked entity.

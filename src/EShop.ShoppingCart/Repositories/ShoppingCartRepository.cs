@@ -78,8 +78,8 @@ namespace EShop.ShoppingCart.Repositories
                 return false;
 
             cart.CartItems.Remove(item);
-            db.Update(cart);
-            return await db.SaveChangesAsync(cancellationToken) > 0;
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
         }
 
         public async Task<bool> ClearCartAsync(string userId, CancellationToken cancellationToken)
@@ -88,9 +88,11 @@ namespace EShop.ShoppingCart.Repositories
             if (cart == null)
                 return false;
 
+            // The cart is tracked: SaveChanges deletes the removed items without db.Update.
+            // No affected rows (an empty cart) is still a success; a failed write throws.
             cart.CartItems.Clear();
-            db.Update(cart);
-            return await db.SaveChangesAsync(cancellationToken) > 0;
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
         }
 
         public async Task<bool> UpdateItemQuantityAsync(
@@ -115,8 +117,8 @@ namespace EShop.ShoppingCart.Repositories
             }
 
             item.Quantity = newQuantity;
-            db.Update(cart);
-            return await db.SaveChangesAsync(cancellationToken) > 0;
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
         }
 
         public async Task<bool?> DeleteCartAsync(string userId, CancellationToken cancellationToken)

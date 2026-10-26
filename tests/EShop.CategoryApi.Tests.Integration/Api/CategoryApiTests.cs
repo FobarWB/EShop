@@ -76,6 +76,18 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     }
 
     [Fact]
+    public async Task GetCategories_NameWithWildcard_MatchesLiterally()
+    {
+        // % is a LIKE wildcard: unescaped, it would match every category.
+        await SeedCategoryAsync("Beverages");
+        await SeedCategoryAsync("Condiments");
+
+        var categories = await GetCategoriesAsync("api/categories?categoryName=%25");
+
+        categories.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task GetCategories_SeesChangesMadeOutsideTheApi()
     {
         // Regression test for the removed static cache: rows added directly to PostgreSQL must be visible.

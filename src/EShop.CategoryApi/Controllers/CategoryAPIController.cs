@@ -31,16 +31,12 @@ namespace EShop.CategoryApi.Controllers
             CancellationToken cancellationToken
         )
         {
-            IEnumerable<Category> categories = await repository.RetrieveAllAsync(cancellationToken);
-            if (string.IsNullOrWhiteSpace(categoryName))
-            {
-                return Ok(categories);
-            }
-            else
-            {
-                categoryName = categoryName.ToUpper();
-                return Ok(categories.Where(c => c.CategoryName.ToUpper().Contains(categoryName)));
-            }
+            var name = string.IsNullOrWhiteSpace(categoryName) ? null : categoryName;
+            IEnumerable<Category> categories = await repository.RetrieveAllAsync(
+                name,
+                cancellationToken
+            );
+            return Ok(categories);
         }
 
         // GET: api/categories/[id]

@@ -19,28 +19,18 @@ public class ProductApiControllerTests
         _controller = new ProductApiController(_repository);
     }
 
-    [Fact]
-    public async Task GetProducts_NoCategory_ReturnsAllProducts()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(2)]
+    public async Task GetProducts_PassesCategoryToRepository(int? categoryId)
     {
-        _repository
-            .RetrieveAllAsync(Arg.Any<CancellationToken>())
-            .Returns([Product(1, categoryId: 1), Product(2, categoryId: 2)]);
+        // The repository filters in SQL; the controller returns what it gets.
+        List<Product> products = [Product(1, categoryId: 2)];
+        _repository.RetrieveAllAsync(categoryId, Arg.Any<CancellationToken>()).Returns(products);
 
-        var result = await _controller.GetProducts(categoryId: null, _cancellationToken);
+        var result = await _controller.GetProducts(categoryId, _cancellationToken);
 
-        ValueOf<IEnumerable<Product>>(result.Result).Count().ShouldBe(2);
-    }
-
-    [Fact]
-    public async Task GetProducts_WithCategory_ReturnsOnlyThatCategory()
-    {
-        _repository
-            .RetrieveAllAsync(Arg.Any<CancellationToken>())
-            .Returns([Product(1, categoryId: 1), Product(2, categoryId: 2)]);
-
-        var result = await _controller.GetProducts(categoryId: 2, _cancellationToken);
-
-        ValueOf<IEnumerable<Product>>(result.Result).ShouldHaveSingleItem().ProductId.ShouldBe(2);
+        ValueOf<IEnumerable<Product>>(result.Result).ShouldBe(products);
     }
 
     [Fact]

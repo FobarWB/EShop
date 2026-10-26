@@ -19,22 +19,25 @@ public class CategoryApiControllerTests
         _controller = new CategoryAPIController(_repository);
     }
 
+    // The repository filters in SQL; a blank name means no filter.
     [Theory]
-    [InlineData(null, 3)]
-    [InlineData("  ", 3)]
-    [InlineData("bev", 1)] // case-insensitive "contains": "Beverages"
-    [InlineData("O", 2)] // "Condiments", "Confections"
-    public async Task GetCategories_FiltersByName(string? categoryName, int expectedCount)
+    [InlineData("bev", "bev")]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("  ", null)]
+    public async Task GetCategories_PassesNameToRepository(
+        string? categoryName,
+        string? expectedName
+    )
     {
+        List<Category> categories = [Category(1, "Beverages")];
         _repository
-            .RetrieveAllAsync(Arg.Any<CancellationToken>())
-            .Returns(
-                [Category(1, "Beverages"), Category(2, "Condiments"), Category(3, "Confections")]
-            );
+            .RetrieveAllAsync(expectedName, Arg.Any<CancellationToken>())
+            .Returns(categories);
 
         var result = await _controller.GetCategories(categoryName, _cancellationToken);
 
-        ValueOf<IEnumerable<Category>>(result.Result).Count().ShouldBe(expectedCount);
+        ValueOf<IEnumerable<Category>>(result.Result).ShouldBe(categories);
     }
 
     [Fact]
