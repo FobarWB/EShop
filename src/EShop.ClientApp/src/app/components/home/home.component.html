@@ -19,6 +19,7 @@
         <div class="card-body d-flex flex-column">
           <h5 class="card-title">{{ c.categoryName }}</h5>
           <p class="card-text card-description">{{ c.description }}</p>
+          @if (auth.isAdmin()) {
           <div
             class="d-flex justify-content-between mt-auto align-self-stretch"
           >
@@ -30,11 +31,14 @@
               Edit
             </button>
           </div>
+          }
         </div>
       </div>
     </div>
     }
 
+    <!-- Only hides the buttons: the API refuses writes without the admin role anyway. -->
+    @if (auth.isAdmin()) {
     <div class="col d-flex align-items-stretch">
       <div class="card card-empty shadow-sm w-100">
         <button
@@ -47,6 +51,7 @@
         </button>
       </div>
     </div>
+    }
   </div>
 </div>
 

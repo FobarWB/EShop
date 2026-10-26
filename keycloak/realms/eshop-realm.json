@@ -1,0 +1,68 @@
+{
+  "realm": "eshop",
+  "enabled": true,
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [{ "name": "admin", "description": "Manages products and categories" }]
+  },
+  "clients": [
+    {
+      "clientId": "eshop-client",
+      "name": "EShop Angular client",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:4200/*", "http://localhost:8080/*"],
+      "webOrigins": ["http://localhost:4200", "http://localhost:8080"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost:8080/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience eshop-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "eshop-api", "access.token.claim": "true", "id.token.claim": "false" }
+        }
+      ]
+    },
+    {
+      "clientId": "eshop-dev",
+      "name": "Development only: tokens from the command line (password grant)",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "audience eshop-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "eshop-api", "access.token.claim": "true", "id.token.claim": "false" }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@eshop.local",
+      "emailVerified": true,
+      "firstName": "Shop",
+      "lastName": "Admin",
+      "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
+      "realmRoles": ["default-roles-eshop", "admin"]
+    },
+    {
+      "username": "customer",
+      "enabled": true,
+      "email": "customer@eshop.local",
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Customer",
+      "credentials": [{ "type": "password", "value": "customer", "temporary": false }],
+      "realmRoles": ["default-roles-eshop"]
+    }
+  ]
+}

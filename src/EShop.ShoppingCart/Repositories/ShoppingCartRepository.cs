@@ -13,13 +13,6 @@ namespace EShop.ShoppingCart.Repositories
             this.db = db;
         }
 
-        public async Task<Cart?> CreateCartAsync(Cart cart)
-        {
-            db.Carts.Add(cart);
-            await db.SaveChangesAsync();
-            return cart;
-        }
-
         public async Task<Cart?> RetrieveCartByUserIdAsync(string userId)
         {
             return await db

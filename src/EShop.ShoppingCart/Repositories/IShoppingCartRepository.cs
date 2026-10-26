@@ -4,7 +4,6 @@ namespace EShop.ShoppingCart.Repositories
 {
     public interface IShoppingCartRepository
     {
-        Task<Cart?> CreateCartAsync(Cart cart);
         Task<Cart?> RetrieveCartByUserIdAsync(string userId);
         Task<AddItemResult> AddItemToCartAsync(
             string userId,

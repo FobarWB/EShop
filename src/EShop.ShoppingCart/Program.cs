@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EShop.Data;
+using EShop.ServiceDefaults;
 using EShop.ShoppingCart.Repositories;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.HttpLogging;
@@ -27,6 +28,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddEShopDbContext(builder.Configuration);
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
+builder.Services.AddEShopAuthentication(builder.Configuration);
 
 builder
     .Services.AddControllers(options =>
@@ -90,15 +92,16 @@ app.UseCors(ClientCorsPolicy);
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi(); // OpenAPI document: /openapi/v1.json
-    app.MapScalarApiReference(); // interactive UI: /scalar
+    app.MapOpenApi().AllowAnonymous(); // OpenAPI document: /openapi/v1.json
+    app.MapScalarApiReference().AllowAnonymous(); // interactive UI: /scalar
 }
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 // Liveness and database connectivity for Docker and the proxy; health probes are not worth an HTTP log entry.
-app.MapHealthChecks("/health").WithHttpLogging(HttpLoggingFields.None);
+app.MapHealthChecks("/health").AllowAnonymous().WithHttpLogging(HttpLoggingFields.None);
 
 app.Run();

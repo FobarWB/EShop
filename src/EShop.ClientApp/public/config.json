@@ -1,0 +1,4 @@
+{
+  "authority": "http://localhost:8180/realms/eshop",
+  "clientId": "eshop-client"
+}

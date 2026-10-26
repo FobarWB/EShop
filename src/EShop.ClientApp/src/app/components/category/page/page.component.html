@@ -82,6 +82,7 @@
         @for (p of filteredProducts; track $index) {
         <div class="col d-flex align-items-stretch p-0">
           <div class="card w-100 rounded-0 border-start-0 border-top-0">
+            @if (auth.isAdmin()) {
             <button
               (click)="updateProduct(p)"
               type="button"
@@ -90,6 +91,7 @@
             >
               Edit
             </button>
+            }
             <a
               [routerLink]="[
                 '/',
@@ -157,6 +159,8 @@
         </div>
         }
 
+        <!-- Only hides the buttons: the API refuses writes without the admin role anyway. -->
+        @if (auth.isAdmin()) {
         <div class="col d-flex align-items-stretch p-0">
           <div
             class="card card-empty w-100 rounded-0 border-start-0 border-top-0"
@@ -171,6 +175,7 @@
             </button>
           </div>
         </div>
+        }
       </div>
     </div>
   </div>

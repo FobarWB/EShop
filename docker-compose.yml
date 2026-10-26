@@ -13,9 +13,14 @@ x-api: &api
     ASPNETCORE_ENVIRONMENT: Development
     # Host "postgres" is the service name on the compose network. GSSAPI is off: the .NET images have no Kerberos library.
     ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+    # Tokens are issued for http://localhost:8180 (Authority in appsettings.json), but inside the network
+    # Keycloak is keycloak:8080: the signing keys are read through the internal address.
+    Authentication__MetadataAddress: http://keycloak:8080/realms/eshop/.well-known/openid-configuration
   depends_on:
     migrator:
       condition: service_completed_successfully
+    keycloak:
+      condition: service_healthy
   restart: unless-stopped
   healthcheck:
     # The aspnet image has no curl or wget: bash opens a TCP connection and sends a minimal HTTP request.
@@ -31,8 +36,12 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       ESHOP_DB_PASSWORD: ${ESHOP_DB_PASSWORD:?Set ESHOP_DB_PASSWORD in .env}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
     ports:
+      # Also on ::1: on Windows "localhost" tries ::1 first, and a refused connection costs ~2 s before the
+      # fallback to 127.0.0.1 (every new pooled connection of the APIs, dotnet ef, psql).
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      - "[::1]:${POSTGRES_PORT:-5432}:5432"
     volumes:
       # postgres:18 keeps its data in /var/lib/postgresql/18/docker; mounting the parent lets a future
       # major version (19) live next to it for pg_upgrade.
@@ -55,6 +64,41 @@ services:
     volumes:
       - pgadmin-data:/var/lib/pgadmin
       - ./db/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Identity provider (OpenID Connect): issues the tokens the APIs validate.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8
+    # Development mode; --import-realm creates the realms from /opt/keycloak/data/import if they do not exist yet.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
+      # One public address, so every token has the same issuer; the APIs in containers reach the
+      # keys and endpoints through keycloak:8080 (backchannel addresses follow the request).
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      # Administrator of the master realm (the admin console), created on the first start only.
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+    ports:
+      # Also on ::1, as for postgres: the APIs started from the IDE read the metadata from localhost:8180.
+      - "127.0.0.1:8180:8080"
+      - "[::1]:8180:8080"
+    volumes:
+      - ./keycloak/realms:/opt/keycloak/data/import:ro
+    healthcheck:
+      # Readiness on the management port 9000; the image has no curl, so bash /dev/tcp as for the APIs.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy

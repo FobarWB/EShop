@@ -1,12 +1,16 @@
 using System.Diagnostics;
 using EShop.CategoryApi.Repositories;
 using EShop.Data.Entities;
+using EShop.ServiceDefaults;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EShop.CategoryApi.Controllers
 {
     [ApiController]
     [Route("api/categories")]
+    // Writes are for administrators; reads are public ([AllowAnonymous] below).
+    [Authorize(Roles = EShopAuthenticationExtensions.AdminRole)]
     public class CategoryAPIController : ControllerBase
     {
         private readonly ICategoryRepository repository;
@@ -20,6 +24,7 @@ namespace EShop.CategoryApi.Controllers
         // GET: api/categories/?categoryName=[categoryName]
         // this will always return a list of categories (but it might be empty)
         [HttpGet]
+        [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(IEnumerable<Category>))]
         public async Task<ActionResult<IEnumerable<Category>>> GetCategories(string? categoryName)
         {
@@ -37,6 +42,7 @@ namespace EShop.CategoryApi.Controllers
 
         // GET: api/categories/[id]
         [HttpGet("{id}", Name = nameof(GetCategory))]
+        [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(Category))]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetCategory(int id)

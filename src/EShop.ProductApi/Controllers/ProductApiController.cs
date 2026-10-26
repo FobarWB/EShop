@@ -1,12 +1,16 @@
 using System.Diagnostics;
 using EShop.Data.Entities;
 using EShop.ProductApi.Repositories;
+using EShop.ServiceDefaults;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EShop.ProductApi.Controllers
 {
     [ApiController]
     [Route("api/products")]
+    // Writes are for administrators; reads are public ([AllowAnonymous] below).
+    [Authorize(Roles = EShopAuthenticationExtensions.AdminRole)]
     public class ProductApiController : ControllerBase
     {
         private readonly IProductRepository repository;
@@ -20,6 +24,7 @@ namespace EShop.ProductApi.Controllers
         // GET: api/products/?categoryId=[categoryName]
         // this will always return a list of products (but it might be empty)
         [HttpGet]
+        [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(IEnumerable<Product>))]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts(int? categoryId)
         {
@@ -36,6 +41,7 @@ namespace EShop.ProductApi.Controllers
 
         // GET: api/products/[id]
         [HttpGet("{id}", Name = nameof(GetProduct))]
+        [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(Product))]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetProduct(int id)

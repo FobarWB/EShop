@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-22
+verified: 2026-10-23
 ---
 
 # Decisions
@@ -13,3 +13,4 @@ Architecture decision records: the context, the decision and its consequences. N
 - [SeparateProductAndCategoryApis](SeparateProductAndCategoryApis.md): keep ProductApi and CategoryApi separate for now.
 - [TestAgainstRealPostgreSql](TestAgainstRealPostgreSql.md): integration tests use real PostgreSQL, one database per test project.
 - [RelativeApiUrlsBehindProxy](RelativeApiUrlsBehindProxy.md): the client calls `/api/...`; the dev server or nginx forwards to the APIs.
+- [UseKeycloakForAuthentication](UseKeycloakForAuthentication.md): Keycloak (OIDC) issues the tokens, the APIs only validate them.

@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-20
+verified: 2026-10-26
 issue: 9
 ---
 
@@ -29,6 +29,9 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
 - `tests/EShop.<Service>.Tests.Unit` and `tests/EShop.<Service>.Tests.Integration`; shared helpers in
   `tests/EShop.Tests.Common`: `TestDatabase` (connection string, `_test` guard, migrations, reset, seeding)
   and `EShopApiFactory` (in-memory API that is checked to use the test database).
+- API tests sign in without Keycloak: `EShopApiFactory` makes `TestAuthHandler` the default scheme; a test client
+  becomes a user with `client.AsUser(id, roles)` or `client.AsAdmin()` (headers `X-Test-User` / `X-Test-Roles`),
+  a client without them stays anonymous (#41).
 - Lifetimes: database fixture once per test project (assembly fixture, runs `MigrateAsync`), API factory once
   per test class (class fixture), `TRUNCATE` of all tables before each test. Test projects run in parallel on
   separate databases; tests inside a project run sequentially.

@@ -1,12 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 using EShop.Data.Entities;
+using EShop.ServiceDefaults;
 using EShop.ShoppingCart.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EShop.ShoppingCart.Controllers
 {
     [ApiController]
-    [Route("api/carts")]
+    [Route("api/carts/me")]
+    // Every action works on the signed-in user's cart: the user id comes from the token, never from the request.
+    [Authorize]
     public class ShoppingCartController : ControllerBase
     {
         private readonly IShoppingCartRepository _repository;
@@ -21,40 +25,11 @@ namespace EShop.ShoppingCart.Controllers
             _logger = logger;
         }
 
-        // POST: api/carts/create
-        [HttpPost("create")]
-        public async Task<IActionResult> CreateCart([FromBody] Cart cartRequest)
-        {
-            _logger.LogInformation("Received Cart Request: {@CartRequest}", cartRequest);
+        private string UserId => User.GetUserId();
 
-            Cart cart = new Cart
-            {
-                UserId = cartRequest.UserId,
-                CreatedAt = DateTime.UtcNow,
-                CartItems = new List<CartItem>(),
-            };
-
-            try
-            {
-                var createdCart = await _repository.CreateCartAsync(cart);
-                if (createdCart == null)
-                {
-                    return BadRequest("Failed to create cart");
-                }
-
-                return Ok(createdCart);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while creating cart.");
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        // POST: api/carts/userId/add
-        [HttpPost("{userId}/add")]
+        // POST: api/carts/me/items
+        [HttpPost("items")]
         public async Task<IActionResult> AddItemToCart(
-            string userId,
             [FromBody] CartItem item,
             CancellationToken cancellationToken
         )
@@ -65,7 +40,7 @@ namespace EShop.ShoppingCart.Controllers
                 return BadRequest("Invalid item data.");
             }
 
-            var result = await _repository.AddItemToCartAsync(userId, item, cancellationToken);
+            var result = await _repository.AddItemToCartAsync(UserId, item, cancellationToken);
             return result switch
             {
                 AddItemResult.ProductNotFound => NotFound("Product not found."),
@@ -74,11 +49,11 @@ namespace EShop.ShoppingCart.Controllers
             };
         }
 
-        // GET: api/carts/userId
-        [HttpGet("{userId}")]
-        public async Task<IActionResult> GetCartByUserId(string userId)
+        // GET: api/carts/me
+        [HttpGet]
+        public async Task<IActionResult> GetCart()
         {
-            var cart = await _repository.RetrieveCartByUserIdAsync(userId);
+            var cart = await _repository.RetrieveCartByUserIdAsync(UserId);
             if (cart == null)
             {
                 return NotFound("Cart not found");
@@ -87,15 +62,14 @@ namespace EShop.ShoppingCart.Controllers
             return Ok(cart);
         }
 
-        // PUT: api/carts/userId/update/productId
-        [HttpPut("{userId}/update/{productId}")]
+        // PUT: api/carts/me/items/productId
+        [HttpPut("items/{productId}")]
         public async Task<IActionResult> UpdateItemQuantity(
-            string userId,
             int productId,
             [FromBody, Range(1, int.MaxValue)] int newQuantity
         )
         {
-            var result = await _repository.UpdateItemQuantityAsync(userId, productId, newQuantity);
+            var result = await _repository.UpdateItemQuantityAsync(UserId, productId, newQuantity);
             if (!result)
             {
                 return BadRequest("Failed to update item quantity");
@@ -103,11 +77,11 @@ namespace EShop.ShoppingCart.Controllers
             return NoContent();
         }
 
-        //DELETE: api/carts/userid/remove/productId
-        [HttpDelete("{userId}/remove/{productId}")]
-        public async Task<IActionResult> RemoveItemFromCart(string userId, int productId)
+        // DELETE: api/carts/me/items/productId
+        [HttpDelete("items/{productId}")]
+        public async Task<IActionResult> RemoveItemFromCart(int productId)
         {
-            var result = await _repository.RemoveItemFromCartAsync(userId, productId);
+            var result = await _repository.RemoveItemFromCartAsync(UserId, productId);
             if (!result)
             {
                 return BadRequest("Failed to remove item from cart");
@@ -116,11 +90,11 @@ namespace EShop.ShoppingCart.Controllers
             return NoContent();
         }
 
-        // DELETE: api/carts/userId/clear
-        [HttpDelete("{userId}/clear")]
-        public async Task<IActionResult> ClearCart(string userId)
+        // DELETE: api/carts/me/items
+        [HttpDelete("items")]
+        public async Task<IActionResult> ClearCart()
         {
-            var result = await _repository.ClearCartAsync(userId);
+            var result = await _repository.ClearCartAsync(UserId);
             if (!result)
             {
                 return BadRequest("Failed to clear cart");
@@ -129,19 +103,19 @@ namespace EShop.ShoppingCart.Controllers
             return Ok();
         }
 
-        // DELETE: api/carts/userId
-        [HttpDelete("{userId}")]
-        public async Task<IActionResult> DeleteCart(string userId)
+        // DELETE: api/carts/me
+        [HttpDelete]
+        public async Task<IActionResult> DeleteCart()
         {
-            var result = await _repository.DeleteCartAsync(userId);
+            var result = await _repository.DeleteCartAsync(UserId);
             if (!result.HasValue)
             {
-                _logger.LogWarning("Cart not found for userId: {UserId}", userId);
+                _logger.LogWarning("Cart not found for userId: {UserId}", UserId);
                 return NotFound("Cart not found");
             }
             if (!result.Value)
             {
-                _logger.LogError("Failed to delete cart for userId: {UserId}", userId);
+                _logger.LogError("Failed to delete cart for userId: {UserId}", UserId);
                 return BadRequest("Failed to delete cart");
             }
             return Ok();

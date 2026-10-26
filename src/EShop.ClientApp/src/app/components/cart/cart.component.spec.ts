@@ -1,11 +1,13 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { CartComponent } from './cart.component';
 import { ICart } from '../../models/cart.model';
+import { AuthService } from '../../services/auth.service';
 
-const cartUrl = '/api/carts/1';
+const cartUrl = '/api/carts/me';
 const productsUrl = '/api/products';
 const categoriesUrl = '/api/categories';
 
@@ -29,7 +31,11 @@ describe('CartComponent', () =>
   {
     await TestBed.configureTestingModule({
       imports: [CartComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AuthService, useValue: { isAuthenticated: signal(true) } }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(CartComponent);
@@ -70,6 +76,17 @@ describe('CartComponent', () =>
     expect(text(fixture.nativeElement)).toContain('0 items');
   });
 
+  it('shows an empty cart when the server has none (404)', () =>
+  {
+    fixture.detectChanges();
+    httpTesting.expectOne(cartUrl).flush('Cart not found', { status: 404, statusText: 'Not Found' });
+    fixture.detectChanges();
+
+    expect(itemRows()).toHaveLength(0);
+    expect(text(fixture.nativeElement)).toContain('0 items');
+    expect(errorAlert()).toBeNull();
+  });
+
   it('disables "-" when the quantity is 1', () =>
   {
     loadCart(cart);
@@ -84,7 +101,7 @@ describe('CartComponent', () =>
 
     plusButton(0).click();
 
-    const req = httpTesting.expectOne(`${cartUrl}/update/7`);
+    const req = httpTesting.expectOne(`${cartUrl}/items/7`);
     expect(req.request.method).toBe('PUT');
     expect(req.request.body).toBe(3);
     req.flush(null);
@@ -96,7 +113,7 @@ describe('CartComponent', () =>
 
     removeButton(0).click();
 
-    expect(httpTesting.expectOne(`${cartUrl}/remove/7`).request.method).toBe('DELETE');
+    expect(httpTesting.expectOne(`${cartUrl}/items/7`).request.method).toBe('DELETE');
   });
 
   it('"+" updates the quantity and totals on the page', () =>
@@ -104,7 +121,7 @@ describe('CartComponent', () =>
     loadCart(cart);
 
     plusButton(0).click();
-    httpTesting.expectOne(`${cartUrl}/update/7`).flush(null);
+    httpTesting.expectOne(`${cartUrl}/items/7`).flush(null);
     fixture.detectChanges();
 
     expect(text(fixture.nativeElement)).toContain('ITEMS 2 € 64'); // 18 × 3 + 10
@@ -115,7 +132,7 @@ describe('CartComponent', () =>
     loadCart(cart);
 
     minusButton(0).click();
-    httpTesting.expectOne(`${cartUrl}/update/7`).flush(null);
+    httpTesting.expectOne(`${cartUrl}/items/7`).flush(null);
     fixture.detectChanges();
 
     expect(text(fixture.nativeElement)).toContain('ITEMS 2 € 28'); // 18 × 1 + 10
@@ -126,7 +143,7 @@ describe('CartComponent', () =>
     loadCart(cart);
 
     removeButton(0).click();
-    httpTesting.expectOne(`${cartUrl}/remove/7`).flush(null);
+    httpTesting.expectOne(`${cartUrl}/items/7`).flush(null);
     fixture.detectChanges();
 
     expect(itemRows()).toHaveLength(1);
@@ -138,7 +155,7 @@ describe('CartComponent', () =>
     loadCart(cart);
 
     trashButton().click();
-    httpTesting.expectOne(`${cartUrl}/clear`).flush(null);
+    httpTesting.expectOne(`${cartUrl}/items`).flush(null);
     fixture.detectChanges();
 
     expect(itemRows()).toHaveLength(0);
@@ -149,7 +166,7 @@ describe('CartComponent', () =>
     loadCart(cart);
 
     removeButton(0).click();
-    httpTesting.expectOne(`${cartUrl}/remove/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
+    httpTesting.expectOne(`${cartUrl}/items/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(itemRows()).toHaveLength(2);
@@ -161,7 +178,7 @@ describe('CartComponent', () =>
     loadCart(cart);
 
     plusButton(0).click();
-    httpTesting.expectOne(`${cartUrl}/update/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
+    httpTesting.expectOne(`${cartUrl}/items/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(text(fixture.nativeElement)).toContain('ITEMS 2 € 46');
@@ -176,7 +193,7 @@ describe('CartComponent', () =>
     input.value = '5';
     input.dispatchEvent(new Event('input'));   // ngModel updates cartItem.quantity
     input.dispatchEvent(new Event('change'));  // (change) sends the request
-    const req = httpTesting.expectOne(`${cartUrl}/update/7`);
+    const req = httpTesting.expectOne(`${cartUrl}/items/7`);
     expect(req.request.body).toBe(5);
     req.flush('Server error', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
@@ -190,11 +207,11 @@ describe('CartComponent', () =>
   {
     loadCart(cart);
     plusButton(0).click();
-    httpTesting.expectOne(`${cartUrl}/update/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
+    httpTesting.expectOne(`${cartUrl}/items/7`).flush('Server error', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     plusButton(0).click();
-    httpTesting.expectOne(`${cartUrl}/update/7`).flush(null);
+    httpTesting.expectOne(`${cartUrl}/items/7`).flush(null);
     fixture.detectChanges();
 
     expect(errorAlert()).toBeNull();

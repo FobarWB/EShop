@@ -16,8 +16,10 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
+| `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
-| `docker-compose.yml` | Local environment: PostgreSQL 18 and pgAdmin; with the profile `app` also the migrator, the three APIs and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050 |
+| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin and Keycloak; with the profile `app` also the migrator, the three APIs and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180 |
+| `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin` and `customer`/`customer` (local only, never on a server) | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
@@ -32,6 +34,11 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
   only nginx (`client`) is. Each API maps `GET /health` (database connectivity) for the container health checks.
 - CORS origins come from `Cors:AllowedOrigins` in each API's `appsettings.json` (`http://localhost:4200`);
   our client is same-origin through the proxies and does not need it.
+- Authentication: Keycloak issues the tokens, the APIs validate them (`Authentication:Authority`). Product and category
+  reads are public, writes need the realm role `admin`; every cart endpoint needs a signed-in user (`/api/carts/me`).
+  The client reads `authority` and `clientId` from `src/EShop.ClientApp/public/config.json` at start.
+- In containers the APIs read the Keycloak metadata from `keycloak:8080` (`Authentication__MetadataAddress`);
+  the token issuer stays `http://localhost:8180`.
 
 ### Project status
 
@@ -64,7 +71,7 @@ The APIs and the integration tests need the database: start Docker Desktop and `
 (the containers do not start on their own). Unit tests and Angular tests do not need it.
 
 ```powershell
-docker compose up -d                                # PostgreSQL + pgAdmin; docker compose stop when done
+docker compose up -d                                # PostgreSQL + pgAdmin + Keycloak; docker compose stop when done
 docker compose --profile app up -d --build --wait   # the whole shop in containers: http://localhost:8080
                                                     # from CI images instead: ESHOP_TAG=latest (or sha-<commit>),
                                                     # docker compose --profile app pull; up -d --no-build --wait
@@ -79,6 +86,12 @@ cd src/EShop.ClientApp; npm test                    # Angular unit tests (Vitest
 csharpier format <file>                             # format edited C# files
 ```
 
+An access token for manual API calls (client `eshop-dev`, development only; use `curl.exe` in PowerShell 5.1):
+
+```powershell
+curl.exe -d "grant_type=password&client_id=eshop-dev&username=customer&password=customer" http://localhost:8180/realms/eshop/protocol/openid-connect/token
+```
+
 CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`,
 then builds the five Docker images (job `images`); only on `master` it pushes them to ghcr.io as
 `ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|client|migrator>` with the tags `sha-<commit>` and `latest`.
@@ -91,11 +104,11 @@ The schema is owned by EF Core migrations in `src/EShop.Data/Migrations`; Northw
 `dotnet ef` needs `--startup-project`: the DbContext is configured in the API's `Program.cs`.
 
 First-time setup (the first `docker compose up` creates the role `eshop` with `CREATEDB` and the database `eshop`,
-see `db/init/`):
+and the role and database `keycloak`, see `db/init/`):
 
 ```powershell
 Copy-Item .env.example .env          # set the passwords; ESHOP_DB_PASSWORD is the password of the role eshop
-docker compose up -d                 # PostgreSQL + pgAdmin; docker compose ps shows postgres as "healthy"
+docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak; docker compose ps shows them as "healthy"
 dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
 dotnet ef database update --project src/EShop.Data --startup-project src/EShop.ProductApi
 docker compose cp db/northwind-data.sql postgres:/tmp/northwind-data.sql                                   # empty database only
@@ -107,6 +120,10 @@ PowerShell 5.1, which would change the encoding of non-ASCII Northwind names.
 
 - `docker compose down` keeps the data (named volume `eshop_postgres-data`); `docker compose down -v` deletes it,
   and the next `up` runs `db/init/` again.
+- A volume created before Keycloak was added has no `keycloak` database (init scripts run only on an empty volume):
+  `docker compose up -d postgres; docker compose exec postgres bash /docker-entrypoint-initdb.d/02-create-keycloak.sh`.
+- Keycloak keeps its state in the database `keycloak`: the realm file is imported only when the realm does not exist,
+  so later changes in the admin console stay, and changes of the file need the realm deleted (or `down -v`).
 - Model change → `dotnet ef migrations add <Name> --project src/EShop.Data --startup-project src/EShop.ProductApi`.
 - In the profile `app` the one-off service `migrator` (an EF Core migrations bundle, `src/EShop.Data/Dockerfile`)
   applies pending migrations before the APIs start; it runs on every `up`. Migrations are compiled into its image:

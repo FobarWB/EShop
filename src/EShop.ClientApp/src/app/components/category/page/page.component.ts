@@ -1,4 +1,4 @@
-import { Component, TemplateRef, ViewChild, ViewContainerRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, TemplateRef, ViewChild, ViewContainerRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, NgClass } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SideBarComponent } from '../side-bar/side-bar.component';
@@ -10,6 +10,7 @@ import { EditComponent } from '../../product/edit/edit.component';
 import { SpinnerComponent } from "../../spinner/spinner.component";
 import { IFilters } from '../../../models/filters.model';
 import { CartService } from '../../../services/cart.service';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-category-page',
@@ -23,6 +24,7 @@ export class PageComponent
   @ViewChild("clearFilters", { read: TemplateRef, static: true }) clearFiltersButton!: TemplateRef<any>;
   @ViewChild("filterFlags", { read: ViewContainerRef, static: true }) filtersViewContainerRef!: ViewContainerRef;
   @ViewChild(SideBarComponent, { static: true }) sideBarComponent!: SideBarComponent;
+  protected readonly auth = inject(AuthService);
   products: IProduct[] = [];
   minPrice: number = 0;
   maxPrice: number = 0;

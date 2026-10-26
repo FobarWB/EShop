@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-22
+verified: 2026-10-26
 ---
 
 # Learning
@@ -14,6 +14,8 @@ using `_templates/Topic.md`, and linked here.
 - [Testing](Testing.md): test levels, fixtures, coverage, mutation checks (issue #9).
 - [Docker](Docker.md): images, containers, volumes, ports, compose, init scripts (#47); own images, multi-stage,
   migrator, reverse proxy, health checks (#48); registry, CD to ghcr.io (#36).
+- [Authentication](Authentication.md): OpenID Connect, Code + PKCE, JWT validation, Keycloak realm and roles,
+  debugging lessons (#41).
 
 ## Planned topics
 

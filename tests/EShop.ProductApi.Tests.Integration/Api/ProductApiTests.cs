@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using EShop.Data.Entities;
+using EShop.Tests.Common;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace EShop.ProductApi.Tests.Integration.Api;
 
@@ -10,13 +13,17 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     private const string ProblemJson = "application/problem+json";
 
     private readonly ProductApiDatabase _database;
+    private readonly ProductApiFactory _factory;
     private readonly HttpClient _client;
+    private readonly HttpClient _admin;
     private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
     public ProductApiTests(ProductApiDatabase database, ProductApiFactory factory)
     {
         _database = database;
+        _factory = factory;
         _client = factory.CreateClient();
+        _admin = factory.CreateClient().AsAdmin();
     }
 
     public async ValueTask InitializeAsync() => await _database.ResetAsync(_cancellationToken);
@@ -24,6 +31,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     public ValueTask DisposeAsync()
     {
         _client.Dispose();
+        _admin.Dispose();
         return ValueTask.CompletedTask;
     }
 
@@ -102,7 +110,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     [Fact]
     public async Task Create_Returns201WithLocationAndStoresProduct()
     {
-        var response = await _client.PostAsJsonAsync(
+        var response = await _admin.PostAsJsonAsync(
             "api/products",
             new { productName = "Chai" },
             _cancellationToken
@@ -124,7 +132,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     public async Task Create_WithoutName_Returns400ValidationProblem()
     {
         // ProductName is a non-nullable string, so MVC treats it as [Required].
-        var response = await _client.PostAsJsonAsync(
+        var response = await _admin.PostAsJsonAsync(
             "api/products",
             new { unitPrice = 18 },
             _cancellationToken
@@ -138,7 +146,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     public async Task Create_NameTooLong_Returns400ValidationProblem()
     {
         // [StringLength(40)] is checked by [ApiController] before PostgreSQL would reject varchar(40).
-        var response = await _client.PostAsJsonAsync(
+        var response = await _admin.PostAsJsonAsync(
             "api/products",
             new { productName = new string('x', 41) },
             _cancellationToken
@@ -155,7 +163,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         // this only works because RetrieveAsync does not track the entity.
         var chai = await SeedProductAsync("Chai");
 
-        var response = await _client.PutAsJsonAsync(
+        var response = await _admin.PutAsJsonAsync(
             $"api/products/{chai.ProductId}",
             new { productId = chai.ProductId, productName = "Chai Latte" },
             _cancellationToken
@@ -172,7 +180,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     {
         var chai = await SeedProductAsync("Chai");
 
-        var response = await _client.PutAsJsonAsync(
+        var response = await _admin.PutAsJsonAsync(
             $"api/products/{chai.ProductId}",
             new { productId = chai.ProductId + 1, productName = "Chai" },
             _cancellationToken
@@ -184,7 +192,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     [Fact]
     public async Task Update_Unknown_Returns404()
     {
-        var response = await _client.PutAsJsonAsync(
+        var response = await _admin.PutAsJsonAsync(
             "api/products/999",
             new { productId = 999, productName = "Chai" },
             _cancellationToken
@@ -199,7 +207,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         // UnitsInStock is a non-nullable short (#31): null in JSON fails model binding.
         var chai = await SeedProductAsync("Chai");
 
-        var response = await _client.PutAsJsonAsync(
+        var response = await _admin.PutAsJsonAsync(
             $"api/products/{chai.ProductId}",
             new
             {
@@ -222,7 +230,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-        await _client.PutAsJsonAsync(
+        await _admin.PutAsJsonAsync(
             $"api/products/{chai.ProductId}",
             new { productId = chai.ProductId, productName = "Chai" },
             _cancellationToken
@@ -238,7 +246,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     {
         var chai = await SeedProductAsync("Chai");
 
-        var response = await _client.DeleteAsync(
+        var response = await _admin.DeleteAsync(
             $"api/products/{chai.ProductId}",
             _cancellationToken
         );
@@ -250,7 +258,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     [Fact]
     public async Task Delete_Unknown_Returns404()
     {
-        var response = await _client.DeleteAsync("api/products/999", _cancellationToken);
+        var response = await _admin.DeleteAsync("api/products/999", _cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -268,7 +276,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-        var response = await _client.DeleteAsync(
+        var response = await _admin.DeleteAsync(
             $"api/products/{chai.ProductId}",
             _cancellationToken
         );
@@ -298,7 +306,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-        var response = await _client.DeleteAsync(
+        var response = await _admin.DeleteAsync(
             $"api/products/{chai.ProductId}",
             _cancellationToken
         );
@@ -306,6 +314,55 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
         (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+    }
+
+    [Theory]
+    [InlineData("POST", "api/products")]
+    [InlineData("PUT", "api/products/1")]
+    [InlineData("DELETE", "api/products/1")]
+    public async Task WriteEndpoints_Anonymous_Return401(string method, string url)
+    {
+        var response = await SendJsonAsync(_client, method, url);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory]
+    [InlineData("POST", "api/products")]
+    [InlineData("PUT", "api/products/1")]
+    [InlineData("DELETE", "api/products/1")]
+    public async Task WriteEndpoints_WithoutAdminRole_Return403(string method, string url)
+    {
+        using var user = _factory.CreateClient().AsUser("user-1");
+
+        var response = await SendJsonAsync(user, method, url);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task GetOpenApiDocument_Anonymous_Returns200()
+    {
+        var response = await _client.GetAsync("openapi/v1.json", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Request_AuthorizationHeaderIsNotLogged()
+    {
+        // HttpLogging writes request headers; a bearer token in the logs could be replayed by anyone who reads them.
+        const string Marker = "token-marker-41";
+        var logs = new CapturingLoggerProvider();
+        using var client = _factory
+            .WithWebHostBuilder(builder => builder.ConfigureLogging(l => l.AddProvider(logs)))
+            .CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", Marker);
+
+        await client.GetAsync("api/products", _cancellationToken);
+
+        logs.Messages.ShouldContain(m => m.Contains("Authorization"));
+        logs.Messages.ShouldNotContain(m => m.Contains(Marker));
     }
 
     [Theory]
@@ -332,4 +389,13 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
 
     private async Task<List<Product>> GetProductsAsync(string url) =>
         (await _client.GetFromJsonAsync<List<Product>>(url, _cancellationToken)).ShouldNotBeNull();
+
+    private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>
+        client.SendAsync(
+            new HttpRequestMessage(new HttpMethod(method), url)
+            {
+                Content = JsonContent.Create(new { }),
+            },
+            _cancellationToken
+        );
 }
