@@ -51,9 +51,9 @@ namespace EShop.ShoppingCart.Controllers
 
         // GET: api/carts/me
         [HttpGet]
-        public async Task<IActionResult> GetCart()
+        public async Task<IActionResult> GetCart(CancellationToken cancellationToken)
         {
-            var cart = await _repository.RetrieveCartByUserIdAsync(UserId);
+            var cart = await _repository.RetrieveCartByUserIdAsync(UserId, cancellationToken);
             if (cart == null)
             {
                 return NotFound("Cart not found");
@@ -66,10 +66,16 @@ namespace EShop.ShoppingCart.Controllers
         [HttpPut("items/{productId}")]
         public async Task<IActionResult> UpdateItemQuantity(
             int productId,
-            [FromBody, Range(1, int.MaxValue)] int newQuantity
+            [FromBody, Range(1, int.MaxValue)] int newQuantity,
+            CancellationToken cancellationToken
         )
         {
-            var result = await _repository.UpdateItemQuantityAsync(UserId, productId, newQuantity);
+            var result = await _repository.UpdateItemQuantityAsync(
+                UserId,
+                productId,
+                newQuantity,
+                cancellationToken
+            );
             if (!result)
             {
                 return BadRequest("Failed to update item quantity");
@@ -79,9 +85,16 @@ namespace EShop.ShoppingCart.Controllers
 
         // DELETE: api/carts/me/items/productId
         [HttpDelete("items/{productId}")]
-        public async Task<IActionResult> RemoveItemFromCart(int productId)
+        public async Task<IActionResult> RemoveItemFromCart(
+            int productId,
+            CancellationToken cancellationToken
+        )
         {
-            var result = await _repository.RemoveItemFromCartAsync(UserId, productId);
+            var result = await _repository.RemoveItemFromCartAsync(
+                UserId,
+                productId,
+                cancellationToken
+            );
             if (!result)
             {
                 return BadRequest("Failed to remove item from cart");
@@ -92,9 +105,9 @@ namespace EShop.ShoppingCart.Controllers
 
         // DELETE: api/carts/me/items
         [HttpDelete("items")]
-        public async Task<IActionResult> ClearCart()
+        public async Task<IActionResult> ClearCart(CancellationToken cancellationToken)
         {
-            var result = await _repository.ClearCartAsync(UserId);
+            var result = await _repository.ClearCartAsync(UserId, cancellationToken);
             if (!result)
             {
                 return BadRequest("Failed to clear cart");
@@ -105,9 +118,9 @@ namespace EShop.ShoppingCart.Controllers
 
         // DELETE: api/carts/me
         [HttpDelete]
-        public async Task<IActionResult> DeleteCart()
+        public async Task<IActionResult> DeleteCart(CancellationToken cancellationToken)
         {
-            var result = await _repository.DeleteCartAsync(UserId);
+            var result = await _repository.DeleteCartAsync(UserId, cancellationToken);
             if (!result.HasValue)
             {
                 _logger.LogWarning("Cart not found for userId: {UserId}", UserId);

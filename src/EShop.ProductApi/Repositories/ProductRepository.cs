@@ -13,25 +13,25 @@ public class ProductRepository : IProductRepository
         _db = db;
     }
 
-    public async Task<Product?> CreateAsync(Product p)
+    public async Task<Product?> CreateAsync(Product p, CancellationToken cancellationToken)
     {
         _db.Products.Add(p);
-        var affected = await _db.SaveChangesAsync();
+        var affected = await _db.SaveChangesAsync(cancellationToken);
         return affected > 0 ? p : null;
     }
 
-    public async Task<IEnumerable<Product>> RetrieveAllAsync() =>
-        await _db.Products.AsNoTracking().ToListAsync();
+    public async Task<IEnumerable<Product>> RetrieveAllAsync(CancellationToken cancellationToken) =>
+        await _db.Products.AsNoTracking().ToListAsync(cancellationToken);
 
     // Not tracked: the controller loads a product and then updates it with another instance
     // of the same key, which would conflict with a tracked entity.
-    public Task<Product?> RetrieveAsync(int id) =>
-        _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == id);
+    public Task<Product?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
+        _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == id, cancellationToken);
 
-    public async Task<Product?> UpdateAsync(int id, Product p)
+    public async Task<Product?> UpdateAsync(int id, Product p, CancellationToken cancellationToken)
     {
         _db.Products.Update(p);
-        var affected = await _db.SaveChangesAsync();
+        var affected = await _db.SaveChangesAsync(cancellationToken);
         return affected > 0 ? p : null;
     }
 

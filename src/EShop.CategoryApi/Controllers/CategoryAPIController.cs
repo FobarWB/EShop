@@ -26,9 +26,12 @@ namespace EShop.CategoryApi.Controllers
         [HttpGet]
         [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(IEnumerable<Category>))]
-        public async Task<ActionResult<IEnumerable<Category>>> GetCategories(string? categoryName)
+        public async Task<ActionResult<IEnumerable<Category>>> GetCategories(
+            string? categoryName,
+            CancellationToken cancellationToken
+        )
         {
-            IEnumerable<Category> categories = await repository.RetrieveAllAsync();
+            IEnumerable<Category> categories = await repository.RetrieveAllAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(categoryName))
             {
                 return Ok(categories);
@@ -45,9 +48,9 @@ namespace EShop.CategoryApi.Controllers
         [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(Category))]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetCategory(int id)
+        public async Task<IActionResult> GetCategory(int id, CancellationToken cancellationToken)
         {
-            Category? c = await repository.RetrieveAsync(id);
+            Category? c = await repository.RetrieveAsync(id, cancellationToken);
             if (c is null)
             {
                 return NotFound();
@@ -60,9 +63,12 @@ namespace EShop.CategoryApi.Controllers
         [HttpPost]
         [ProducesResponseType(201, Type = typeof(Category))]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> Create([FromBody] Category c)
+        public async Task<IActionResult> Create(
+            [FromBody] Category c,
+            CancellationToken cancellationToken
+        )
         {
-            Category? addedCategory = await repository.CreateAsync(c);
+            Category? addedCategory = await repository.CreateAsync(c, cancellationToken);
 
             if (addedCategory is null)
             {
@@ -84,21 +90,25 @@ namespace EShop.CategoryApi.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Update(int id, [FromBody] Category c)
+        public async Task<IActionResult> Update(
+            int id,
+            [FromBody] Category c,
+            CancellationToken cancellationToken
+        )
         {
             if (c.CategoryId != id)
             {
                 return BadRequest();
             }
 
-            Category? existing = await repository.RetrieveAsync(id);
+            Category? existing = await repository.RetrieveAsync(id, cancellationToken);
 
             if (existing is null)
             {
                 return NotFound();
             }
 
-            await repository.UpdateAsync(id, c);
+            await repository.UpdateAsync(id, c, cancellationToken);
             return NoContent();
         }
 

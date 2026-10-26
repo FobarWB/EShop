@@ -13,11 +13,14 @@ namespace EShop.ShoppingCart.Repositories
             this.db = db;
         }
 
-        public async Task<Cart?> RetrieveCartByUserIdAsync(string userId)
+        public async Task<Cart?> RetrieveCartByUserIdAsync(
+            string userId,
+            CancellationToken cancellationToken
+        )
         {
             return await db
                 .Carts.Include(c => c.CartItems)
-                .FirstOrDefaultAsync(c => c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
         }
 
         public async Task<AddItemResult> AddItemToCartAsync(
@@ -32,7 +35,7 @@ namespace EShop.ShoppingCart.Repositories
                 return AddItemResult.ProductNotFound;
             }
 
-            var cart = await RetrieveCartByUserIdAsync(userId);
+            var cart = await RetrieveCartByUserIdAsync(userId, cancellationToken);
             if (cart == null)
             {
                 // First item for this user: the cart is inserted in the same SaveChanges as the item.
@@ -60,9 +63,13 @@ namespace EShop.ShoppingCart.Repositories
             return AddItemResult.Added;
         }
 
-        public async Task<bool> RemoveItemFromCartAsync(string userId, int productId)
+        public async Task<bool> RemoveItemFromCartAsync(
+            string userId,
+            int productId,
+            CancellationToken cancellationToken
+        )
         {
-            var cart = await RetrieveCartByUserIdAsync(userId);
+            var cart = await RetrieveCartByUserIdAsync(userId, cancellationToken);
             if (cart == null)
                 return false;
 
@@ -72,27 +79,28 @@ namespace EShop.ShoppingCart.Repositories
 
             cart.CartItems.Remove(item);
             db.Update(cart);
-            return await db.SaveChangesAsync() > 0;
+            return await db.SaveChangesAsync(cancellationToken) > 0;
         }
 
-        public async Task<bool> ClearCartAsync(string userId)
+        public async Task<bool> ClearCartAsync(string userId, CancellationToken cancellationToken)
         {
-            var cart = await RetrieveCartByUserIdAsync(userId);
+            var cart = await RetrieveCartByUserIdAsync(userId, cancellationToken);
             if (cart == null)
                 return false;
 
             cart.CartItems.Clear();
             db.Update(cart);
-            return await db.SaveChangesAsync() > 0;
+            return await db.SaveChangesAsync(cancellationToken) > 0;
         }
 
         public async Task<bool> UpdateItemQuantityAsync(
             string userId,
             int productId,
-            int newQuantity
+            int newQuantity,
+            CancellationToken cancellationToken
         )
         {
-            var cart = await RetrieveCartByUserIdAsync(userId);
+            var cart = await RetrieveCartByUserIdAsync(userId, cancellationToken);
             if (cart == null)
                 return false;
 
@@ -100,7 +108,7 @@ namespace EShop.ShoppingCart.Repositories
             if (item == null)
                 return false;
 
-            var product = await db.Products.FindAsync(productId);
+            var product = await db.Products.FindAsync([productId], cancellationToken);
             if (product == null || product.UnitsInStock < newQuantity)
             {
                 return false;
@@ -108,17 +116,17 @@ namespace EShop.ShoppingCart.Repositories
 
             item.Quantity = newQuantity;
             db.Update(cart);
-            return await db.SaveChangesAsync() > 0;
+            return await db.SaveChangesAsync(cancellationToken) > 0;
         }
 
-        public async Task<bool?> DeleteCartAsync(string userId)
+        public async Task<bool?> DeleteCartAsync(string userId, CancellationToken cancellationToken)
         {
-            var cart = await RetrieveCartByUserIdAsync(userId);
+            var cart = await RetrieveCartByUserIdAsync(userId, cancellationToken);
             if (cart == null)
                 return null;
 
             db.Carts.Remove(cart);
-            return await db.SaveChangesAsync() > 0;
+            return await db.SaveChangesAsync(cancellationToken) > 0;
         }
     }
 }

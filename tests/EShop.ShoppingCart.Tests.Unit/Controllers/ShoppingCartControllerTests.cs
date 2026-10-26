@@ -94,9 +94,11 @@ public class ShoppingCartControllerTests
     [Fact]
     public async Task GetCart_CartMissing_Returns404()
     {
-        _repository.RetrieveCartByUserIdAsync(UserId).Returns((Cart?)null);
+        _repository
+            .RetrieveCartByUserIdAsync(UserId, Arg.Any<CancellationToken>())
+            .Returns((Cart?)null);
 
-        var result = await _controller.GetCart();
+        var result = await _controller.GetCart(CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(404);
     }
@@ -105,9 +107,9 @@ public class ShoppingCartControllerTests
     public async Task GetCart_CartExists_Returns200WithCart()
     {
         var cart = new Cart { UserId = UserId };
-        _repository.RetrieveCartByUserIdAsync(UserId).Returns(cart);
+        _repository.RetrieveCartByUserIdAsync(UserId, Arg.Any<CancellationToken>()).Returns(cart);
 
-        var result = await _controller.GetCart();
+        var result = await _controller.GetCart(CancellationToken.None);
 
         result.ShouldBeOfType<OkObjectResult>().Value.ShouldBe(cart);
     }
@@ -120,9 +122,11 @@ public class ShoppingCartControllerTests
         int expected
     )
     {
-        _repository.UpdateItemQuantityAsync(UserId, ProductId, 3).Returns(updated);
+        _repository
+            .UpdateItemQuantityAsync(UserId, ProductId, 3, Arg.Any<CancellationToken>())
+            .Returns(updated);
 
-        var result = await _controller.UpdateItemQuantity(ProductId, 3);
+        var result = await _controller.UpdateItemQuantity(ProductId, 3, CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
@@ -135,9 +139,11 @@ public class ShoppingCartControllerTests
         int expected
     )
     {
-        _repository.RemoveItemFromCartAsync(UserId, ProductId).Returns(removed);
+        _repository
+            .RemoveItemFromCartAsync(UserId, ProductId, Arg.Any<CancellationToken>())
+            .Returns(removed);
 
-        var result = await _controller.RemoveItemFromCart(ProductId);
+        var result = await _controller.RemoveItemFromCart(ProductId, CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
@@ -147,9 +153,9 @@ public class ShoppingCartControllerTests
     [InlineData(false, 400)]
     public async Task ClearCart_MapsRepositoryResultToStatusCode(bool cleared, int expected)
     {
-        _repository.ClearCartAsync(UserId).Returns(cleared);
+        _repository.ClearCartAsync(UserId, Arg.Any<CancellationToken>()).Returns(cleared);
 
-        var result = await _controller.ClearCart();
+        var result = await _controller.ClearCart(CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
@@ -160,9 +166,9 @@ public class ShoppingCartControllerTests
     [InlineData(true, 200)]
     public async Task DeleteCart_MapsRepositoryResultToStatusCode(bool? deleted, int expected)
     {
-        _repository.DeleteCartAsync(UserId).Returns(deleted);
+        _repository.DeleteCartAsync(UserId, Arg.Any<CancellationToken>()).Returns(deleted);
 
-        var result = await _controller.DeleteCart();
+        var result = await _controller.DeleteCart(CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(expected);
     }

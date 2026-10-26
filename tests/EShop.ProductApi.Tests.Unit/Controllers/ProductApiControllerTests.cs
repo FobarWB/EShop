@@ -12,6 +12,7 @@ public class ProductApiControllerTests
 
     private readonly IProductRepository _repository = Substitute.For<IProductRepository>();
     private readonly ProductApiController _controller;
+    private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
     public ProductApiControllerTests()
     {
@@ -22,10 +23,10 @@ public class ProductApiControllerTests
     public async Task GetProducts_NoCategory_ReturnsAllProducts()
     {
         _repository
-            .RetrieveAllAsync()
+            .RetrieveAllAsync(Arg.Any<CancellationToken>())
             .Returns([Product(1, categoryId: 1), Product(2, categoryId: 2)]);
 
-        var result = await _controller.GetProducts(categoryId: null);
+        var result = await _controller.GetProducts(categoryId: null, _cancellationToken);
 
         ValueOf<IEnumerable<Product>>(result.Result).Count().ShouldBe(2);
     }
@@ -34,10 +35,10 @@ public class ProductApiControllerTests
     public async Task GetProducts_WithCategory_ReturnsOnlyThatCategory()
     {
         _repository
-            .RetrieveAllAsync()
+            .RetrieveAllAsync(Arg.Any<CancellationToken>())
             .Returns([Product(1, categoryId: 1), Product(2, categoryId: 2)]);
 
-        var result = await _controller.GetProducts(categoryId: 2);
+        var result = await _controller.GetProducts(categoryId: 2, _cancellationToken);
 
         ValueOf<IEnumerable<Product>>(result.Result).ShouldHaveSingleItem().ProductId.ShouldBe(2);
     }
@@ -45,9 +46,9 @@ public class ProductApiControllerTests
     [Fact]
     public async Task GetProduct_Missing_Returns404()
     {
-        _repository.RetrieveAsync(ProductId).Returns((Product?)null);
+        _repository.RetrieveAsync(ProductId, Arg.Any<CancellationToken>()).Returns((Product?)null);
 
-        var result = await _controller.GetProduct(ProductId);
+        var result = await _controller.GetProduct(ProductId, _cancellationToken);
 
         StatusCodeOf(result).ShouldBe(404);
     }
@@ -56,9 +57,9 @@ public class ProductApiControllerTests
     public async Task GetProduct_Exists_Returns200WithProduct()
     {
         var product = Product(ProductId);
-        _repository.RetrieveAsync(ProductId).Returns(product);
+        _repository.RetrieveAsync(ProductId, Arg.Any<CancellationToken>()).Returns(product);
 
-        var result = await _controller.GetProduct(ProductId);
+        var result = await _controller.GetProduct(ProductId, _cancellationToken);
 
         ValueOf<Product>(result).ShouldBe(product);
     }
@@ -67,9 +68,9 @@ public class ProductApiControllerTests
     public async Task Create_Created_Returns201WithRouteToNewProduct()
     {
         var product = Product(ProductId);
-        _repository.CreateAsync(product).Returns(product);
+        _repository.CreateAsync(product, Arg.Any<CancellationToken>()).Returns(product);
 
-        var result = await _controller.Create(product);
+        var result = await _controller.Create(product, _cancellationToken);
 
         var created = result.ShouldBeOfType<CreatedAtRouteResult>();
         created.RouteName.ShouldBe(nameof(ProductApiController.GetProduct));
@@ -79,9 +80,11 @@ public class ProductApiControllerTests
     [Fact]
     public async Task Create_RepositoryFailed_Returns400()
     {
-        _repository.CreateAsync(Arg.Any<Product>()).Returns((Product?)null);
+        _repository
+            .CreateAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>())
+            .Returns((Product?)null);
 
-        var result = await _controller.Create(Product(ProductId));
+        var result = await _controller.Create(Product(ProductId), _cancellationToken);
 
         StatusCodeOf(result).ShouldBe(400);
     }
@@ -89,18 +92,24 @@ public class ProductApiControllerTests
     [Fact]
     public async Task Update_IdMismatch_Returns400WithoutUpdating()
     {
-        var result = await _controller.Update(ProductId, Product(ProductId + 1));
+        var result = await _controller.Update(
+            ProductId,
+            Product(ProductId + 1),
+            _cancellationToken
+        );
 
         StatusCodeOf(result).ShouldBe(400);
-        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default, default!);
+        await _repository
+            .DidNotReceiveWithAnyArgs()
+            .UpdateAsync(default, default!, _cancellationToken);
     }
 
     [Fact]
     public async Task Update_Missing_Returns404()
     {
-        _repository.RetrieveAsync(ProductId).Returns((Product?)null);
+        _repository.RetrieveAsync(ProductId, Arg.Any<CancellationToken>()).Returns((Product?)null);
 
-        var result = await _controller.Update(ProductId, Product(ProductId));
+        var result = await _controller.Update(ProductId, Product(ProductId), _cancellationToken);
 
         StatusCodeOf(result).ShouldBe(404);
     }
@@ -109,12 +118,12 @@ public class ProductApiControllerTests
     public async Task Update_Exists_Returns204AndUpdates()
     {
         var product = Product(ProductId);
-        _repository.RetrieveAsync(ProductId).Returns(product);
+        _repository.RetrieveAsync(ProductId, Arg.Any<CancellationToken>()).Returns(product);
 
-        var result = await _controller.Update(ProductId, product);
+        var result = await _controller.Update(ProductId, product, _cancellationToken);
 
         StatusCodeOf(result).ShouldBe(204);
-        await _repository.Received(1).UpdateAsync(ProductId, product);
+        await _repository.Received(1).UpdateAsync(ProductId, product, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -125,7 +134,7 @@ public class ProductApiControllerTests
     {
         _repository.DeleteAsync(ProductId, Arg.Any<CancellationToken>()).Returns(deleted);
 
-        var result = await _controller.Delete(ProductId, TestContext.Current.CancellationToken);
+        var result = await _controller.Delete(ProductId, _cancellationToken);
 
         StatusCodeOf(result).ShouldBe(expected);
     }

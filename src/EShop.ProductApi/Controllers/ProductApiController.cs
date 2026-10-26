@@ -26,9 +26,12 @@ namespace EShop.ProductApi.Controllers
         [HttpGet]
         [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(IEnumerable<Product>))]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts(int? categoryId)
+        public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
+            int? categoryId,
+            CancellationToken cancellationToken
+        )
         {
-            IEnumerable<Product> products = await repository.RetrieveAllAsync();
+            IEnumerable<Product> products = await repository.RetrieveAllAsync(cancellationToken);
             if (!categoryId.HasValue)
             {
                 return Ok(products);
@@ -44,9 +47,9 @@ namespace EShop.ProductApi.Controllers
         [AllowAnonymous]
         [ProducesResponseType(200, Type = typeof(Product))]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetProduct(int id)
+        public async Task<IActionResult> GetProduct(int id, CancellationToken cancellationToken)
         {
-            Product? p = await repository.RetrieveAsync(id);
+            Product? p = await repository.RetrieveAsync(id, cancellationToken);
             if (p is null)
             {
                 return NotFound();
@@ -59,9 +62,12 @@ namespace EShop.ProductApi.Controllers
         [HttpPost]
         [ProducesResponseType(201, Type = typeof(Product))]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> Create([FromBody] Product p)
+        public async Task<IActionResult> Create(
+            [FromBody] Product p,
+            CancellationToken cancellationToken
+        )
         {
-            Product? addedProduct = await repository.CreateAsync(p);
+            Product? addedProduct = await repository.CreateAsync(p, cancellationToken);
 
             if (addedProduct is null)
             {
@@ -83,21 +89,25 @@ namespace EShop.ProductApi.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> Update(int id, [FromBody] Product p)
+        public async Task<ActionResult> Update(
+            int id,
+            [FromBody] Product p,
+            CancellationToken cancellationToken
+        )
         {
             if (p.ProductId != id)
             {
                 return BadRequest(); // 400
             }
 
-            Product? existing = await repository.RetrieveAsync(id);
+            Product? existing = await repository.RetrieveAsync(id, cancellationToken);
 
             if (existing is null)
             {
                 return NotFound(); // 404
             }
 
-            await repository.UpdateAsync(id, p);
+            await repository.UpdateAsync(id, p, cancellationToken);
             return new NoContentResult(); //204
         }
 

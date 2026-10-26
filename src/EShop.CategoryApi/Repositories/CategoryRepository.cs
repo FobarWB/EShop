@@ -13,25 +13,32 @@ public class CategoryRepository : ICategoryRepository
         _db = db;
     }
 
-    public async Task<Category?> CreateAsync(Category c)
+    public async Task<Category?> CreateAsync(Category c, CancellationToken cancellationToken)
     {
         _db.Categories.Add(c);
-        var affected = await _db.SaveChangesAsync();
+        var affected = await _db.SaveChangesAsync(cancellationToken);
         return affected > 0 ? c : null;
     }
 
-    public async Task<IEnumerable<Category>> RetrieveAllAsync() =>
-        await _db.Categories.AsNoTracking().ToListAsync();
+    public async Task<IEnumerable<Category>> RetrieveAllAsync(
+        CancellationToken cancellationToken
+    ) => await _db.Categories.AsNoTracking().ToListAsync(cancellationToken);
 
     // Not tracked: the controller loads a category and then updates it with another instance
     // of the same key, which would conflict with a tracked entity.
-    public Task<Category?> RetrieveAsync(int id) =>
-        _db.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.CategoryId == id);
+    public Task<Category?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
+        _db
+            .Categories.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.CategoryId == id, cancellationToken);
 
-    public async Task<Category?> UpdateAsync(int id, Category c)
+    public async Task<Category?> UpdateAsync(
+        int id,
+        Category c,
+        CancellationToken cancellationToken
+    )
     {
         _db.Categories.Update(c);
-        var affected = await _db.SaveChangesAsync();
+        var affected = await _db.SaveChangesAsync(cancellationToken);
         return affected > 0 ? c : null;
     }
 
