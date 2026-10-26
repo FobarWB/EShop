@@ -37,7 +37,7 @@ describe('CartService', () =>
   {
     it('loads the cart of the current user', () =>
     {
-      const cart: ICart = { cartId: 5, userId: 'user-1', createdAt: new Date(), cartItems: [] };
+      const cart: ICart = { cartId: 5, cartItems: [] };
       let result: ICart | undefined;
 
       service.getCart().subscribe(c => result = c);
@@ -80,7 +80,7 @@ describe('CartService', () =>
 
     it.each([
       { name: 'addItemToCart', call: (s: CartService) => s.addItemToCart(7, 2), method: 'POST', url: `${apiUrl}/items`, body: { productId: 7, quantity: 2 } },
-      { name: 'updateItemQuantity', call: (s: CartService) => s.updateItemQuantity(7, 3), method: 'PUT', url: `${apiUrl}/items/7`, body: 3 },
+      { name: 'updateItemQuantity', call: (s: CartService) => s.updateItemQuantity(7, 3), method: 'PUT', url: `${apiUrl}/items/7`, body: { quantity: 3 } },
       { name: 'removeItemFromCart', call: (s: CartService) => s.removeItemFromCart(7), method: 'DELETE', url: `${apiUrl}/items/7`, body: null },
       { name: 'clearCart', call: (s: CartService) => s.clearCart(), method: 'DELETE', url: `${apiUrl}/items`, body: null },
     ] as { name: string; call: (s: CartService) => Observable<unknown>; method: string; url: string; body: unknown }[])(
@@ -103,7 +103,7 @@ describe('CartService', () =>
     {
       service.addItemToCart(7, 2).subscribe();
 
-      expect(storedCart().cartItems).toEqual([{ cartId: 0, productId: 7, quantity: 2 }]);
+      expect(storedCart().cartItems).toEqual([{ productId: 7, quantity: 2 }]);
     });
 
     it('adds up the quantity of an item that is already in the cart', () =>
@@ -111,7 +111,7 @@ describe('CartService', () =>
       service.addItemToCart(7, 2).subscribe();
       service.addItemToCart(7, 3).subscribe();
 
-      expect(storedCart().cartItems).toEqual([{ cartId: 0, productId: 7, quantity: 5 }]);
+      expect(storedCart().cartItems).toEqual([{ productId: 7, quantity: 5 }]);
     });
 
     it('returns the stored cart', () =>
@@ -121,7 +121,7 @@ describe('CartService', () =>
 
       service.getCart().subscribe(c => result = c);
 
-      expect(result?.cartItems).toEqual([{ cartId: 0, productId: 7, quantity: 2 }]);
+      expect(result?.cartItems).toEqual([{ productId: 7, quantity: 2 }]);
     });
 
     it('updates the quantity of an item', () =>
@@ -170,7 +170,7 @@ describe('CartService', () =>
       auth.isAuthenticated.set(true);
       service.getCart().subscribe();
 
-      httpTesting.expectOne(apiUrl).flush({ cartId: 5, userId: 'user-1', createdAt: new Date(), cartItems: [] });
+      httpTesting.expectOne(apiUrl).flush({ cartId: 5, cartItems: [] });
     });
   });
 });

@@ -1,11 +1,7 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using EShop.Data;
 using EShop.ServiceDefaults;
 using EShop.ShoppingCart.Repositories;
-using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.HttpLogging;
-using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
 
 const string ClientCorsPolicy = "Client";
@@ -29,9 +25,7 @@ builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 
-builder
-    .Services.AddControllers()
-    .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+builder.Services.AddControllers();
 
 builder.Services.AddOpenApi(options =>
 {

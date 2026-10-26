@@ -41,7 +41,7 @@ export class CartService
   {
     if (this.isUserAuthenticated())
     {
-      const item: Omit<ICartItem, 'cartId'> = { productId, quantity };  // Send only productId and quantity
+      const item: ICartItem = { productId, quantity };
       return this.apiService.post<void>(`${this.apiUrl}/items`, item);
     }
     else
@@ -54,7 +54,7 @@ export class CartService
         existingItem.quantity += quantity;
       } else
       {
-        cart.cartItems.push({ cartId: cart.cartId, productId, quantity });
+        cart.cartItems.push({ productId, quantity });
       }
 
       this.saveCartToLocalStorage(cart);
@@ -65,7 +65,7 @@ export class CartService
   {
     if (this.isUserAuthenticated())
     {
-      return this.apiService.put<void>(`${this.apiUrl}/items/${productId}`, newQuantity);
+      return this.apiService.put<void>(`${this.apiUrl}/items/${productId}`, { quantity: newQuantity });
     }
     else
     {
@@ -119,6 +119,6 @@ export class CartService
 
   private emptyCart(): ICart
   {
-    return { cartId: 0, userId: null, createdAt: new Date(), cartItems: [] };
+    return { cartId: 0, cartItems: [] };
   }
 }

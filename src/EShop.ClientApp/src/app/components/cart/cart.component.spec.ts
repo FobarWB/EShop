@@ -14,11 +14,9 @@ const categoriesUrl = '/api/categories';
 // Chai 18 € × 2 + Aniseed Syrup 10 € × 1 = 46 €; total with 5 € shipping = 51 €.
 const cart: ICart = {
   cartId: 5,
-  userId: '1',
-  createdAt: new Date(),
   cartItems: [
-    { cartId: 5, productId: 7, quantity: 2 },
-    { cartId: 5, productId: 9, quantity: 1 },
+    { productId: 7, quantity: 2 },
+    { productId: 9, quantity: 1 },
   ]
 };
 
@@ -103,7 +101,7 @@ describe('CartComponent', () =>
 
     const req = httpTesting.expectOne(`${cartUrl}/items/7`);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toBe(3);
+    expect(req.request.body).toEqual({ quantity: 3 });
     req.flush(null);
   });
 
@@ -194,7 +192,7 @@ describe('CartComponent', () =>
     input.dispatchEvent(new Event('input'));   // ngModel updates cartItem.quantity
     input.dispatchEvent(new Event('change'));  // (change) sends the request
     const req = httpTesting.expectOne(`${cartUrl}/items/7`);
-    expect(req.request.body).toBe(5);
+    expect(req.request.body).toEqual({ quantity: 5 });
     req.flush('Server error', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     await fixture.whenStable(); // ngModel writes the restored value to the input asynchronously
