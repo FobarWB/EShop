@@ -91,17 +91,21 @@ describe('LocalCartService', () =>
       expect(result).toEqual({ cartId: 0, cartItems: [] });
     });
 
-    it('completes the items with product, category and current price', () =>
+    it('completes the items with product, category, current price and stock', () =>
     {
       service.addItem(7, 2);
       let result: ICart | undefined;
 
       service.getCart().subscribe(c => result = c);
 
-      httpTesting.expectOne('/api/products/7').flush({ productId: 7, productName: 'Chai', unitPrice: 18, categoryId: 1 });
+      httpTesting.expectOne('/api/products/7').flush(
+        { productId: 7, productName: 'Chai', unitPrice: 18, categoryId: 1, unitsInStock: 39, discontinued: false });
       httpTesting.expectOne('/api/categories/1').flush({ categoryId: 1, categoryName: 'Beverages' });
       expect(result?.cartItems).toEqual([
-        { productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2 }
+        {
+          productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2,
+          unitsInStock: 39, discontinued: false
+        }
       ]);
     });
 

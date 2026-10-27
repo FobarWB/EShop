@@ -36,11 +36,14 @@
             <div class="row">
               {{ cartItem.productName }}
             </div>
+            @if (problemOf(cartItem); as problem) {
+            <div class="row text-danger cart-item-problem">{{ problem }}</div>
+            }
           </div>
           <div class="col">
             <button
               (click)="changeQuantity(cartItem, cartItem.quantity - 1)"
-              [disabled]="cartItem.quantity <= 1"
+              [disabled]="cartItem.quantity <= 1 || isUnavailable(cartItem)"
               class="cart-counter-button"
             >
               -
@@ -51,9 +54,11 @@
               [(ngModel)]="cartItem.quantity"
               (change)="changeQuantity(cartItem, cartItem.quantity)"
               min="1"
+              [disabled]="isUnavailable(cartItem)"
             />
             <button
               (click)="changeQuantity(cartItem, cartItem.quantity + 1)"
+              [disabled]="cartItem.quantity >= cartItem.unitsInStock || isUnavailable(cartItem)"
               class="cart-counter-button"
             >
               +
@@ -107,10 +112,13 @@
         <div class="col">TOTAL PRICE</div>
         <div class="col text-right">
           &euro;
-          {{ getSummaryPriceForAllCartItems() + 5 }}
+          {{ getSummaryPriceForAllCartItems() + freight }}
         </div>
       </div>
-      <button class="btn">CHECKOUT</button>
+      <button class="btn btn-checkout" routerLink="/checkout" [disabled]="!canCheckout()">CHECKOUT</button>
+      @if (cartItems.length > 0 && !canCheckout()) {
+      <p class="text-danger checkout-hint">Remove or change the marked items to check out.</p>
+      }
     </div>
   </div>
 </div>
