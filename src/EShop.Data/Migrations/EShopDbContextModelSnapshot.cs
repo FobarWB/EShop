@@ -353,6 +353,10 @@ namespace EShop.Data.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("freight");
 
+                    b.Property<Guid?>("IdempotencyKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("idempotency_key");
+
                     b.Property<DateTime?>("OrderDate")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("order_date");
@@ -399,6 +403,11 @@ namespace EShop.Data.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("shipped_date");
 
+                    b.Property<string>("UserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("user_id");
+
                     b.HasKey("OrderId")
                         .HasName("pk_orders");
 
@@ -419,6 +428,10 @@ namespace EShop.Data.Migrations
 
                     b.HasIndex("ShippedDate")
                         .HasDatabaseName("ix_orders_shipped_date");
+
+                    b.HasIndex("UserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_user_id_idempotency_key");
 
                     b.ToTable("orders", (string)null);
                 });
@@ -516,6 +529,12 @@ namespace EShop.Data.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0)
                         .HasColumnName("units_on_order");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("ProductId")
                         .HasName("pk_products");

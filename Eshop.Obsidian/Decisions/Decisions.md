@@ -17,3 +17,7 @@ Architecture decision records: the context, the decision and its consequences. N
 - [ShoppingCartReadsCatalogData](ShoppingCartReadsCatalogData.md): the cart returns product details with the current price,
   read from the shared `products` and `categories` tables.
 - [PagedListResponses](PagedListResponses.md): lists are paged with `{ items, page, pageSize, totalCount }` and offset paging.
+- [OptimisticConcurrencyWithXmin](OptimisticConcurrencyWithXmin.md): products carry PostgreSQL's `xmin` as a concurrency
+  token; a concurrent change becomes 409 instead of a lost update.
+- [IdempotentCheckout](IdempotentCheckout.md): the client sends one `Idempotency-Key` per checkout attempt; a retry
+  returns the same order.

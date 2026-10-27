@@ -30,7 +30,8 @@ Every endpoint needs a signed-in user and works on that user's cart: the id is t
 ## Contract
 
 `CartResponse(CartId, CartItems)`; each `CartItemResponse` has `ProductId`, `ProductName`, `CategoryName` (null for a
-product without a category), `UnitPrice` and `Quantity`. The user id and the creation time are not exposed.
+product without a category), `UnitPrice`, `Quantity`, and since #42 `UnitsInStock` and `Discontinued`, so the client
+marks items that cannot be ordered as they are. The user id and the creation time are not exposed.
 Product details are read with the cart in one SQL query (`cart_items → products → categories`, projection in
 [CartMappings](../../src/EShop.ShoppingCart/Dtos/CartMappings.cs)); the price is the current one, not a copy taken
 when the item was added. Before #33 the cart page requested every product and its category (1 + 2N requests).
@@ -46,6 +47,7 @@ an empty cart cleared or an unchanged quantity writes no rows and still succeeds
 ## Dependencies
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`); reads `products` (stock, name, price) and `categories` (name).
+[OrderApi](OrderApi.md) reads the cart and deletes its items at checkout, in the transaction that stores the order.
 JWT validation, `User.GetUserId()` and error handling from `EShop.ServiceDefaults`; tokens are issued by Keycloak.
 
 ## Tests
@@ -57,3 +59,4 @@ JWT validation, `User.GetUserId()` and error handling from `EShop.ServiceDefault
 
 - Two concurrent first adds for the same user can both try to create a cart; the second fails on the unique `UserId` index (500).
 - A quantity above stock or for an item that is not in the cart answers 400; 409 and 404 (as for POST) would be more precise.
+- A discontinued product can still be added to the cart; the cart marks it and the checkout refuses it.

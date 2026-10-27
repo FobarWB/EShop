@@ -138,6 +138,13 @@ services:
       context: .
       dockerfile: src/EShop.ShoppingCart/Dockerfile
 
+  orderapi:
+    <<: *api
+    image: ghcr.io/fobarwb/eshop-orderapi:${ESHOP_TAG:-local}
+    build:
+      context: .
+      dockerfile: src/EShop.OrderApi/Dockerfile
+
   # nginx: the only shop service published to the host; it serves the client and proxies /api to the APIs.
   client:
     profiles: [app]
@@ -153,6 +160,8 @@ services:
       categoryapi:
         condition: service_healthy
       shoppingcart:
+        condition: service_healthy
+      orderapi:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]

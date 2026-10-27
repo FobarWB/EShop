@@ -29,6 +29,11 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
 - **Cancellation.** Async methods take a `CancellationToken`; Npgsql then cancels the running statement on the server.
 - **Interceptors.** `SaveChangesInterceptor.SavingChangesAsync` runs before the commands are sent; added per test with
   `services.ConfigureDbContext<TContext>(o => o.AddInterceptors(...))` (EF Core 9+).
+- **Concurrency token.** A property marked `[Timestamp]` / `IsConcurrencyToken()` is added to the `WHERE` of UPDATE and
+  DELETE with the value read; no matched row means `DbUpdateConcurrencyException` (`DbUpdateException` without a
+  database error inside). In PostgreSQL the token is the system column `xmin` (`uint`), read back after each write.
+- **One SaveChanges, one transaction.** Inserts, updates and deletes of one `SaveChangesAsync` run in one implicit
+  transaction: any failure leaves the database as it was, no explicit `BeginTransaction` needed.
 
 ## Applied in this project
 
@@ -37,8 +42,10 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
 - `ToPageAsync()` in `EShop.ServiceDefaults`: `CountAsync`, then `Skip`/`Take` on an ordered query.
 - EF Core wraps database errors in `DbUpdateException`; the PostgreSQL error is its `InnerException`
   (`PostgresException.SqlState`), see `ForeignKeyViolationHandler`.
+- `Product.Version` → `xmin`; `ConcurrencyConflictHandler` maps the exception to 409; the checkout writes order, stock
+  and cart in one `SaveChangesAsync` (#42, [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md)).
 
 ## Open questions
 
-- Two requests that load and save the same cart can overwrite each other's quantity (last write wins); a concurrency
-  token (`xmin` in PostgreSQL) would turn that into a conflict.
+- Two requests that load and save the same cart can overwrite each other's quantity (last write wins); products have
+  an `xmin` token since #42, carts and cart items do not.

@@ -316,6 +316,35 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
+    public async Task Update_ProductChangedAfterRead_Returns409AndKeepsOtherChange()
+    {
+        // Another request updates the product between FindAsync and SaveChanges: xmin no longer matches.
+        var chai = await SeedProductAsync("Chai");
+        using var admin = CreateAdminWithConcurrentWrite(async () =>
+        {
+            await using var db = _database.CreateContext();
+            await db
+                .Products.Where(p => p.ProductId == chai.ProductId)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(p => p.ProductName, "Chai Tea"),
+                    _cancellationToken
+                );
+        });
+
+        var response = await admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new { productId = chai.ProductId, productName = "Chai Latte" },
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .ProductName.ShouldBe("Chai Tea");
+    }
+
+    [Fact]
     public async Task Delete_Existing_Returns204AndDeletesIt()
     {
         var chai = await SeedProductAsync("Chai");

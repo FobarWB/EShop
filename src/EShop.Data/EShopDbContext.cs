@@ -123,6 +123,10 @@ namespace EShop.Data
             {
                 entity.Property(e => e.Freight).HasDefaultValue(0m);
 
+                // One order per checkout attempt of a user. The index also serves lookups by user_id
+                // (its leading column), so user_id needs no index of its own.
+                entity.HasIndex(e => new { e.UserId, e.IdempotencyKey }).IsUnique();
+
                 entity
                     .HasOne(d => d.Customer)
                     .WithMany(p => p.Orders)

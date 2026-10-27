@@ -81,7 +81,9 @@ export class LocalCartService
           productName: product.productName,
           categoryName,
           unitPrice: product.unitPrice,
-          quantity: item.quantity
+          quantity: item.quantity,
+          unitsInStock: product.unitsInStock,
+          discontinued: product.discontinued
         })));
       }),
       catchError(() => of(null))

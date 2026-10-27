@@ -166,6 +166,30 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RetrieveCart_ProductChangedAfterAdding_ReturnsCurrentStockAndDiscontinued()
+    {
+        // Another buyer took units and the admin discontinued the product after it was added to the cart.
+        var productId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 2);
+        await using (var db = _database.CreateContext())
+        {
+            await db
+                .Products.Where(p => p.ProductId == productId)
+                .ExecuteUpdateAsync(
+                    s =>
+                        s.SetProperty(p => p.UnitsInStock, (short)1)
+                            .SetProperty(p => p.Discontinued, true),
+                    _cancellationToken
+                );
+        }
+
+        var cart = await ActAsync(r => r.RetrieveCartAsync(UserId, _cancellationToken));
+
+        var item = cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem();
+        item.UnitsInStock.ShouldBe((short)1);
+        item.Discontinued.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task UpdateItemQuantity_WithinStock_UpdatesQuantity()
     {
         var productId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);

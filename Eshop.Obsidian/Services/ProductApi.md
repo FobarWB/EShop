@@ -27,6 +27,8 @@ see [Authentication](../Learning/Authentication.md).
 The list is paged (`{ items, page, pageSize, totalCount }`, see [PagedListResponses](../Decisions/PagedListResponses.md)).
 DELETE returns 409 ProblemDetails while cart items or order details reference the product (#32); a reference added
 between that check and the `DELETE` is rejected by PostgreSQL and also ends as 409 (#33).
+PUT and DELETE also return 409 when the product changed since it was read (its `xmin` no longer matches, e.g. a
+checkout decremented the stock): the change is not stored, see [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md).
 
 ## Contract
 

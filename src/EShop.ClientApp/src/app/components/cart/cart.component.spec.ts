@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter, Router } from '@angular/router';
 
 import { CartComponent } from './cart.component';
 import { ICart } from '../../models/cart.model';
@@ -13,8 +14,14 @@ const cartUrl = '/api/carts/me';
 const cart: ICart = {
   cartId: 5,
   cartItems: [
-    { productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2 },
-    { productId: 9, productName: 'Aniseed Syrup', categoryName: 'Condiments', unitPrice: 10, quantity: 1 },
+    {
+      productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2,
+      unitsInStock: 39, discontinued: false
+    },
+    {
+      productId: 9, productName: 'Aniseed Syrup', categoryName: 'Condiments', unitPrice: 10, quantity: 1,
+      unitsInStock: 13, discontinued: false
+    },
   ]
 };
 
@@ -30,6 +37,7 @@ describe('CartComponent', () =>
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: AuthService, useValue: { isAuthenticated: signal(true) } }
       ]
     }).compileComponents();
@@ -212,6 +220,74 @@ describe('CartComponent', () =>
 
     expect(errorAlert()).toBeNull();
   });
+
+  it('marks a discontinued item and disables its quantity controls', async () =>
+  {
+    loadCart(withItem(0, { discontinued: true }));
+    await fixture.whenStable(); // ngModel applies [disabled] to the input asynchronously
+
+    expect(text(itemRows()[0])).toContain('No longer available');
+    expect(minusButton(0).disabled).toBe(true);
+    expect(plusButton(0).disabled).toBe(true);
+    expect(quantityInput(0).disabled).toBe(true);
+  });
+
+  it('marks an item above the stock and stops "+" at the stock', () =>
+  {
+    loadCart(withItem(0, { quantity: 3, unitsInStock: 1 }));
+
+    expect(text(itemRows()[0])).toContain('Only 1 left');
+    expect(plusButton(0).disabled).toBe(true);
+    expect(minusButton(0).disabled).toBe(false);
+  });
+
+  it('stops "+" when the quantity reaches the stock', () =>
+  {
+    loadCart(withItem(0, { quantity: 2, unitsInStock: 2 }));
+
+    expect(itemRows()[0].querySelector('.cart-item-problem')).toBeNull();
+    expect(plusButton(0).disabled).toBe(true);
+  });
+
+  it('CHECKOUT leads to the checkout page', () =>
+  {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    loadCart(cart);
+
+    checkoutButton().click();
+
+    expect(TestBed.inject(Router).serializeUrl(navigate.mock.calls[0][0] as never)).toBe('/checkout');
+  });
+
+  it('disables CHECKOUT for an empty cart', () =>
+  {
+    loadCart({ ...cart, cartItems: [] });
+
+    expect(checkoutButton().disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('.checkout-hint')).toBeNull();
+  });
+
+  it('disables CHECKOUT and says why while an item is marked', () =>
+  {
+    loadCart(withItem(1, { unitsInStock: 0 }));
+
+    expect(checkoutButton().disabled).toBe(true);
+    expect(text(itemRows()[1])).toContain('Out of stock');
+    expect(fixture.nativeElement.querySelector('.checkout-hint')).not.toBeNull();
+  });
+
+  // The test cart with one item changed.
+  function withItem(row: number, changes: Partial<ICart['cartItems'][number]>): ICart
+  {
+    const changed = structuredClone(cart);
+    Object.assign(changed.cartItems[row], changes);
+    return changed;
+  }
+
+  function checkoutButton(): HTMLButtonElement
+  {
+    return fixture.nativeElement.querySelector('.btn-checkout');
+  }
 
   // Answers the only request the page makes on load: the cart already has the product details,
   // so httpTesting.verify() fails the test if the page asks for products or categories.

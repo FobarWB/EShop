@@ -1,6 +1,7 @@
 using EShop.Data;
 using EShop.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using Xunit;
@@ -72,7 +73,13 @@ public abstract class TestDatabase : IAsyncLifetime
 
     public string ConnectionString { get; }
 
-    public EShopDbContext CreateContext() => new(_options);
+    // Interceptors let a test act in the middle of SaveChanges (see BeforeSaveChangesInterceptor).
+    public EShopDbContext CreateContext(params IInterceptor[] interceptors) =>
+        new(
+            new DbContextOptionsBuilder<EShopDbContext>(_options)
+                .AddInterceptors(interceptors)
+                .Options
+        );
 
     // Creates the database on the first run (the role needs CREATEDB) and applies pending migrations.
     public async ValueTask InitializeAsync()

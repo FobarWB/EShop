@@ -1,0 +1,50 @@
+<div class="container py-4">
+  <h4><b>Checkout</b></h4>
+  @if (errorMessage(); as message) {
+  <div class="alert alert-danger" role="alert">
+    {{ message }} <a routerLink="/cart">Back to cart</a>
+  </div>
+  }
+  <div class="row">
+    <form class="col-md-7" [formGroup]="form" (ngSubmit)="placeOrder()">
+      <h5>Shipping address</h5>
+      @for (field of fields; track field.name) {
+      <div class="mb-3">
+        <label class="form-label" [for]="field.name">{{ field.label }}</label>
+        <input
+          class="form-control"
+          [id]="field.name"
+          [formControlName]="field.name"
+          [attr.maxlength]="field.maxLength"
+        />
+      </div>
+      }
+      <button type="submit" class="btn btn-dark place-order" [disabled]="!canPlaceOrder()">
+        {{ placing() ? 'Placing the order…' : 'Place order' }}
+      </button>
+    </form>
+    <div class="col-md-5 summary">
+      <h5>Your order</h5>
+      @if (loaded() && items().length === 0) {
+      <p class="empty-cart">Your cart is empty. <a routerLink="/">Back to shop</a></p>
+      }
+      @for (item of items(); track item.productId) {
+      <div class="order-item">
+        <div class="d-flex justify-content-between">
+          <span>{{ item.productName }} &times; {{ item.quantity }}</span>
+          <span>&euro; {{ lineTotal(item) | number: '1.2-2' }}</span>
+        </div>
+        @if (problemOf(item); as problem) {
+        <div class="text-danger small item-problem">{{ problem }}</div>
+        }
+      </div>
+      }
+      <hr />
+      <div class="d-flex justify-content-between"><span>Shipping</span><span>&euro; {{ freight | number: '1.2-2' }}</span></div>
+      <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>&euro; {{ total() | number: '1.2-2' }}</span></div>
+      @if (hasProblems()) {
+      <p class="text-danger mt-3">Remove or change the marked items in the <a routerLink="/cart">cart</a>.</p>
+      }
+    </div>
+  </div>
+</div>

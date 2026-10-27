@@ -1,11 +1,13 @@
 import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CartService } from '../../services/cart.service';
-import { ICartItem } from '../../models/cart-item.model';
+import { cartItemProblem, ICartItem, isUnavailable } from '../../models/cart-item.model';
+import { standardFreight } from '../../models/order.model';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-cart',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './cart.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './cart.component.css'
@@ -13,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 export class CartComponent implements OnInit
 {
   cartItems: ICartItem[] = [];
+  protected readonly freight = standardFreight;
   protected errorMessage: string | null = null;
   // Quantities the server has confirmed; the input's ngModel changes cartItem.quantity before the request.
   private confirmedQuantities: { [productId: number]: number } = {};
@@ -49,6 +52,22 @@ export class CartComponent implements OnInit
       sum += price ? price : 0;
     });
     return sum;
+  }
+
+  protected problemOf(cartItem: ICartItem): string | null
+  {
+    return cartItemProblem(cartItem);
+  }
+
+  protected isUnavailable(cartItem: ICartItem): boolean
+  {
+    return isUnavailable(cartItem);
+  }
+
+  // The cart shows the current stock: an order the API would refuse is not started.
+  protected canCheckout(): boolean
+  {
+    return this.cartItems.length > 0 && this.cartItems.every(cartItem => cartItemProblem(cartItem) === null);
   }
 
   protected clearCart(): void

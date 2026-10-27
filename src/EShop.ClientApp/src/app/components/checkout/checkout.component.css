@@ -1,0 +1,12 @@
+.summary {
+  background-color: #eee;
+  border-radius: 1rem;
+  padding: 2rem;
+}
+.order-item {
+  padding: 0.5rem 0;
+}
+.place-order {
+  width: 100%;
+  border-radius: 0;
+}

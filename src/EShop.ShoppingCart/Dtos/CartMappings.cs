@@ -16,7 +16,9 @@ public static class CartMappings
                     i.Product!.ProductName,
                     i.Product.Category!.CategoryName,
                     i.Product.UnitPrice,
-                    i.Quantity
+                    i.Quantity,
+                    i.Product.UnitsInStock,
+                    i.Product.Discontinued
                 ))
                 .ToList()
         ));

@@ -1,5 +1,6 @@
 {
   "/api/products": { "target": "https://localhost:5002", "secure": false },
   "/api/categories": { "target": "https://localhost:5003", "secure": false },
-  "/api/carts": { "target": "https://localhost:5004", "secure": false }
+  "/api/carts": { "target": "https://localhost:5004", "secure": false },
+  "/api/orders": { "target": "https://localhost:5005", "secure": false }
 }
