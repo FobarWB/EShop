@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-23
+verified: 2026-10-27
 ---
 
 # Decisions
@@ -14,3 +14,6 @@ Architecture decision records: the context, the decision and its consequences. N
 - [TestAgainstRealPostgreSql](TestAgainstRealPostgreSql.md): integration tests use real PostgreSQL, one database per test project.
 - [RelativeApiUrlsBehindProxy](RelativeApiUrlsBehindProxy.md): the client calls `/api/...`; the dev server or nginx forwards to the APIs.
 - [UseKeycloakForAuthentication](UseKeycloakForAuthentication.md): Keycloak (OIDC) issues the tokens, the APIs only validate them.
+- [ShoppingCartReadsCatalogData](ShoppingCartReadsCatalogData.md): the cart returns product details with the current price,
+  read from the shared `products` and `categories` tables.
+- [PagedListResponses](PagedListResponses.md): lists are paged with `{ items, page, pageSize, totalCount }` and offset paging.

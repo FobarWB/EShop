@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-26
+verified: 2026-10-27
 ---
 
 # ClientApp
@@ -58,14 +58,30 @@ Sign-in with Keycloak through `angular-auth-oidc-client` (see [Authentication](.
   pages are shown only to admins: convenience only, the APIs refuse writes without the role.
 - No route guards: there are no protected routes (the cart works for anonymous users too, edits open in modals).
 
+## Lists
+
+The APIs return pages (`IPage<T>`: `items`, `page`, `pageSize`, `totalCount`). The home page and the category page
+ask for the largest page (`maxPageSize = 100`): the category page filters, sorts and computes the price range in the
+browser, so it needs the whole category in one page (Northwind has at most 13 products per category). When a category
+does not fit, the page says "Showing the first N of M products". Server-side filters, sorting and paging:
+[#61](https://github.com/FobarWB/EShop/issues/61).
+
 ## Cart page
 
-Signed-in users use the server cart (`/api/carts/me`), anonymous users the `localStorage` cart; a 404 from the API
-(no cart yet) is shown as an empty cart.
-The page changes its state only after the API confirms a change (remove, quantity, clear); it does not reload.
+`CartService` is the one cart for the components: signed-in users use the server cart (`/api/carts/me`), anonymous
+users `LocalCartService` (`localStorage`). Both return the items with product name, category name and current price,
+so `CartComponent` makes no request per item (#33).
+
+- Server cart: the API returns the details (one SQL query); a 404 (no cart yet) is shown as an empty cart.
+- Anonymous cart: `localStorage` keeps only `productId` and `quantity`, so prices never go stale; `LocalCartService`
+  loads each product and its category when the cart is read. A product deleted since it was added drops out of the cart;
+  carts stored in the older format (with `cartId`) are still read.
+
+The page changes its state only after a change is confirmed (remove, quantity, clear); it does not reload.
 A failed request keeps the confirmed state, restores the quantity input and shows an error message.
-In the anonymous (localStorage) mode `CartService` emits once after each change, like the API calls.
+In the anonymous mode `CartService` emits once after each change, like the API calls.
 
 ## Known issues
 
 - The anonymous cart is not moved to the server on sign-in ([#24](https://github.com/FobarWB/EShop/issues/24)).
+- The category page filters and sorts in the browser (see [Lists](#lists), #61).

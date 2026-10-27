@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-26
+verified: 2026-10-27
 ---
 
 # Learning
@@ -16,6 +16,7 @@ using `_templates/Topic.md`, and linked here.
   migrator, reverse proxy, health checks (#48); registry, CD to ghcr.io (#36).
 - [Authentication](Authentication.md): OpenID Connect, Code + PKCE, JWT validation, Keycloak realm and roles,
   debugging lessons (#41).
+- [EfCore](EfCore.md): `Update()` and overposting, change tracking, projections, paging, interceptors (#33).
 
 ## Planned topics
 
