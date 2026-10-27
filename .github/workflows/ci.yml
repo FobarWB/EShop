@@ -114,6 +114,8 @@ jobs:
             dockerfile: src/EShop.CategoryApi/Dockerfile
           - name: shoppingcart
             dockerfile: src/EShop.ShoppingCart/Dockerfile
+          - name: orderapi
+            dockerfile: src/EShop.OrderApi/Dockerfile
           - name: client
             dockerfile: src/EShop.ClientApp/Dockerfile
           - name: migrator
