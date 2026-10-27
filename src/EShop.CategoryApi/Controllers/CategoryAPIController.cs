@@ -20,17 +20,18 @@ public class CategoryAPIController : ControllerBase
         _repository = repository;
     }
 
-    // GET api/categories, GET api/categories?categoryName=bev: always a list, possibly empty.
+    // GET api/categories?categoryName=bev&page=1&pageSize=20: one page, possibly empty.
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<IEnumerable<CategoryResponse>>> GetCategories(
+    [ProducesResponseType(400)]
+    public async Task<ActionResult<PagedResponse<CategoryResponse>>> GetCategories(
         string? categoryName,
+        [FromQuery] PageRequest paging,
         CancellationToken cancellationToken
     )
     {
         var name = string.IsNullOrWhiteSpace(categoryName) ? null : categoryName;
-        var categories = await _repository.RetrieveAllAsync(name, cancellationToken);
-        return Ok(categories);
+        return await _repository.RetrieveAllAsync(name, paging, cancellationToken);
     }
 
     // GET api/categories/1

@@ -78,6 +78,11 @@
           </div>
         </div>
       </div>
+      @if (totalCount > products.length) {
+      <div class="alert alert-info m-2" role="status">
+        Showing the first {{ products.length }} of {{ totalCount }} products.
+      </div>
+      }
       <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 m-0">
         @for (p of filteredProducts; track $index) {
         <div class="col d-flex align-items-stretch p-0">

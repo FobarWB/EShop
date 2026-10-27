@@ -36,9 +36,9 @@ export class HomeComponent
     this.isLoading = true;
     this.categoryService
       .getCategories()
-      .subscribe(categories => 
+      .subscribe(page =>
       {
-        this.categories = categories;
+        this.categories = page.items;
         setTimeout(() => this.isLoading = false, 500);
       });
   }

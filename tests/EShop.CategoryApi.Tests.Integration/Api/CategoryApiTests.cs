@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using EShop.CategoryApi.Dtos;
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ServiceDefaults;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -99,6 +100,33 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         (await GetCategoriesAsync("api/categories"))
             .ShouldHaveSingleItem()
             .CategoryName.ShouldBe("Beverages");
+    }
+
+    [Fact]
+    public async Task GetCategories_Paged_ReturnsThatPageInIdOrderAndTotalCount()
+    {
+        await SeedCategoryAsync("Beverages");
+        await SeedCategoryAsync("Condiments");
+        await SeedCategoryAsync("Confections");
+
+        var first = await GetCategoryPageAsync("api/categories?pageSize=2");
+        var second = await GetCategoryPageAsync("api/categories?page=2&pageSize=2");
+
+        first.Items.Select(c => c.CategoryName).ShouldBe(["Beverages", "Condiments"]);
+        first.TotalCount.ShouldBe(3);
+        second.Page.ShouldBe(2);
+        second.Items.ShouldHaveSingleItem().CategoryName.ShouldBe("Confections");
+    }
+
+    [Theory]
+    [InlineData("page=0")]
+    [InlineData("pageSize=101")]
+    public async Task GetCategories_InvalidPaging_Returns400ValidationProblem(string query)
+    {
+        var response = await _client.GetAsync($"api/categories?{query}", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
     }
 
     [Fact]
@@ -391,9 +419,12 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     private Task<Category> SeedCategoryAsync(string name) =>
         _database.SeedAsync(new Category { CategoryName = name }, _cancellationToken);
 
-    private async Task<List<CategoryResponse>> GetCategoriesAsync(string url) =>
+    private async Task<IReadOnlyList<CategoryResponse>> GetCategoriesAsync(string url) =>
+        (await GetCategoryPageAsync(url)).Items;
+
+    private async Task<PagedResponse<CategoryResponse>> GetCategoryPageAsync(string url) =>
         (
-            await _client.GetFromJsonAsync<List<CategoryResponse>>(url, _cancellationToken)
+            await _client.GetFromJsonAsync<PagedResponse<CategoryResponse>>(url, _cancellationToken)
         ).ShouldNotBeNull();
 
     private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>

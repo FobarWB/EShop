@@ -1,4 +1,5 @@
 using EShop.CategoryApi.Dtos;
+using EShop.ServiceDefaults;
 
 namespace EShop.CategoryApi.Repositories;
 
@@ -8,8 +9,9 @@ public interface ICategoryRepository
         CategoryRequest request,
         CancellationToken cancellationToken
     );
-    Task<IReadOnlyList<CategoryResponse>> RetrieveAllAsync(
+    Task<PagedResponse<CategoryResponse>> RetrieveAllAsync(
         string? name,
+        PageRequest paging,
         CancellationToken cancellationToken
     );
     Task<CategoryResponse?> RetrieveAsync(int id, CancellationToken cancellationToken);

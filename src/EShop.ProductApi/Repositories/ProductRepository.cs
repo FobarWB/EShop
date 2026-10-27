@@ -1,6 +1,7 @@
 using EShop.Data;
 using EShop.Data.Entities;
 using EShop.ProductApi.Dtos;
+using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.ProductApi.Repositories;
@@ -32,8 +33,9 @@ public class ProductRepository : IProductRepository
     }
 
     // categoryId null: all products. A projection to a DTO is never tracked.
-    public async Task<IReadOnlyList<ProductResponse>> RetrieveAllAsync(
+    public Task<PagedResponse<ProductResponse>> RetrieveAllAsync(
         int? categoryId,
+        PageRequest paging,
         CancellationToken cancellationToken
     )
     {
@@ -42,7 +44,8 @@ public class ProductRepository : IProductRepository
         {
             query = query.Where(p => p.CategoryId == categoryId);
         }
-        return await query.ToResponse().ToListAsync(cancellationToken);
+        // Ordered before the projection: EF Core cannot sort by a property of a constructed record.
+        return query.OrderBy(p => p.ProductId).ToResponse().ToPageAsync(paging, cancellationToken);
     }
 
     public Task<ProductResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>

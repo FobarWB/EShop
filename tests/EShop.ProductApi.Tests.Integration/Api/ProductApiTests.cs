@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using EShop.Data;
 using EShop.Data.Entities;
 using EShop.ProductApi.Dtos;
+using EShop.ServiceDefaults;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -89,6 +90,50 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         (await GetProductsAsync("api/products"))
             .ShouldHaveSingleItem()
             .ProductName.ShouldBe("Chai");
+    }
+
+    [Fact]
+    public async Task GetProducts_Paged_ReturnsThatPageInIdOrderAndTotalCount()
+    {
+        await SeedProductAsync("Chai");
+        await SeedProductAsync("Chang");
+        await SeedProductAsync("Aniseed Syrup");
+
+        var first = await GetProductPageAsync("api/products?pageSize=2");
+        var second = await GetProductPageAsync("api/products?page=2&pageSize=2");
+
+        first.Items.Select(p => p.ProductName).ShouldBe(["Chai", "Chang"]);
+        first.TotalCount.ShouldBe(3);
+        second.Page.ShouldBe(2);
+        second.Items.ShouldHaveSingleItem().ProductName.ShouldBe("Aniseed Syrup");
+    }
+
+    [Fact]
+    public async Task GetProducts_WithoutPaging_ReturnsFirst20()
+    {
+        for (var i = 1; i <= 21; i++)
+        {
+            await SeedProductAsync($"Product {i}");
+        }
+
+        var page = await GetProductPageAsync("api/products");
+
+        page.Items.Count.ShouldBe(20);
+        page.Page.ShouldBe(1);
+        page.PageSize.ShouldBe(20);
+        page.TotalCount.ShouldBe(21);
+    }
+
+    [Theory]
+    [InlineData("page=0")]
+    [InlineData("pageSize=0")]
+    [InlineData("pageSize=101")]
+    public async Task GetProducts_InvalidPaging_Returns400ValidationProblem(string query)
+    {
+        var response = await _client.GetAsync($"api/products?{query}", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
     }
 
     [Fact]
@@ -455,9 +500,12 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             .CreateClient()
             .AsAdmin();
 
-    private async Task<List<ProductResponse>> GetProductsAsync(string url) =>
+    private async Task<IReadOnlyList<ProductResponse>> GetProductsAsync(string url) =>
+        (await GetProductPageAsync(url)).Items;
+
+    private async Task<PagedResponse<ProductResponse>> GetProductPageAsync(string url) =>
         (
-            await _client.GetFromJsonAsync<List<ProductResponse>>(url, _cancellationToken)
+            await _client.GetFromJsonAsync<PagedResponse<ProductResponse>>(url, _cancellationToken)
         ).ShouldNotBeNull();
 
     private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>

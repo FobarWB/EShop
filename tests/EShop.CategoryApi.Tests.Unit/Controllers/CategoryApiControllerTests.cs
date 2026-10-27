@@ -1,6 +1,7 @@
 using EShop.CategoryApi.Controllers;
 using EShop.CategoryApi.Dtos;
 using EShop.CategoryApi.Repositories;
+using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 
@@ -25,19 +26,20 @@ public class CategoryApiControllerTests
     [InlineData(null, null)]
     [InlineData("", null)]
     [InlineData("  ", null)]
-    public async Task GetCategories_PassesNameToRepository(
+    public async Task GetCategories_PassesNameAndPagingToRepository(
         string? categoryName,
         string? expectedName
     )
     {
-        List<CategoryResponse> categories = [Response(1)];
+        var paging = new PageRequest { Page = 2, PageSize = 5 };
+        var page = new PagedResponse<CategoryResponse>([Response(1)], 2, 5, 6);
         _repository
-            .RetrieveAllAsync(expectedName, Arg.Any<CancellationToken>())
-            .Returns(categories);
+            .RetrieveAllAsync(expectedName, paging, Arg.Any<CancellationToken>())
+            .Returns(page);
 
-        var result = await _controller.GetCategories(categoryName, _cancellationToken);
+        var result = await _controller.GetCategories(categoryName, paging, _cancellationToken);
 
-        ValueOf<IEnumerable<CategoryResponse>>(result.Result).ShouldBe(categories);
+        result.Value.ShouldBe(page);
     }
 
     [Fact]
@@ -110,7 +112,4 @@ public class CategoryApiControllerTests
 
     private static int? StatusCodeOf(IActionResult? result) =>
         result.ShouldBeAssignableTo<IStatusCodeActionResult>()!.StatusCode;
-
-    private static T ValueOf<T>(IActionResult? result) =>
-        result.ShouldBeOfType<OkObjectResult>().Value.ShouldBeAssignableTo<T>()!;
 }

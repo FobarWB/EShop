@@ -1,6 +1,7 @@
 using EShop.ProductApi.Controllers;
 using EShop.ProductApi.Dtos;
 using EShop.ProductApi.Repositories;
+using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 
@@ -22,15 +23,18 @@ public class ProductApiControllerTests
     [Theory]
     [InlineData(null)]
     [InlineData(2)]
-    public async Task GetProducts_PassesCategoryToRepository(int? categoryId)
+    public async Task GetProducts_PassesCategoryAndPagingToRepository(int? categoryId)
     {
-        // The repository filters in SQL; the controller returns what it gets.
-        List<ProductResponse> products = [Response(1)];
-        _repository.RetrieveAllAsync(categoryId, Arg.Any<CancellationToken>()).Returns(products);
+        // The repository filters and pages in SQL; the controller returns what it gets.
+        var paging = new PageRequest { Page = 2, PageSize = 5 };
+        var page = new PagedResponse<ProductResponse>([Response(1)], 2, 5, 6);
+        _repository
+            .RetrieveAllAsync(categoryId, paging, Arg.Any<CancellationToken>())
+            .Returns(page);
 
-        var result = await _controller.GetProducts(categoryId, _cancellationToken);
+        var result = await _controller.GetProducts(categoryId, paging, _cancellationToken);
 
-        ValueOf<IEnumerable<ProductResponse>>(result.Result).ShouldBe(products);
+        result.Value.ShouldBe(page);
     }
 
     [Fact]
@@ -102,7 +106,4 @@ public class ProductApiControllerTests
 
     private static int? StatusCodeOf(IActionResult? result) =>
         result.ShouldBeAssignableTo<IStatusCodeActionResult>()!.StatusCode;
-
-    private static T ValueOf<T>(IActionResult? result) =>
-        result.ShouldBeOfType<OkObjectResult>().Value.ShouldBeAssignableTo<T>()!;
 }

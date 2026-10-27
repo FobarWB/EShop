@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using EShop.CategoryApi.Dtos;
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.CategoryApi.Repositories;
@@ -34,8 +35,9 @@ public class CategoryRepository : ICategoryRepository
 
     // name null: all categories; otherwise a case-insensitive "contains".
     // A projection to a DTO is never tracked.
-    public async Task<IReadOnlyList<CategoryResponse>> RetrieveAllAsync(
+    public Task<PagedResponse<CategoryResponse>> RetrieveAllAsync(
         string? name,
+        PageRequest paging,
         CancellationToken cancellationToken
     )
     {
@@ -46,7 +48,8 @@ public class CategoryRepository : ICategoryRepository
             var pattern = $"%{Regex.Replace(name, @"[\\%_]", @"\$0")}%";
             query = query.Where(c => EF.Functions.ILike(c.CategoryName, pattern));
         }
-        return await query.ToResponse().ToListAsync(cancellationToken);
+        // Ordered before the projection: EF Core cannot sort by a property of a constructed record.
+        return query.OrderBy(c => c.CategoryId).ToResponse().ToPageAsync(paging, cancellationToken);
     }
 
     public Task<CategoryResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>

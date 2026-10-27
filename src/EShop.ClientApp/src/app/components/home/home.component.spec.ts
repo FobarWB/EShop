@@ -55,8 +55,12 @@ describe('HomeComponent', () =>
   function loadCategories(): void
   {
     fixture.detectChanges(); // runs ngOnInit
-    httpTesting.expectOne('/api/categories')
-      .flush([{ categoryId: 1, categoryName: 'Beverages', description: 'Soft drinks' }]);
+    httpTesting.expectOne('/api/categories?pageSize=100').flush({
+      items: [{ categoryId: 1, categoryName: 'Beverages', description: 'Soft drinks' }],
+      page: 1,
+      pageSize: 100,
+      totalCount: 1
+    });
     fixture.detectChanges();
   }
 

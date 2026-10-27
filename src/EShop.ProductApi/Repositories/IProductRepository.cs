@@ -1,12 +1,14 @@
 using EShop.ProductApi.Dtos;
+using EShop.ServiceDefaults;
 
 namespace EShop.ProductApi.Repositories;
 
 public interface IProductRepository
 {
     Task<ProductResponse> CreateAsync(ProductRequest request, CancellationToken cancellationToken);
-    Task<IReadOnlyList<ProductResponse>> RetrieveAllAsync(
+    Task<PagedResponse<ProductResponse>> RetrieveAllAsync(
         int? categoryId,
+        PageRequest paging,
         CancellationToken cancellationToken
     );
     Task<ProductResponse?> RetrieveAsync(int id, CancellationToken cancellationToken);

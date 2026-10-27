@@ -20,17 +20,15 @@ public class ProductApiController : ControllerBase
         _repository = repository;
     }
 
-    // GET api/products, GET api/products?categoryId=1: always a list, possibly empty.
+    // GET api/products?categoryId=1&page=1&pageSize=20: one page, possibly empty.
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<IEnumerable<ProductResponse>>> GetProducts(
+    [ProducesResponseType(400)]
+    public async Task<ActionResult<PagedResponse<ProductResponse>>> GetProducts(
         int? categoryId,
+        [FromQuery] PageRequest paging,
         CancellationToken cancellationToken
-    )
-    {
-        var products = await _repository.RetrieveAllAsync(categoryId, cancellationToken);
-        return Ok(products);
-    }
+    ) => await _repository.RetrieveAllAsync(categoryId, paging, cancellationToken);
 
     // GET api/products/1
     [HttpGet("{id}", Name = nameof(GetProduct))]
