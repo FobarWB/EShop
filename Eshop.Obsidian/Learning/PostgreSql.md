@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-21
+verified: 2026-10-27
 issue: 14
 ---
 
@@ -37,6 +37,19 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 - **Literals.** `bytea` hex: `'\x0A1B…'`; booleans are `true`/`false` (an integer is not cast automatically);
   ISO dates `'1996-07-04'` do not depend on `DateStyle`.
 
+- **Foreign key errors.** The `ON DELETE` rule decides the error code of a rejected `DELETE`: `NO ACTION` (the default)
+  checks at the end of the statement and can be deferred to `COMMIT` (`DEFERRABLE`), error `23503 foreign_key_violation`;
+  `RESTRICT` checks at once and cannot be deferred, error `23001 restrict_violation`. Both mean "still referenced".
+  Here `cart_items → products` is `RESTRICT` (EF `DeleteBehavior.Restrict`), `order_details → products` and
+  `products → categories` are `NO ACTION`, `cart_items → carts` is `CASCADE`
+  (`SELECT confdeltype FROM pg_constraint WHERE contype = 'f'`).
+- **LIKE patterns.** `ILIKE` is a case-insensitive `LIKE`. In a pattern `%` is any text and `_` any one character,
+  `\` escapes them: user input goes through `Regex.Replace(name, @"[\\%_]", @"\$0")` before `%…%`, otherwise a search
+  for `%` matches every row. A bound parameter prevents SQL injection, not wildcards. `%text%` cannot use a B-tree index;
+  a trigram index (`pg_trgm`) would, should the table grow.
+- **Paging.** `OFFSET … LIMIT …` without `ORDER BY` has no defined order: a row may land on two pages or on none.
+  Order by a unique key. `OFFSET n` still reads and discards n rows; keyset paging (`WHERE id > @last ORDER BY id LIMIT n`)
+  does not, and stays stable while rows are inserted.
 - **Backup and move.** `pg_dump -Fc` writes a compressed custom-format archive of one database (schema, data,
   `__EFMigrationsHistory`); `pg_restore` loads it, can restore selected objects and run in parallel. Roles live outside
   a database (they are cluster-wide), so they are not in the dump: create them first, restore with `--no-owner`.

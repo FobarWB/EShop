@@ -26,6 +26,8 @@ export class PageComponent
   @ViewChild(SideBarComponent, { static: true }) sideBarComponent!: SideBarComponent;
   protected readonly auth = inject(AuthService);
   products: IProduct[] = [];
+  // Products in the category; more than products.length when it does not fit into one page (#61).
+  protected totalCount = 0;
   minPrice: number = 0;
   maxPrice: number = 0;
   filteredProducts: IProduct[] = [];
@@ -69,10 +71,12 @@ export class PageComponent
   {
     this.productService
       .getProducts(this.categoryId)
-      .subscribe((products: IProduct[]) =>
+      .subscribe(page =>
       {
+        const products = page.items;
         this.products = products;
         this.filteredProducts = products;
+        this.totalCount = page.totalCount;
         const prices = this.products
           .map(product => product.unitPrice)
           .filter(price => price !== null);

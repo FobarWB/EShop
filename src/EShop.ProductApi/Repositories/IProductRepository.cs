@@ -1,13 +1,19 @@
-using EShop.Data.Entities; // Product
+using EShop.ProductApi.Dtos;
+using EShop.ServiceDefaults;
 
-namespace EShop.ProductApi.Repositories
+namespace EShop.ProductApi.Repositories;
+
+public interface IProductRepository
 {
-    public interface IProductRepository
-    {
-        Task<Product?> CreateAsync(Product p);
-        Task<IEnumerable<Product>> RetrieveAllAsync();
-        Task<Product?> RetrieveAsync(int id);
-        Task<Product?> UpdateAsync(int id, Product p);
-        Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken);
-    }
+    Task<ProductResponse> CreateAsync(ProductRequest request, CancellationToken cancellationToken);
+    Task<PagedResponse<ProductResponse>> RetrieveAllAsync(
+        int? categoryId,
+        PageRequest paging,
+        CancellationToken cancellationToken
+    );
+    Task<ProductResponse?> RetrieveAsync(int id, CancellationToken cancellationToken);
+
+    // false: no product with this id.
+    Task<bool> UpdateAsync(int id, ProductRequest request, CancellationToken cancellationToken);
+    Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken);
 }

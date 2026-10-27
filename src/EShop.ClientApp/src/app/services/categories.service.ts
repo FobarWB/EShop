@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ApiService } from './api.service';
 import { ICategory } from '../models/category.model';
+import { IPage, maxPageSize } from '../models/page.model';
 import { Observable, Subject, tap } from 'rxjs';
 import { CacheService } from './cache.service';
 
@@ -20,7 +21,8 @@ export class CategoryService
     this.refreshRequired.subscribe(_ => this.cacheService.clear());
   }
 
-  getCategories(categoryName?: string): Observable<ICategory[]>
+  // The home page shows every category: one page of the largest size the API allows.
+  getCategories(categoryName?: string): Observable<IPage<ICategory>>
   {
     const cacheKey = `categories_${categoryName || 'all'}`;
     const cachedCategories = this.cacheService.get(cacheKey);
@@ -28,10 +30,10 @@ export class CategoryService
     {
       return cachedCategories;
     }
-    const url = categoryName ? `${this.apiUrl}?categoryName=${categoryName}` : this.apiUrl;
-    return this.apiService.get<ICategory[]>(url).pipe(tap(categories =>
+    const name = categoryName ? `categoryName=${encodeURIComponent(categoryName)}&` : '';
+    return this.apiService.get<IPage<ICategory>>(`${this.apiUrl}?${name}pageSize=${maxPageSize}`).pipe(tap(page =>
     {
-      this.cacheService.set(cacheKey, categories);
+      this.cacheService.set(cacheKey, page);
     }));
   }
 

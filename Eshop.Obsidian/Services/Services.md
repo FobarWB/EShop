@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-22
+verified: 2026-10-27
 ---
 
 # Services
@@ -23,6 +23,17 @@ Ports and database setup are in [AGENTS.md](../../AGENTS.md).
   non-allowlisted ones redacted, duration), never bodies: bodies will carry passwords and tokens (#40).
   It is enabled by the log level in `appsettings.Development.json`.
 - Health: `GET /health` checks the database connection (200 Healthy, 503 Unhealthy); not logged by HttpLogging.
+- Contracts (#33): request and response DTOs in `Dtos/` of each API, never EF entities; mappings are extension methods
+  (`ToResponse()` on `IQueryable<T>`, translated to SQL; `ApplyTo()` onto a tracked entity). JSON only: the XML
+  formatters are removed (they could not serialize the entities and do not fit positional records).
+- Errors: `AddEShopProblemDetails()` + `app.UseExceptionHandler()` (first in the pipeline) from `EShop.ServiceDefaults`.
+  Every error is `application/problem+json`; an unhandled exception is 500 without a stack trace.
+  `ForeignKeyViolationHandler` maps PostgreSQL `23503` and `23001` to 409 (see [PostgreSql](../Learning/PostgreSql.md)):
+  the repositories check references before a `DELETE`, the constraint catches a concurrent request between check and write.
+- Lists: `[FromQuery] PageRequest paging` (`page` ≥ 1, `pageSize` 1–100, default 20) and `PagedResponse<T>`
+  from `EShop.ServiceDefaults`; see [PagedListResponses](../Decisions/PagedListResponses.md).
+- Every action takes a `CancellationToken` (bound to `HttpContext.RequestAborted`) and passes it to the repository and
+  EF Core, so an aborted request cancels its query. Repository parameters are required, so a forgotten token does not compile.
 - Containers: `src/EShop.<Service>/Dockerfile`, services of the compose profile `app` with `ASPNETCORE_ENVIRONMENT=Development`.
   Inside the network the APIs listen on HTTP 8080 and are reachable from the host only through nginx
   (http://localhost:8080/api/...); see [RelativeApiUrlsBehindProxy](../Decisions/RelativeApiUrlsBehindProxy.md).

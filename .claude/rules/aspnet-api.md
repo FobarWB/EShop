@@ -10,7 +10,8 @@ paths:
 Layering: controller → repository → DbContext. Controllers contain no EF queries.
 
 - Return `ActionResult<T>` / `IActionResult` with correct status codes: 200, 201 + location for create, 204 for delete, 400, 404.
-- New endpoints return DTOs, not EF entities (existing endpoints still expose entities; migrate them when touched).
+- Endpoints take and return DTOs (`Dtos/` of the API), never EF entities; mappings are extension methods
+  (`ToResponse()` on `IQueryable<T>`, `ApplyTo()` onto a tracked entity).
 - Collection endpoints are paged (page/size or `Take` limit); never return a whole table.
 - Materialize queries with `ToListAsync()` before returning; returning a deferred `IEnumerable` makes the serializer enumerate synchronously.
 - Request validation: `[ApiController]` + data annotations on request DTOs → automatic 400 ProblemDetails; no manual null checks of the body.

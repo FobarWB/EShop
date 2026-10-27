@@ -1,5 +1,8 @@
+using System.Text.RegularExpressions;
+using EShop.CategoryApi.Dtos;
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.CategoryApi.Repositories;
@@ -13,26 +16,65 @@ public class CategoryRepository : ICategoryRepository
         _db = db;
     }
 
-    public async Task<Category?> CreateAsync(Category c)
+    public async Task<CategoryResponse> CreateAsync(
+        CategoryRequest request,
+        CancellationToken cancellationToken
+    )
     {
-        _db.Categories.Add(c);
-        var affected = await _db.SaveChangesAsync();
-        return affected > 0 ? c : null;
+        var category = new Category();
+        request.ApplyTo(category);
+        _db.Categories.Add(category);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // Read back through the same projection: no second copy of the mapping.
+        return await _db
+            .Categories.Where(c => c.CategoryId == category.CategoryId)
+            .ToResponse()
+            .SingleAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<Category>> RetrieveAllAsync() =>
-        await _db.Categories.AsNoTracking().ToListAsync();
-
-    // Not tracked: the controller loads a category and then updates it with another instance
-    // of the same key, which would conflict with a tracked entity.
-    public Task<Category?> RetrieveAsync(int id) =>
-        _db.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.CategoryId == id);
-
-    public async Task<Category?> UpdateAsync(int id, Category c)
+    // name null: all categories; otherwise a case-insensitive "contains".
+    // A projection to a DTO is never tracked.
+    public Task<PagedResponse<CategoryResponse>> RetrieveAllAsync(
+        string? name,
+        PageRequest paging,
+        CancellationToken cancellationToken
+    )
     {
-        _db.Categories.Update(c);
-        var affected = await _db.SaveChangesAsync();
-        return affected > 0 ? c : null;
+        IQueryable<Category> query = _db.Categories;
+        if (name is not null)
+        {
+            // % and _ are LIKE wildcards and \ is its escape character: match them literally.
+            var pattern = $"%{Regex.Replace(name, @"[\\%_]", @"\$0")}%";
+            query = query.Where(c => EF.Functions.ILike(c.CategoryName, pattern));
+        }
+        // Ordered before the projection: EF Core cannot sort by a property of a constructed record.
+        return query.OrderBy(c => c.CategoryId).ToResponse().ToPageAsync(paging, cancellationToken);
+    }
+
+    public Task<CategoryResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
+        _db
+            .Categories.Where(c => c.CategoryId == id)
+            .ToResponse()
+            .FirstOrDefaultAsync(cancellationToken);
+
+    // Loads the tracked entity and copies the request onto it: SaveChanges updates only the changed
+    // columns, so the stored picture stays.
+    public async Task<bool> UpdateAsync(
+        int id,
+        CategoryRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var category = await _db.Categories.FindAsync([id], cancellationToken);
+        if (category is null)
+        {
+            return false;
+        }
+
+        request.ApplyTo(category);
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken)

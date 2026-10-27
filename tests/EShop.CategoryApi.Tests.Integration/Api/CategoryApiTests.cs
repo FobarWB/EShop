@@ -1,8 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using EShop.CategoryApi.Dtos;
+using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ServiceDefaults;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace EShop.CategoryApi.Tests.Integration.Api;
@@ -73,6 +78,18 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     }
 
     [Fact]
+    public async Task GetCategories_NameWithWildcard_MatchesLiterally()
+    {
+        // % is a LIKE wildcard: unescaped, it would match every category.
+        await SeedCategoryAsync("Beverages");
+        await SeedCategoryAsync("Condiments");
+
+        var categories = await GetCategoriesAsync("api/categories?categoryName=%25");
+
+        categories.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task GetCategories_SeesChangesMadeOutsideTheApi()
     {
         // Regression test for the removed static cache: rows added directly to PostgreSQL must be visible.
@@ -86,11 +103,38 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     }
 
     [Fact]
+    public async Task GetCategories_Paged_ReturnsThatPageInIdOrderAndTotalCount()
+    {
+        await SeedCategoryAsync("Beverages");
+        await SeedCategoryAsync("Condiments");
+        await SeedCategoryAsync("Confections");
+
+        var first = await GetCategoryPageAsync("api/categories?pageSize=2");
+        var second = await GetCategoryPageAsync("api/categories?page=2&pageSize=2");
+
+        first.Items.Select(c => c.CategoryName).ShouldBe(["Beverages", "Condiments"]);
+        first.TotalCount.ShouldBe(3);
+        second.Page.ShouldBe(2);
+        second.Items.ShouldHaveSingleItem().CategoryName.ShouldBe("Confections");
+    }
+
+    [Theory]
+    [InlineData("page=0")]
+    [InlineData("pageSize=101")]
+    public async Task GetCategories_InvalidPaging_Returns400ValidationProblem(string query)
+    {
+        var response = await _client.GetAsync($"api/categories?{query}", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+    }
+
+    [Fact]
     public async Task GetCategory_Existing_Returns200WithCategory()
     {
         var beverages = await SeedCategoryAsync("Beverages");
 
-        var category = await _client.GetFromJsonAsync<Category>(
+        var category = await _client.GetFromJsonAsync<CategoryResponse>(
             $"api/categories/{beverages.CategoryId}",
             _cancellationToken
         );
@@ -117,7 +161,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var created = (
-            await response.Content.ReadFromJsonAsync<Category>(_cancellationToken)
+            await response.Content.ReadFromJsonAsync<CategoryResponse>(_cancellationToken)
         ).ShouldNotBeNull();
         response
             .Headers.Location.ShouldNotBeNull()
@@ -158,8 +202,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     [Fact]
     public async Task Update_Existing_Returns204AndStoresChanges()
     {
-        // The controller loads the category before updating it with the request body:
-        // this only works because RetrieveAsync does not track the entity.
+        // Only the columns in the request change; the id comes from the route.
         var beverages = await SeedCategoryAsync("Beverages");
 
         var response = await _admin.PutAsJsonAsync(
@@ -175,8 +218,9 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
     }
 
     [Fact]
-    public async Task Update_IdMismatch_Returns400()
+    public async Task Update_IdInBodyIsIgnored()
     {
+        // The id comes from the route only.
         var beverages = await SeedCategoryAsync("Beverages");
 
         var response = await _admin.PutAsJsonAsync(
@@ -185,7 +229,32 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
             _cancellationToken
         );
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CategoryName.ShouldBe("Drinks");
+    }
+
+    [Fact]
+    public async Task Update_KeepsPicture()
+    {
+        // The request has no picture: an update must not overwrite the stored one with NULL.
+        var beverages = await _database.SeedAsync(
+            new Category { CategoryName = "Beverages", Picture = [1, 2, 3] },
+            _cancellationToken
+        );
+
+        await _admin.PutAsJsonAsync(
+            $"api/categories/{beverages.CategoryId}",
+            new { categoryId = beverages.CategoryId, categoryName = "Drinks" },
+            _cancellationToken
+        );
+
+        var stored = (
+            await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken)
+        ).ShouldNotBeNull();
+        stored.CategoryName.ShouldBe("Drinks");
+        stored.Picture.ShouldBe([1, 2, 3]);
     }
 
     [Fact]
@@ -234,6 +303,31 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         );
 
         var response = await _admin.DeleteAsync(
+            $"api/categories/{beverages.CategoryId}",
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (
+            await _database.FindAsync<Category>(beverages.CategoryId, _cancellationToken)
+        ).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Delete_CategoryGetsProductAfterCheck_Returns409AndKeepsCategory()
+    {
+        // The race from #32: another request adds a product to the category after the in-use check;
+        // PostgreSQL rejects the DELETE (23503) and the exception handler turns it into 409.
+        var beverages = await SeedCategoryAsync("Beverages");
+        using var admin = CreateAdminWithConcurrentWrite(() =>
+            _database.SeedAsync(
+                new Product { ProductName = "Chai", CategoryId = beverages.CategoryId },
+                _cancellationToken
+            )
+        );
+
+        var response = await admin.DeleteAsync(
             $"api/categories/{beverages.CategoryId}",
             _cancellationToken
         );
@@ -310,11 +404,28 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         (values?.SingleOrDefault()).ShouldBe(allowed ? origin : null);
     }
 
+    private HttpClient CreateAdminWithConcurrentWrite(Func<Task> write) =>
+        _factory
+            .WithWebHostBuilder(builder =>
+                builder.ConfigureTestServices(services =>
+                    services.ConfigureDbContext<EShopDbContext>(options =>
+                        options.AddInterceptors(new BeforeSaveChangesInterceptor(write))
+                    )
+                )
+            )
+            .CreateClient()
+            .AsAdmin();
+
     private Task<Category> SeedCategoryAsync(string name) =>
         _database.SeedAsync(new Category { CategoryName = name }, _cancellationToken);
 
-    private async Task<List<Category>> GetCategoriesAsync(string url) =>
-        (await _client.GetFromJsonAsync<List<Category>>(url, _cancellationToken)).ShouldNotBeNull();
+    private async Task<IReadOnlyList<CategoryResponse>> GetCategoriesAsync(string url) =>
+        (await GetCategoryPageAsync(url)).Items;
+
+    private async Task<PagedResponse<CategoryResponse>> GetCategoryPageAsync(string url) =>
+        (
+            await _client.GetFromJsonAsync<PagedResponse<CategoryResponse>>(url, _cancellationToken)
+        ).ShouldNotBeNull();
 
     private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>
         client.SendAsync(

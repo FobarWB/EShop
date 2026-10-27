@@ -1,5 +1,7 @@
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ProductApi.Dtos;
+using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.ProductApi.Repositories;
@@ -13,26 +15,61 @@ public class ProductRepository : IProductRepository
         _db = db;
     }
 
-    public async Task<Product?> CreateAsync(Product p)
+    public async Task<ProductResponse> CreateAsync(
+        ProductRequest request,
+        CancellationToken cancellationToken
+    )
     {
-        _db.Products.Add(p);
-        var affected = await _db.SaveChangesAsync();
-        return affected > 0 ? p : null;
+        var product = new Product();
+        request.ApplyTo(product);
+        _db.Products.Add(product);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // Read back through the same projection: no second copy of the mapping.
+        return await _db
+            .Products.Where(p => p.ProductId == product.ProductId)
+            .ToResponse()
+            .SingleAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<Product>> RetrieveAllAsync() =>
-        await _db.Products.AsNoTracking().ToListAsync();
-
-    // Not tracked: the controller loads a product and then updates it with another instance
-    // of the same key, which would conflict with a tracked entity.
-    public Task<Product?> RetrieveAsync(int id) =>
-        _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == id);
-
-    public async Task<Product?> UpdateAsync(int id, Product p)
+    // categoryId null: all products. A projection to a DTO is never tracked.
+    public Task<PagedResponse<ProductResponse>> RetrieveAllAsync(
+        int? categoryId,
+        PageRequest paging,
+        CancellationToken cancellationToken
+    )
     {
-        _db.Products.Update(p);
-        var affected = await _db.SaveChangesAsync();
-        return affected > 0 ? p : null;
+        IQueryable<Product> query = _db.Products;
+        if (categoryId.HasValue)
+        {
+            query = query.Where(p => p.CategoryId == categoryId);
+        }
+        // Ordered before the projection: EF Core cannot sort by a property of a constructed record.
+        return query.OrderBy(p => p.ProductId).ToResponse().ToPageAsync(paging, cancellationToken);
+    }
+
+    public Task<ProductResponse?> RetrieveAsync(int id, CancellationToken cancellationToken) =>
+        _db
+            .Products.Where(p => p.ProductId == id)
+            .ToResponse()
+            .FirstOrDefaultAsync(cancellationToken);
+
+    // Loads the tracked entity and copies the request onto it: SaveChanges updates only the changed columns.
+    public async Task<bool> UpdateAsync(
+        int id,
+        ProductRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var product = await _db.Products.FindAsync([id], cancellationToken);
+        if (product is null)
+        {
+            return false;
+        }
+
+        request.ApplyTo(product);
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken)

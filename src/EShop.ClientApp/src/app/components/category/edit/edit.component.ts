@@ -1,4 +1,3 @@
-import { NgClass } from '@angular/common';
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../modal/modal.component';
@@ -7,7 +6,7 @@ import { CategoryService } from '../../../services/categories.service';
 
 @Component({
   selector: 'app-edit',
-  imports: [ReactiveFormsModule, NgClass],
+  imports: [ReactiveFormsModule],
   templateUrl: './edit.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './edit.component.css'
@@ -32,8 +31,7 @@ export class EditComponent
   {
     this.categoryForm = this.formBuilder.group({
       categoryName: ['', [Validators.required, Validators.maxLength(15)]],
-      description: [''],
-      picture: [null]
+      description: ['']
     });
     this.categoryForm.statusChanges.subscribe(_ => this.modalComponent.disabled = this.categoryForm.invalid);
     this.modalComponent.disabled = this.categoryForm.invalid;
@@ -42,10 +40,8 @@ export class EditComponent
   update()
   {
     const category = {
-      categoryId: this.category.categoryId,
       categoryName: this.categoryForm.get('categoryName')?.value,
       description: this.categoryForm.get('description')?.value,
-      picture: this.categoryForm.get('picture')?.value,
     }
     this.categoryService.updateCategory(this.category?.categoryId, category).subscribe();
   }
@@ -55,7 +51,6 @@ export class EditComponent
     const category = {
       categoryName: this.categoryForm.get('categoryName')?.value,
       description: this.categoryForm.get('description')?.value,
-      picture: this.categoryForm.get('picture')?.value,
     }
     this.categoryService.createCategory(category).subscribe();
   }

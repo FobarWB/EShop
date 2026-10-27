@@ -1,126 +1,102 @@
 using System.Diagnostics;
+using EShop.CategoryApi.Dtos;
 using EShop.CategoryApi.Repositories;
-using EShop.Data.Entities;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace EShop.CategoryApi.Controllers
+namespace EShop.CategoryApi.Controllers;
+
+[ApiController]
+[Route("api/categories")]
+// Writes are for administrators; reads are public ([AllowAnonymous] below).
+[Authorize(Roles = EShopAuthenticationExtensions.AdminRole)]
+public class CategoryAPIController : ControllerBase
 {
-    [ApiController]
-    [Route("api/categories")]
-    // Writes are for administrators; reads are public ([AllowAnonymous] below).
-    [Authorize(Roles = EShopAuthenticationExtensions.AdminRole)]
-    public class CategoryAPIController : ControllerBase
+    private readonly ICategoryRepository _repository;
+
+    public CategoryAPIController(ICategoryRepository repository)
     {
-        private readonly ICategoryRepository repository;
+        _repository = repository;
+    }
 
-        public CategoryAPIController(ICategoryRepository repository)
+    // GET api/categories?categoryName=bev&page=1&pageSize=20: one page, possibly empty.
+    [HttpGet]
+    [AllowAnonymous]
+    [ProducesResponseType(400)]
+    public async Task<ActionResult<PagedResponse<CategoryResponse>>> GetCategories(
+        string? categoryName,
+        [FromQuery] PageRequest paging,
+        CancellationToken cancellationToken
+    )
+    {
+        var name = string.IsNullOrWhiteSpace(categoryName) ? null : categoryName;
+        return await _repository.RetrieveAllAsync(name, paging, cancellationToken);
+    }
+
+    // GET api/categories/1
+    [HttpGet("{id}", Name = nameof(GetCategory))]
+    [AllowAnonymous]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult<CategoryResponse>> GetCategory(
+        int id,
+        CancellationToken cancellationToken
+    )
+    {
+        var category = await _repository.RetrieveAsync(id, cancellationToken);
+        return category is null ? NotFound() : category;
+    }
+
+    // POST api/categories
+    [HttpPost]
+    [ProducesResponseType(201)]
+    [ProducesResponseType(400)]
+    public async Task<ActionResult<CategoryResponse>> Create(
+        [FromBody] CategoryRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var category = await _repository.CreateAsync(request, cancellationToken);
+        return CreatedAtRoute(
+            routeName: nameof(GetCategory),
+            routeValues: new { id = category.CategoryId },
+            value: category
+        );
+    }
+
+    // PUT api/categories/1: the id comes from the route only.
+    [HttpPut("{id}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] CategoryRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var updated = await _repository.UpdateAsync(id, request, cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
+    // DELETE api/categories/1
+    [HttpDelete("{id}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(409)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var result = await _repository.DeleteAsync(id, cancellationToken);
+        return result switch
         {
-            this.repository = repository;
-        }
-
-        // GET: api/categories
-        // GET: api/categories/?categoryName=[categoryName]
-        // this will always return a list of categories (but it might be empty)
-        [HttpGet]
-        [AllowAnonymous]
-        [ProducesResponseType(200, Type = typeof(IEnumerable<Category>))]
-        public async Task<ActionResult<IEnumerable<Category>>> GetCategories(string? categoryName)
-        {
-            IEnumerable<Category> categories = await repository.RetrieveAllAsync();
-            if (string.IsNullOrWhiteSpace(categoryName))
-            {
-                return Ok(categories);
-            }
-            else
-            {
-                categoryName = categoryName.ToUpper();
-                return Ok(categories.Where(c => c.CategoryName.ToUpper().Contains(categoryName)));
-            }
-        }
-
-        // GET: api/categories/[id]
-        [HttpGet("{id}", Name = nameof(GetCategory))]
-        [AllowAnonymous]
-        [ProducesResponseType(200, Type = typeof(Category))]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> GetCategory(int id)
-        {
-            Category? c = await repository.RetrieveAsync(id);
-            if (c is null)
-            {
-                return NotFound();
-            }
-            return Ok(c);
-        }
-
-        // POST: api/categories
-        // BODY: Category (JSON, XML)
-        [HttpPost]
-        [ProducesResponseType(201, Type = typeof(Category))]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> Create([FromBody] Category c)
-        {
-            Category? addedCategory = await repository.CreateAsync(c);
-
-            if (addedCategory is null)
-            {
-                return BadRequest("Repository failed to create category");
-            }
-            else
-            {
-                return CreatedAtRoute(
-                    routeName: nameof(GetCategory),
-                    routeValues: new { id = addedCategory.CategoryId },
-                    value: addedCategory
-                );
-            }
-        }
-
-        // PUT: api/categories/[id]
-        // BODY: Category (JSON, XML)
-        [HttpPut("{id}")]
-        [ProducesResponseType(204)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> Update(int id, [FromBody] Category c)
-        {
-            if (c.CategoryId != id)
-            {
-                return BadRequest();
-            }
-
-            Category? existing = await repository.RetrieveAsync(id);
-
-            if (existing is null)
-            {
-                return NotFound();
-            }
-
-            await repository.UpdateAsync(id, c);
-            return NoContent();
-        }
-
-        // DELETE: api/categories/[id]
-        [HttpDelete("{id}")]
-        [ProducesResponseType(204)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(409)]
-        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
-        {
-            var result = await repository.DeleteAsync(id, cancellationToken);
-            return result switch
-            {
-                DeleteResult.Deleted => NoContent(),
-                DeleteResult.NotFound => NotFound(),
-                DeleteResult.InUse => Problem(
-                    statusCode: StatusCodes.Status409Conflict,
-                    title: "Category is in use",
-                    detail: $"Category {id} still has products."
-                ),
-                _ => throw new UnreachableException(),
-            };
-        }
+            DeleteResult.Deleted => NoContent(),
+            DeleteResult.NotFound => NotFound(),
+            DeleteResult.InUse => Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Category is in use",
+                detail: $"Category {id} still has products."
+            ),
+            _ => throw new UnreachableException(),
+        };
     }
 }

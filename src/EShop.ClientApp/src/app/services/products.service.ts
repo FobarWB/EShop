@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, tap } from 'rxjs';
 import { ApiService } from './api.service';
 import { IProduct } from '../models/product.model';
+import { IPage, maxPageSize } from '../models/page.model';
 import { CacheService } from './cache.service';
 
 @Injectable({
@@ -20,10 +21,12 @@ export class ProductService
     this.refreshRequired.subscribe(_ => this.cacheService.clear());
   }
 
-  getProducts = (productId?: number): Observable<IProduct[]> =>
+  // The category page filters and sorts in the browser, so it asks for the largest page the API allows
+  // and expects the whole category in it (server-side filters and paging: #61).
+  getProducts = (categoryId?: number): Observable<IPage<IProduct>> =>
   {
-    const url = productId ? `${this.apiUrl}?categoryId=${productId}` : this.apiUrl;
-    return this.apiService.get(url);
+    const category = categoryId ? `categoryId=${categoryId}&` : '';
+    return this.apiService.get(`${this.apiUrl}?${category}pageSize=${maxPageSize}`);
   };
 
   getProduct(id: number): Observable<IProduct>

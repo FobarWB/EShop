@@ -31,10 +31,10 @@
           </div>
           <div class="col">
             <div class="row text-muted">
-              {{ getProductCategoryName(cartItem) }}
+              {{ cartItem.categoryName }}
             </div>
             <div class="row">
-              {{ getProductName(cartItem) }}
+              {{ cartItem.productName }}
             </div>
           </div>
           <div class="col">
@@ -60,7 +60,7 @@
             </button>
           </div>
           <div class="col">
-            &euro; {{ getPriceForCartItem(cartItem) || "Price" }}
+            &euro; {{ cartItem.unitPrice || "Price" }}
             <span class="close">&#10005;</span>
             &euro; {{ getSummaryPriceForCartItem(cartItem) || "Price" }}
             <span class="close">&#10005;</span>

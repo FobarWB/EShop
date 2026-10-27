@@ -60,17 +60,37 @@ describe('Category PageComponent', () =>
     expect(buttonLabels()).not.toContain('Add new product');
   });
 
+  it('says so when the category has more products than one page', async () =>
+  {
+    // Filters and sorting run in the browser on one page of 100 (#61): the rest must not vanish silently.
+    await loadPage(250);
+
+    expect(harness.routeNativeElement?.textContent).toContain('Showing the first 1 of 250 products');
+  });
+
+  it('shows no paging note when the whole category fits into the page', async () =>
+  {
+    await loadPage();
+
+    expect(harness.routeNativeElement?.textContent).not.toContain('Showing the first');
+  });
+
   // The page checks the category first and asks for its products only after that check has resolved.
-  async function loadPage(): Promise<void>
+  async function loadPage(totalCount = 1): Promise<void>
   {
     await harness.navigateByUrl('/Beverages/c1', PageComponent);
     httpTesting.expectOne('/api/categories/1')
-      .flush({ categoryId: 1, categoryName: 'Beverages', description: null, picture: null, products: [] });
+      .flush({ categoryId: 1, categoryName: 'Beverages', description: null });
     await harness.fixture.whenStable();
-    httpTesting.expectOne('/api/products?categoryId=1').flush([{
-      productId: 7, productName: 'Chai', supplierId: null, categoryId: 1, quantityPerUnit: null, unitPrice: 18,
-      unitsInStock: 39, unitsOnOrder: null, reorderLevel: null, discontinued: false, category: null
-    }]);
+    httpTesting.expectOne('/api/products?categoryId=1&pageSize=100').flush({
+      items: [{
+        productId: 7, productName: 'Chai', supplierId: null, categoryId: 1, quantityPerUnit: null, unitPrice: 18,
+        unitsInStock: 39, unitsOnOrder: null, reorderLevel: null, discontinued: false
+      }],
+      page: 1,
+      pageSize: 100,
+      totalCount
+    });
     harness.detectChanges();
   }
 

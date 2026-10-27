@@ -1,6 +1,7 @@
 using EShop.CategoryApi.Controllers;
+using EShop.CategoryApi.Dtos;
 using EShop.CategoryApi.Repositories;
-using EShop.Data.Entities;
+using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 
@@ -12,103 +13,84 @@ public class CategoryApiControllerTests
 
     private readonly ICategoryRepository _repository = Substitute.For<ICategoryRepository>();
     private readonly CategoryAPIController _controller;
+    private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
     public CategoryApiControllerTests()
     {
         _controller = new CategoryAPIController(_repository);
     }
 
+    // The repository filters in SQL; a blank name means no filter.
     [Theory]
-    [InlineData(null, 3)]
-    [InlineData("  ", 3)]
-    [InlineData("bev", 1)] // case-insensitive "contains": "Beverages"
-    [InlineData("O", 2)] // "Condiments", "Confections"
-    public async Task GetCategories_FiltersByName(string? categoryName, int expectedCount)
+    [InlineData("bev", "bev")]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("  ", null)]
+    public async Task GetCategories_PassesNameAndPagingToRepository(
+        string? categoryName,
+        string? expectedName
+    )
     {
+        var paging = new PageRequest { Page = 2, PageSize = 5 };
+        var page = new PagedResponse<CategoryResponse>([Response(1)], 2, 5, 6);
         _repository
-            .RetrieveAllAsync()
-            .Returns(
-                [Category(1, "Beverages"), Category(2, "Condiments"), Category(3, "Confections")]
-            );
+            .RetrieveAllAsync(expectedName, paging, Arg.Any<CancellationToken>())
+            .Returns(page);
 
-        var result = await _controller.GetCategories(categoryName);
+        var result = await _controller.GetCategories(categoryName, paging, _cancellationToken);
 
-        ValueOf<IEnumerable<Category>>(result.Result).Count().ShouldBe(expectedCount);
+        result.Value.ShouldBe(page);
     }
 
     [Fact]
     public async Task GetCategory_Missing_Returns404()
     {
-        _repository.RetrieveAsync(CategoryId).Returns((Category?)null);
+        _repository
+            .RetrieveAsync(CategoryId, Arg.Any<CancellationToken>())
+            .Returns((CategoryResponse?)null);
 
-        var result = await _controller.GetCategory(CategoryId);
+        var result = await _controller.GetCategory(CategoryId, _cancellationToken);
 
-        StatusCodeOf(result).ShouldBe(404);
+        StatusCodeOf(result.Result).ShouldBe(404);
     }
 
     [Fact]
     public async Task GetCategory_Exists_Returns200WithCategory()
     {
-        var category = Category(CategoryId);
-        _repository.RetrieveAsync(CategoryId).Returns(category);
+        var category = Response(CategoryId);
+        _repository.RetrieveAsync(CategoryId, Arg.Any<CancellationToken>()).Returns(category);
 
-        var result = await _controller.GetCategory(CategoryId);
+        var result = await _controller.GetCategory(CategoryId, _cancellationToken);
 
-        ValueOf<Category>(result).ShouldBe(category);
+        result.Value.ShouldBe(category);
     }
 
     [Fact]
-    public async Task Create_Created_Returns201WithRouteToNewCategory()
+    public async Task Create_Returns201WithRouteToNewCategory()
     {
-        var category = Category(CategoryId);
-        _repository.CreateAsync(category).Returns(category);
+        var request = Request();
+        _repository
+            .CreateAsync(request, Arg.Any<CancellationToken>())
+            .Returns(Response(CategoryId));
 
-        var result = await _controller.Create(category);
+        var result = await _controller.Create(request, _cancellationToken);
 
-        var created = result.ShouldBeOfType<CreatedAtRouteResult>();
+        var created = result.Result.ShouldBeOfType<CreatedAtRouteResult>();
         created.RouteName.ShouldBe(nameof(CategoryAPIController.GetCategory));
         created.RouteValues!["id"].ShouldBe(CategoryId);
     }
 
-    [Fact]
-    public async Task Create_RepositoryFailed_Returns400()
+    [Theory]
+    [InlineData(true, 204)]
+    [InlineData(false, 404)]
+    public async Task Update_MapsRepositoryResultToStatusCode(bool updated, int expected)
     {
-        _repository.CreateAsync(Arg.Any<Category>()).Returns((Category?)null);
+        var request = Request();
+        _repository.UpdateAsync(CategoryId, request, Arg.Any<CancellationToken>()).Returns(updated);
 
-        var result = await _controller.Create(Category(CategoryId));
+        var result = await _controller.Update(CategoryId, request, _cancellationToken);
 
-        StatusCodeOf(result).ShouldBe(400);
-    }
-
-    [Fact]
-    public async Task Update_IdMismatch_Returns400WithoutUpdating()
-    {
-        var result = await _controller.Update(CategoryId, Category(CategoryId + 1));
-
-        StatusCodeOf(result).ShouldBe(400);
-        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default, default!);
-    }
-
-    [Fact]
-    public async Task Update_Missing_Returns404()
-    {
-        _repository.RetrieveAsync(CategoryId).Returns((Category?)null);
-
-        var result = await _controller.Update(CategoryId, Category(CategoryId));
-
-        StatusCodeOf(result).ShouldBe(404);
-    }
-
-    [Fact]
-    public async Task Update_Exists_Returns204AndUpdates()
-    {
-        var category = Category(CategoryId);
-        _repository.RetrieveAsync(CategoryId).Returns(category);
-
-        var result = await _controller.Update(CategoryId, category);
-
-        StatusCodeOf(result).ShouldBe(204);
-        await _repository.Received(1).UpdateAsync(CategoryId, category);
+        StatusCodeOf(result).ShouldBe(expected);
     }
 
     [Theory]
@@ -119,17 +101,15 @@ public class CategoryApiControllerTests
     {
         _repository.DeleteAsync(CategoryId, Arg.Any<CancellationToken>()).Returns(deleted);
 
-        var result = await _controller.Delete(CategoryId, TestContext.Current.CancellationToken);
+        var result = await _controller.Delete(CategoryId, _cancellationToken);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
 
-    private static Category Category(int id, string? name = null) =>
-        new() { CategoryId = id, CategoryName = name ?? $"Category {id}" };
+    private static CategoryRequest Request() => new() { CategoryName = "Beverages" };
+
+    private static CategoryResponse Response(int id) => new(id, $"Category {id}", null);
 
     private static int? StatusCodeOf(IActionResult? result) =>
         result.ShouldBeAssignableTo<IStatusCodeActionResult>()!.StatusCode;
-
-    private static T ValueOf<T>(IActionResult? result) =>
-        result.ShouldBeOfType<OkObjectResult>().Value.ShouldBeAssignableTo<T>()!;
 }

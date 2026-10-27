@@ -1,8 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
+using EShop.Data;
 using EShop.Data.Entities;
+using EShop.ProductApi.Dtos;
+using EShop.ServiceDefaults;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace EShop.ProductApi.Tests.Integration.Api;
@@ -87,11 +93,55 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetProducts_Paged_ReturnsThatPageInIdOrderAndTotalCount()
+    {
+        await SeedProductAsync("Chai");
+        await SeedProductAsync("Chang");
+        await SeedProductAsync("Aniseed Syrup");
+
+        var first = await GetProductPageAsync("api/products?pageSize=2");
+        var second = await GetProductPageAsync("api/products?page=2&pageSize=2");
+
+        first.Items.Select(p => p.ProductName).ShouldBe(["Chai", "Chang"]);
+        first.TotalCount.ShouldBe(3);
+        second.Page.ShouldBe(2);
+        second.Items.ShouldHaveSingleItem().ProductName.ShouldBe("Aniseed Syrup");
+    }
+
+    [Fact]
+    public async Task GetProducts_WithoutPaging_ReturnsFirst20()
+    {
+        for (var i = 1; i <= 21; i++)
+        {
+            await SeedProductAsync($"Product {i}");
+        }
+
+        var page = await GetProductPageAsync("api/products");
+
+        page.Items.Count.ShouldBe(20);
+        page.Page.ShouldBe(1);
+        page.PageSize.ShouldBe(20);
+        page.TotalCount.ShouldBe(21);
+    }
+
+    [Theory]
+    [InlineData("page=0")]
+    [InlineData("pageSize=0")]
+    [InlineData("pageSize=101")]
+    public async Task GetProducts_InvalidPaging_Returns400ValidationProblem(string query)
+    {
+        var response = await _client.GetAsync($"api/products?{query}", _cancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+    }
+
+    [Fact]
     public async Task GetProduct_Existing_Returns200WithProduct()
     {
         var chai = await SeedProductAsync("Chai");
 
-        var product = await _client.GetFromJsonAsync<Product>(
+        var product = await _client.GetFromJsonAsync<ProductResponse>(
             $"api/products/{chai.ProductId}",
             _cancellationToken
         );
@@ -118,7 +168,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var created = (
-            await response.Content.ReadFromJsonAsync<Product>(_cancellationToken)
+            await response.Content.ReadFromJsonAsync<ProductResponse>(_cancellationToken)
         ).ShouldNotBeNull();
         response
             .Headers.Location.ShouldNotBeNull()
@@ -159,8 +209,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     [Fact]
     public async Task Update_Existing_Returns204AndStoresChanges()
     {
-        // The controller loads the product before updating it with the request body:
-        // this only works because RetrieveAsync does not track the entity.
+        // Only the columns in the request change; the id comes from the route.
         var chai = await SeedProductAsync("Chai");
 
         var response = await _admin.PutAsJsonAsync(
@@ -176,20 +225,6 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Update_IdMismatch_Returns400()
-    {
-        var chai = await SeedProductAsync("Chai");
-
-        var response = await _admin.PutAsJsonAsync(
-            $"api/products/{chai.ProductId}",
-            new { productId = chai.ProductId + 1, productName = "Chai" },
-            _cancellationToken
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
     public async Task Update_Unknown_Returns404()
     {
         var response = await _admin.PutAsJsonAsync(
@@ -199,6 +234,45 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         );
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Update_IdInBodyIsIgnored()
+    {
+        // The id comes from the route only.
+        var chai = await SeedProductAsync("Chai");
+
+        var response = await _admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new { productId = chai.ProductId + 1, productName = "Chai Latte" },
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .ProductName.ShouldBe("Chai Latte");
+    }
+
+    [Fact]
+    public async Task Update_WithNestedCategory_DoesNotStoreIt()
+    {
+        // Overposting: the request body has no related data, so a client cannot insert rows through it.
+        var chai = await SeedProductAsync("Chai");
+
+        await _admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new
+            {
+                productId = chai.ProductId,
+                productName = "Chai",
+                category = new { categoryName = "Injected" },
+            },
+            _cancellationToken
+        );
+
+        await using var db = _database.CreateContext();
+        (await db.Categories.AnyAsync(_cancellationToken)).ShouldBeFalse();
     }
 
     [Fact]
@@ -316,6 +390,33 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
     }
 
+    [Fact]
+    public async Task Delete_ProductAddedToCartAfterCheck_Returns409AndKeepsProduct()
+    {
+        // The race from #32: another request puts the product into a cart after the in-use check;
+        // PostgreSQL rejects the DELETE (23503) and the exception handler turns it into 409.
+        var chai = await SeedProductAsync("Chai");
+        using var admin = CreateAdminWithConcurrentWrite(() =>
+            _database.SeedAsync(
+                new Cart
+                {
+                    UserId = "user-1",
+                    CartItems = [new CartItem { ProductId = chai.ProductId, Quantity = 1 }],
+                },
+                _cancellationToken
+            )
+        );
+
+        var response = await admin.DeleteAsync(
+            $"api/products/{chai.ProductId}",
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+    }
+
     [Theory]
     [InlineData("POST", "api/products")]
     [InlineData("PUT", "api/products/1")]
@@ -387,8 +488,25 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-    private async Task<List<Product>> GetProductsAsync(string url) =>
-        (await _client.GetFromJsonAsync<List<Product>>(url, _cancellationToken)).ShouldNotBeNull();
+    private HttpClient CreateAdminWithConcurrentWrite(Func<Task> write) =>
+        _factory
+            .WithWebHostBuilder(builder =>
+                builder.ConfigureTestServices(services =>
+                    services.ConfigureDbContext<EShopDbContext>(options =>
+                        options.AddInterceptors(new BeforeSaveChangesInterceptor(write))
+                    )
+                )
+            )
+            .CreateClient()
+            .AsAdmin();
+
+    private async Task<IReadOnlyList<ProductResponse>> GetProductsAsync(string url) =>
+        (await GetProductPageAsync(url)).Items;
+
+    private async Task<PagedResponse<ProductResponse>> GetProductPageAsync(string url) =>
+        (
+            await _client.GetFromJsonAsync<PagedResponse<ProductResponse>>(url, _cancellationToken)
+        ).ShouldNotBeNull();
 
     private Task<HttpResponseMessage> SendJsonAsync(HttpClient client, string method, string url) =>
         client.SendAsync(

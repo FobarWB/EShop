@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
-using EShop.Data.Entities;
+using EShop.ShoppingCart.Dtos;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
@@ -57,31 +57,36 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     }
 
     [Fact]
-    public async Task AddItem_UnknownProduct_Returns404()
+    public async Task AddItem_UnknownProduct_Returns404Problem()
     {
         var response = await AddItemAsync(productId: 999, quantity: 1);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
     }
 
     [Fact]
-    public async Task AddItem_NotEnoughStock_Returns409()
+    public async Task AddItem_NotEnoughStock_Returns409Problem()
     {
         var productId = await _database.SeedProductAsync(1, _cancellationToken);
 
         var response = await AddItemAsync(productId, quantity: 2);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
     }
 
-    [Fact]
-    public async Task AddItem_ZeroQuantity_Returns400()
+    // [Range] on the request: [ApiController] answers before the action runs.
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 0)]
+    [InlineData(1, -1)]
+    public async Task AddItem_InvalidItem_Returns400ValidationProblem(int productId, int quantity)
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
-
-        var response = await AddItemAsync(productId, quantity: 0);
+        var response = await AddItemAsync(productId, quantity);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
     }
 
     [Fact]
@@ -102,9 +107,12 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 2);
 
-        var cart = await _client.GetFromJsonAsync<Cart>("api/carts/me", _cancellationToken);
+        var cart = await _client.GetFromJsonAsync<CartResponse>("api/carts/me", _cancellationToken);
 
-        cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem().ProductId.ShouldBe(productId);
+        var item = cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem();
+        item.ProductId.ShouldBe(productId);
+        item.ProductName.ShouldBe("Test product"); // TestDatabase.SeedProductAsync
+        item.Quantity.ShouldBe(2);
     }
 
     [Fact]
@@ -121,12 +129,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
-        // The body is a bare JSON number: [FromBody] int newQuantity.
-        var response = await _client.PutAsJsonAsync(
-            $"api/carts/me/items/{productId}",
-            4,
-            _cancellationToken
-        );
+        var response = await UpdateQuantityAsync(productId, 4);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await _database.LoadCartAsync(UserId, _cancellationToken))
@@ -136,16 +139,32 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     }
 
     [Fact]
+    public async Task UpdateQuantity_BareNumber_Returns400AndKeepsQuantity()
+    {
+        // The body is an object { "quantity": 4 }; the former bare number is rejected.
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        await AddItemAsync(productId, quantity: 1);
+
+        var response = await _client.PutAsJsonAsync(
+            $"api/carts/me/items/{productId}",
+            4,
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await _database.LoadCartAsync(UserId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CartItems.ShouldHaveSingleItem()
+            .Quantity.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task UpdateQuantity_AboveStock_Returns400()
     {
         var productId = await _database.SeedProductAsync(2, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
-        var response = await _client.PutAsJsonAsync(
-            $"api/carts/me/items/{productId}",
-            3,
-            _cancellationToken
-        );
+        var response = await UpdateQuantityAsync(productId, 3);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -209,11 +228,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
-        var response = await _client.PutAsJsonAsync(
-            $"api/carts/me/items/{productId}",
-            newQuantity,
-            _cancellationToken
-        );
+        var response = await UpdateQuantityAsync(productId, newQuantity);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
@@ -308,6 +323,13 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
         _client.PostAsJsonAsync(
             "api/carts/me/items",
             new { productId, quantity },
+            _cancellationToken
+        );
+
+    private Task<HttpResponseMessage> UpdateQuantityAsync(int productId, int quantity) =>
+        _client.PutAsJsonAsync(
+            $"api/carts/me/items/{productId}",
+            new { quantity },
             _cancellationToken
         );
 }

@@ -1,6 +1,7 @@
-using EShop.Data.Entities;
 using EShop.ProductApi.Controllers;
+using EShop.ProductApi.Dtos;
 using EShop.ProductApi.Repositories;
+using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 
@@ -12,109 +13,77 @@ public class ProductApiControllerTests
 
     private readonly IProductRepository _repository = Substitute.For<IProductRepository>();
     private readonly ProductApiController _controller;
+    private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
     public ProductApiControllerTests()
     {
         _controller = new ProductApiController(_repository);
     }
 
-    [Fact]
-    public async Task GetProducts_NoCategory_ReturnsAllProducts()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(2)]
+    public async Task GetProducts_PassesCategoryAndPagingToRepository(int? categoryId)
     {
+        // The repository filters and pages in SQL; the controller returns what it gets.
+        var paging = new PageRequest { Page = 2, PageSize = 5 };
+        var page = new PagedResponse<ProductResponse>([Response(1)], 2, 5, 6);
         _repository
-            .RetrieveAllAsync()
-            .Returns([Product(1, categoryId: 1), Product(2, categoryId: 2)]);
+            .RetrieveAllAsync(categoryId, paging, Arg.Any<CancellationToken>())
+            .Returns(page);
 
-        var result = await _controller.GetProducts(categoryId: null);
+        var result = await _controller.GetProducts(categoryId, paging, _cancellationToken);
 
-        ValueOf<IEnumerable<Product>>(result.Result).Count().ShouldBe(2);
-    }
-
-    [Fact]
-    public async Task GetProducts_WithCategory_ReturnsOnlyThatCategory()
-    {
-        _repository
-            .RetrieveAllAsync()
-            .Returns([Product(1, categoryId: 1), Product(2, categoryId: 2)]);
-
-        var result = await _controller.GetProducts(categoryId: 2);
-
-        ValueOf<IEnumerable<Product>>(result.Result).ShouldHaveSingleItem().ProductId.ShouldBe(2);
+        result.Value.ShouldBe(page);
     }
 
     [Fact]
     public async Task GetProduct_Missing_Returns404()
     {
-        _repository.RetrieveAsync(ProductId).Returns((Product?)null);
+        _repository
+            .RetrieveAsync(ProductId, Arg.Any<CancellationToken>())
+            .Returns((ProductResponse?)null);
 
-        var result = await _controller.GetProduct(ProductId);
+        var result = await _controller.GetProduct(ProductId, _cancellationToken);
 
-        StatusCodeOf(result).ShouldBe(404);
+        StatusCodeOf(result.Result).ShouldBe(404);
     }
 
     [Fact]
     public async Task GetProduct_Exists_Returns200WithProduct()
     {
-        var product = Product(ProductId);
-        _repository.RetrieveAsync(ProductId).Returns(product);
+        var product = Response(ProductId);
+        _repository.RetrieveAsync(ProductId, Arg.Any<CancellationToken>()).Returns(product);
 
-        var result = await _controller.GetProduct(ProductId);
+        var result = await _controller.GetProduct(ProductId, _cancellationToken);
 
-        ValueOf<Product>(result).ShouldBe(product);
+        result.Value.ShouldBe(product);
     }
 
     [Fact]
-    public async Task Create_Created_Returns201WithRouteToNewProduct()
+    public async Task Create_Returns201WithRouteToNewProduct()
     {
-        var product = Product(ProductId);
-        _repository.CreateAsync(product).Returns(product);
+        var request = Request();
+        _repository.CreateAsync(request, Arg.Any<CancellationToken>()).Returns(Response(ProductId));
 
-        var result = await _controller.Create(product);
+        var result = await _controller.Create(request, _cancellationToken);
 
-        var created = result.ShouldBeOfType<CreatedAtRouteResult>();
+        var created = result.Result.ShouldBeOfType<CreatedAtRouteResult>();
         created.RouteName.ShouldBe(nameof(ProductApiController.GetProduct));
         created.RouteValues!["id"].ShouldBe(ProductId);
     }
 
-    [Fact]
-    public async Task Create_RepositoryFailed_Returns400()
+    [Theory]
+    [InlineData(true, 204)]
+    [InlineData(false, 404)]
+    public async Task Update_MapsRepositoryResultToStatusCode(bool updated, int expected)
     {
-        _repository.CreateAsync(Arg.Any<Product>()).Returns((Product?)null);
+        var request = Request();
+        _repository.UpdateAsync(ProductId, request, Arg.Any<CancellationToken>()).Returns(updated);
 
-        var result = await _controller.Create(Product(ProductId));
+        var result = await _controller.Update(ProductId, request, _cancellationToken);
 
-        StatusCodeOf(result).ShouldBe(400);
-    }
-
-    [Fact]
-    public async Task Update_IdMismatch_Returns400WithoutUpdating()
-    {
-        var result = await _controller.Update(ProductId, Product(ProductId + 1));
-
-        StatusCodeOf(result).ShouldBe(400);
-        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default, default!);
-    }
-
-    [Fact]
-    public async Task Update_Missing_Returns404()
-    {
-        _repository.RetrieveAsync(ProductId).Returns((Product?)null);
-
-        var result = await _controller.Update(ProductId, Product(ProductId));
-
-        StatusCodeOf(result).ShouldBe(404);
-    }
-
-    [Fact]
-    public async Task Update_Exists_Returns204AndUpdates()
-    {
-        var product = Product(ProductId);
-        _repository.RetrieveAsync(ProductId).Returns(product);
-
-        var result = await _controller.Update(ProductId, product);
-
-        StatusCodeOf(result).ShouldBe(204);
-        await _repository.Received(1).UpdateAsync(ProductId, product);
+        StatusCodeOf(result).ShouldBe(expected);
     }
 
     [Theory]
@@ -125,22 +94,16 @@ public class ProductApiControllerTests
     {
         _repository.DeleteAsync(ProductId, Arg.Any<CancellationToken>()).Returns(deleted);
 
-        var result = await _controller.Delete(ProductId, TestContext.Current.CancellationToken);
+        var result = await _controller.Delete(ProductId, _cancellationToken);
 
         StatusCodeOf(result).ShouldBe(expected);
     }
 
-    private static Product Product(int id, int? categoryId = null) =>
-        new()
-        {
-            ProductId = id,
-            ProductName = $"Product {id}",
-            CategoryId = categoryId,
-        };
+    private static ProductRequest Request() => new() { ProductName = "Chai" };
+
+    private static ProductResponse Response(int id) =>
+        new(id, $"Product {id}", null, null, null, null, 0, null, null, false);
 
     private static int? StatusCodeOf(IActionResult? result) =>
         result.ShouldBeAssignableTo<IStatusCodeActionResult>()!.StatusCode;
-
-    private static T ValueOf<T>(IActionResult? result) =>
-        result.ShouldBeOfType<OkObjectResult>().Value.ShouldBeAssignableTo<T>()!;
 }

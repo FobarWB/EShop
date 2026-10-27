@@ -8,17 +8,13 @@ import { ICart } from '../../models/cart.model';
 import { AuthService } from '../../services/auth.service';
 
 const cartUrl = '/api/carts/me';
-const productsUrl = '/api/products';
-const categoriesUrl = '/api/categories';
 
 // Chai 18 € × 2 + Aniseed Syrup 10 € × 1 = 46 €; total with 5 € shipping = 51 €.
 const cart: ICart = {
   cartId: 5,
-  userId: '1',
-  createdAt: new Date(),
   cartItems: [
-    { cartId: 5, productId: 7, quantity: 2 },
-    { cartId: 5, productId: 9, quantity: 1 },
+    { productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2 },
+    { productId: 9, productName: 'Aniseed Syrup', categoryName: 'Condiments', unitPrice: 10, quantity: 1 },
   ]
 };
 
@@ -103,7 +99,7 @@ describe('CartComponent', () =>
 
     const req = httpTesting.expectOne(`${cartUrl}/items/7`);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toBe(3);
+    expect(req.request.body).toEqual({ quantity: 3 });
     req.flush(null);
   });
 
@@ -194,7 +190,7 @@ describe('CartComponent', () =>
     input.dispatchEvent(new Event('input'));   // ngModel updates cartItem.quantity
     input.dispatchEvent(new Event('change'));  // (change) sends the request
     const req = httpTesting.expectOne(`${cartUrl}/items/7`);
-    expect(req.request.body).toBe(5);
+    expect(req.request.body).toEqual({ quantity: 5 });
     req.flush('Server error', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     await fixture.whenStable(); // ngModel writes the restored value to the input asynchronously
@@ -217,16 +213,13 @@ describe('CartComponent', () =>
     expect(errorAlert()).toBeNull();
   });
 
-  // Answers the requests the page makes on load: the cart, then each product and its category.
+  // Answers the only request the page makes on load: the cart already has the product details,
+  // so httpTesting.verify() fails the test if the page asks for products or categories.
   function loadCart(value: ICart): void
   {
     fixture.detectChanges(); // runs ngOnInit
     // flush() hands over the same object and the component changes it, so every test gets its own copy.
     httpTesting.expectOne(cartUrl).flush(structuredClone(value));
-    httpTesting.expectOne(`${productsUrl}/7`).flush({ productId: 7, productName: 'Chai', unitPrice: 18, categoryId: 1 });
-    httpTesting.expectOne(`${productsUrl}/9`).flush({ productId: 9, productName: 'Aniseed Syrup', unitPrice: 10, categoryId: 2 });
-    httpTesting.expectOne(`${categoriesUrl}/1`).flush({ categoryId: 1, categoryName: 'Beverages' });
-    httpTesting.expectOne(`${categoriesUrl}/2`).flush({ categoryId: 2, categoryName: 'Condiments' });
     fixture.detectChanges();
   }
 

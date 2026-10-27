@@ -28,7 +28,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
 
         var result = await ActAsync(r =>
-            r.AddItemToCartAsync(UserId, Item(productId, 2), _cancellationToken)
+            r.AddItemToCartAsync(UserId, productId, 2, _cancellationToken)
         );
 
         result.ShouldBe(AddItemResult.Added);
@@ -40,9 +40,9 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     public async Task AddItemToCart_SameProductAgain_AddsUpQuantity()
     {
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
-        await ActAsync(r => r.AddItemToCartAsync(UserId, Item(productId, 2), _cancellationToken));
+        await ActAsync(r => r.AddItemToCartAsync(UserId, productId, 2, _cancellationToken));
 
-        await ActAsync(r => r.AddItemToCartAsync(UserId, Item(productId, 3), _cancellationToken));
+        await ActAsync(r => r.AddItemToCartAsync(UserId, productId, 3, _cancellationToken));
 
         (await _database.LoadCartAsync(UserId, _cancellationToken))
             .ShouldNotBeNull()
@@ -53,9 +53,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task AddItemToCart_ProductMissing_ReturnsProductNotFoundAndCreatesNoCart()
     {
-        var result = await ActAsync(r =>
-            r.AddItemToCartAsync(UserId, Item(999, 1), _cancellationToken)
-        );
+        var result = await ActAsync(r => r.AddItemToCartAsync(UserId, 999, 1, _cancellationToken));
 
         result.ShouldBe(AddItemResult.ProductNotFound);
         (await _database.LoadCartAsync(UserId, _cancellationToken)).ShouldBeNull();
@@ -67,7 +65,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         var productId = await _database.SeedProductAsync(3, _cancellationToken);
 
         var result = await ActAsync(r =>
-            r.AddItemToCartAsync(UserId, Item(productId, 4), _cancellationToken)
+            r.AddItemToCartAsync(UserId, productId, 4, _cancellationToken)
         );
 
         result.ShouldBe(AddItemResult.InsufficientStock);
@@ -80,7 +78,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         var productId = await _database.SeedProductAsync(0, _cancellationToken);
 
         var result = await ActAsync(r =>
-            r.AddItemToCartAsync(UserId, Item(productId, 1), _cancellationToken)
+            r.AddItemToCartAsync(UserId, productId, 1, _cancellationToken)
         );
 
         result.ShouldBe(AddItemResult.InsufficientStock);
@@ -91,10 +89,10 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     public async Task AddItemToCart_QuantityInCartCountsTowardsStock()
     {
         var productId = await _database.SeedProductAsync(5, _cancellationToken);
-        await ActAsync(r => r.AddItemToCartAsync(UserId, Item(productId, 3), _cancellationToken));
+        await ActAsync(r => r.AddItemToCartAsync(UserId, productId, 3, _cancellationToken));
 
         var result = await ActAsync(r =>
-            r.AddItemToCartAsync(UserId, Item(productId, 3), _cancellationToken)
+            r.AddItemToCartAsync(UserId, productId, 3, _cancellationToken)
         );
 
         result.ShouldBe(AddItemResult.InsufficientStock);
@@ -115,11 +113,56 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RetrieveCartByUserId_UnknownUser_ReturnsNull()
+    public async Task RetrieveCart_UnknownUser_ReturnsNull()
     {
-        var cart = await ActAsync(r => r.RetrieveCartByUserIdAsync("nobody"));
+        var cart = await ActAsync(r => r.RetrieveCartAsync("nobody", _cancellationToken));
 
         cart.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task RetrieveCart_ReturnsProductCategoryAndCurrentPrice()
+    {
+        // The price is read with the cart, so a later price change shows up in the cart.
+        var beverages = await _database.SeedAsync(
+            new Category { CategoryName = "Beverages" },
+            _cancellationToken
+        );
+        var chai = await _database.SeedAsync(
+            new Product
+            {
+                ProductName = "Chai",
+                CategoryId = beverages.CategoryId,
+                UnitPrice = 18,
+                UnitsInStock = 10,
+            },
+            _cancellationToken
+        );
+        await ActAsync(r => r.AddItemToCartAsync(UserId, chai.ProductId, 2, _cancellationToken));
+        await using (var db = _database.CreateContext())
+        {
+            await db
+                .Products.Where(p => p.ProductId == chai.ProductId)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.UnitPrice, 20), _cancellationToken);
+        }
+
+        var cart = await ActAsync(r => r.RetrieveCartAsync(UserId, _cancellationToken));
+
+        var item = cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem();
+        item.ProductName.ShouldBe("Chai");
+        item.CategoryName.ShouldBe("Beverages");
+        item.UnitPrice.ShouldBe(20);
+        item.Quantity.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task RetrieveCart_ProductWithoutCategory_HasNullCategoryName()
+    {
+        await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
+
+        var cart = await ActAsync(r => r.RetrieveCartAsync(UserId, _cancellationToken));
+
+        cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem().CategoryName.ShouldBeNull();
     }
 
     [Fact]
@@ -127,7 +170,9 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     {
         var productId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
 
-        var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, productId, 4));
+        var updated = await ActAsync(r =>
+            r.UpdateItemQuantityAsync(UserId, productId, 4, _cancellationToken)
+        );
 
         updated.ShouldBeTrue();
         (await _database.LoadCartAsync(UserId, _cancellationToken))
@@ -137,11 +182,26 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateItemQuantity_SameQuantity_ReturnsTrue()
+    {
+        // Nothing to write: SaveChanges affects no rows, but the request still succeeded.
+        var productId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 2);
+
+        var updated = await ActAsync(r =>
+            r.UpdateItemQuantityAsync(UserId, productId, 2, _cancellationToken)
+        );
+
+        updated.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task UpdateItemQuantity_AboveStock_ReturnsFalseAndKeepsQuantity()
     {
         var productId = await SeedCartWithItemAsync(unitsInStock: 5, quantity: 1);
 
-        var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, productId, 6));
+        var updated = await ActAsync(r =>
+            r.UpdateItemQuantityAsync(UserId, productId, 6, _cancellationToken)
+        );
 
         updated.ShouldBeFalse();
         (await _database.LoadCartAsync(UserId, _cancellationToken))
@@ -159,7 +219,9 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
             _cancellationToken
         );
 
-        var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, productId, 2));
+        var updated = await ActAsync(r =>
+            r.UpdateItemQuantityAsync(UserId, productId, 2, _cancellationToken)
+        );
 
         updated.ShouldBeFalse();
         (await _database.LoadCartAsync(UserId, _cancellationToken))
@@ -174,7 +236,9 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
         var otherProductId = await _database.SeedProductAsync(10, _cancellationToken);
 
-        var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, otherProductId, 2));
+        var updated = await ActAsync(r =>
+            r.UpdateItemQuantityAsync(UserId, otherProductId, 2, _cancellationToken)
+        );
 
         updated.ShouldBeFalse();
     }
@@ -184,9 +248,11 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     {
         var removedId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
         var keptId = await _database.SeedProductAsync(10, _cancellationToken);
-        await ActAsync(r => r.AddItemToCartAsync(UserId, Item(keptId, 1), _cancellationToken));
+        await ActAsync(r => r.AddItemToCartAsync(UserId, keptId, 1, _cancellationToken));
 
-        var removed = await ActAsync(r => r.RemoveItemFromCartAsync(UserId, removedId));
+        var removed = await ActAsync(r =>
+            r.RemoveItemFromCartAsync(UserId, removedId, _cancellationToken)
+        );
 
         removed.ShouldBeTrue();
         (await _database.LoadCartAsync(UserId, _cancellationToken))
@@ -200,7 +266,9 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     {
         await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
 
-        var removed = await ActAsync(r => r.RemoveItemFromCartAsync(UserId, 999));
+        var removed = await ActAsync(r =>
+            r.RemoveItemFromCartAsync(UserId, 999, _cancellationToken)
+        );
 
         removed.ShouldBeFalse();
     }
@@ -210,7 +278,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     {
         await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
 
-        var cleared = await ActAsync(r => r.ClearCartAsync(UserId));
+        var cleared = await ActAsync(r => r.ClearCartAsync(UserId, _cancellationToken));
 
         cleared.ShouldBeTrue();
         (await _database.LoadCartAsync(UserId, _cancellationToken))
@@ -219,11 +287,22 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ClearCart_EmptyCart_ReturnsTrue()
+    {
+        // Nothing to delete: SaveChanges affects no rows, but the cart is empty as requested.
+        await _database.SeedAsync(new Cart { UserId = UserId }, _cancellationToken);
+
+        var cleared = await ActAsync(r => r.ClearCartAsync(UserId, _cancellationToken));
+
+        cleared.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task DeleteCart_DeletesCartAndItsItems()
     {
         await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
 
-        var deleted = await ActAsync(r => r.DeleteCartAsync(UserId));
+        var deleted = await ActAsync(r => r.DeleteCartAsync(UserId, _cancellationToken));
 
         deleted.ShouldBe(true);
         (await _database.LoadCartAsync(UserId, _cancellationToken)).ShouldBeNull();
@@ -234,7 +313,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task DeleteCart_UnknownUser_ReturnsNull()
     {
-        var deleted = await ActAsync(r => r.DeleteCartAsync("nobody"));
+        var deleted = await ActAsync(r => r.DeleteCartAsync("nobody", _cancellationToken));
 
         deleted.ShouldBeNull();
     }
@@ -244,7 +323,9 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     {
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
 
-        var updated = await ActAsync(r => r.UpdateItemQuantityAsync(UserId, productId, 2));
+        var updated = await ActAsync(r =>
+            r.UpdateItemQuantityAsync(UserId, productId, 2, _cancellationToken)
+        );
 
         updated.ShouldBeFalse();
     }
@@ -252,7 +333,9 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task RemoveItemFromCart_NoCart_ReturnsFalse()
     {
-        var removed = await ActAsync(r => r.RemoveItemFromCartAsync(UserId, 999));
+        var removed = await ActAsync(r =>
+            r.RemoveItemFromCartAsync(UserId, 999, _cancellationToken)
+        );
 
         removed.ShouldBeFalse();
     }
@@ -260,7 +343,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task ClearCart_NoCart_ReturnsFalse()
     {
-        var cleared = await ActAsync(r => r.ClearCartAsync(UserId));
+        var cleared = await ActAsync(r => r.ClearCartAsync(UserId, _cancellationToken));
 
         cleared.ShouldBeFalse();
     }
@@ -278,9 +361,7 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     private async Task<int> SeedCartWithItemAsync(short unitsInStock, int quantity)
     {
         var productId = await _database.SeedProductAsync(unitsInStock, _cancellationToken);
-        await ActAsync(r =>
-            r.AddItemToCartAsync(UserId, Item(productId, quantity), _cancellationToken)
-        );
+        await ActAsync(r => r.AddItemToCartAsync(UserId, productId, quantity, _cancellationToken));
         return productId;
     }
 }

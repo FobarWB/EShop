@@ -1,13 +1,22 @@
-using EShop.Data.Entities; // Category
+using EShop.CategoryApi.Dtos;
+using EShop.ServiceDefaults;
 
-namespace EShop.CategoryApi.Repositories
+namespace EShop.CategoryApi.Repositories;
+
+public interface ICategoryRepository
 {
-    public interface ICategoryRepository
-    {
-        Task<Category?> CreateAsync(Category c);
-        Task<IEnumerable<Category>> RetrieveAllAsync();
-        Task<Category?> RetrieveAsync(int id);
-        Task<Category?> UpdateAsync(int id, Category c);
-        Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken);
-    }
+    Task<CategoryResponse> CreateAsync(
+        CategoryRequest request,
+        CancellationToken cancellationToken
+    );
+    Task<PagedResponse<CategoryResponse>> RetrieveAllAsync(
+        string? name,
+        PageRequest paging,
+        CancellationToken cancellationToken
+    );
+    Task<CategoryResponse?> RetrieveAsync(int id, CancellationToken cancellationToken);
+
+    // false: no category with this id.
+    Task<bool> UpdateAsync(int id, CategoryRequest request, CancellationToken cancellationToken);
+    Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken);
 }
