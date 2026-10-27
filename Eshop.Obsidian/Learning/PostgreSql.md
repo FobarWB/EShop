@@ -53,6 +53,14 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 - **Backup and move.** `pg_dump -Fc` writes a compressed custom-format archive of one database (schema, data,
   `__EFMigrationsHistory`); `pg_restore` loads it, can restore selected objects and run in parallel. Roles live outside
   a database (they are cluster-wide), so they are not in the dump: create them first, restore with `--no-owner`.
+- **MVCC and `xmin`.** An UPDATE writes a new row version; the system column `xmin` holds the id of the transaction that
+  wrote it, so it changes on every update and serves as a free version number (`SELECT xmin, * FROM products`).
+- **Read Committed allows lost updates.** Two transactions that read a value, compute and write it back both succeed;
+  the second overwrites the first. Guards: a version check (`WHERE xmin = …`), an atomic `SET x = x - 1 WHERE x >= 1`,
+  `SELECT … FOR UPDATE`, or Serializable isolation with retries.
+- **NULLs in unique indexes are distinct** (by default; `NULLS NOT DISTINCT` since PG 15): many rows with `(NULL, NULL)`
+  do not violate a unique index. A violation is `23505` with the index name in `constraint_name`.
+- **Adding a nullable column without a default** only changes the catalog: no table rewrite, instant on any size.
 
 ## Applied in this project
 

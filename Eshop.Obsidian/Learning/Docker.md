@@ -103,15 +103,15 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
 - **SPA has no server of its own.** `ng serve` / Vite are development tools; in production a static server serves
   the build. A Node server appears only with server-side rendering (Next.js, Angular SSR).
 
-Applied: `src/EShop.*/Dockerfile` (three APIs, `EShop.Data` = migrator, `EShop.ClientApp` = nginx), `.dockerignore`,
-services `migrator`, `productapi`, `categoryapi`, `shoppingcart`, `client` in [docker-compose.yml](../../docker-compose.yml)
+Applied: `src/EShop.*/Dockerfile` (four APIs, `EShop.Data` = migrator, `EShop.ClientApp` = nginx), `.dockerignore`,
+services `migrator`, `productapi`, `categoryapi`, `shoppingcart`, `orderapi`, `client` in [docker-compose.yml](../../docker-compose.yml)
 (`restart: unless-stopped` for the shop services). Manual cycle:
 `docker build -f src/EShop.ProductApi/Dockerfile -t eshop-productapi:dev .`, `docker history`, `docker run --network
 eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
 
 ## Registry and CD (#36)
 
-- **CI checks the code, CD turns it into images.** The job `images` in `ci.yml` needs the test jobs, builds the five
+- **CI checks the code, CD turns it into images.** The job `images` in `ci.yml` needs the test jobs, builds the six
   images on every run (a broken Dockerfile fails the PR) and pushes them only from `master`. Nothing is built on a
   server: every machine pulls the same image.
 - **Registry and tags.** ghcr.io stores the images next to the repository (Packages). `sha-<commit>` is immutable:

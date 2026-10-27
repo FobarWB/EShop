@@ -29,4 +29,6 @@ ProductApi and CategoryApi.
 - ShoppingCart is coupled to the schema of two tables it does not own. This is accepted while the database is shared.
 - With a database per service ([#51](https://github.com/FobarWB/EShop/issues/51)) the cart cannot join the catalog:
   it would keep its own copy of name and price, updated by events such as `ProductPriceChanged` (RabbitMQ, #50).
-  The decision between "current price" and "price when added" has to be made again then (and at checkout, #42).
+  The decision between "current price" and "price when added" has to be made again then. At checkout (#42) the
+  order copies the current price into `order_details.unit_price`; since #42 the cart also returns the current stock
+  and `discontinued`.
