@@ -35,6 +35,11 @@ namespace EShop.Data.Entities
         public short? ReorderLevel { get; set; }
         public bool Discontinued { get; set; }
 
+        // Mapped to PostgreSQL's system column xmin, which changes on every update of the row:
+        // EF Core adds "WHERE xmin = <read value>" to UPDATE and throws on a concurrent change.
+        [Timestamp]
+        public uint Version { get; set; }
+
         [ForeignKey("CategoryId")]
         [InverseProperty("Products")]
         public virtual Category? Category { get; set; }

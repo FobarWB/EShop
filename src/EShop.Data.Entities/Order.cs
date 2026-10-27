@@ -22,6 +22,13 @@ namespace EShop.Data.Entities
         [Key]
         public int OrderId { get; set; }
 
+        // Keycloak user id (token "sub") of the buyer; null for the Northwind orders.
+        [StringLength(50)]
+        public string? UserId { get; set; }
+
+        // Client-generated key of the checkout attempt: a retried request returns the same order.
+        public Guid? IdempotencyKey { get; set; }
+
         [StringLength(5)]
         public string? CustomerId { get; set; }
         public int? EmployeeId { get; set; }
