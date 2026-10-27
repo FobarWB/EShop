@@ -2,3 +2,8 @@
 * text=auto
 # Shell scripts run inside Linux containers: CRLF would break them ("\r: command not found").
 *.sh text eol=lf
+# GitHub language statistics (Linguist) count bytes: data dumps are not code.
+# Generated: excluded from the statistics and collapsed in pull request diffs.
+db/northwind-data.sql linguist-generated
+# Archived code that is no longer built or maintained.
+archive/** linguist-vendored
