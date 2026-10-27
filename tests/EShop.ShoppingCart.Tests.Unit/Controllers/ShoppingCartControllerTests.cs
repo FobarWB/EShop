@@ -83,7 +83,7 @@ public class ShoppingCartControllerTests
     {
         var cart = new CartResponse(
             5,
-            [new CartItemResponse(ProductId, "Chai", "Beverages", 18, 2)]
+            [new CartItemResponse(ProductId, "Chai", "Beverages", 18, 2, 10, false)]
         );
         _repository.RetrieveCartAsync(UserId, Arg.Any<CancellationToken>()).Returns(cart);
 
