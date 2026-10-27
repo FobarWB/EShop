@@ -8,15 +8,13 @@ import { ICart } from '../../models/cart.model';
 import { AuthService } from '../../services/auth.service';
 
 const cartUrl = '/api/carts/me';
-const productsUrl = '/api/products';
-const categoriesUrl = '/api/categories';
 
 // Chai 18 € × 2 + Aniseed Syrup 10 € × 1 = 46 €; total with 5 € shipping = 51 €.
 const cart: ICart = {
   cartId: 5,
   cartItems: [
-    { productId: 7, quantity: 2 },
-    { productId: 9, quantity: 1 },
+    { productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2 },
+    { productId: 9, productName: 'Aniseed Syrup', categoryName: 'Condiments', unitPrice: 10, quantity: 1 },
   ]
 };
 
@@ -215,16 +213,13 @@ describe('CartComponent', () =>
     expect(errorAlert()).toBeNull();
   });
 
-  // Answers the requests the page makes on load: the cart, then each product and its category.
+  // Answers the only request the page makes on load: the cart already has the product details,
+  // so httpTesting.verify() fails the test if the page asks for products or categories.
   function loadCart(value: ICart): void
   {
     fixture.detectChanges(); // runs ngOnInit
     // flush() hands over the same object and the component changes it, so every test gets its own copy.
     httpTesting.expectOne(cartUrl).flush(structuredClone(value));
-    httpTesting.expectOne(`${productsUrl}/7`).flush({ productId: 7, productName: 'Chai', unitPrice: 18, categoryId: 1 });
-    httpTesting.expectOne(`${productsUrl}/9`).flush({ productId: 9, productName: 'Aniseed Syrup', unitPrice: 10, categoryId: 2 });
-    httpTesting.expectOne(`${categoriesUrl}/1`).flush({ categoryId: 1, categoryName: 'Beverages' });
-    httpTesting.expectOne(`${categoriesUrl}/2`).flush({ categoryId: 2, categoryName: 'Condiments' });
     fixture.detectChanges();
   }
 

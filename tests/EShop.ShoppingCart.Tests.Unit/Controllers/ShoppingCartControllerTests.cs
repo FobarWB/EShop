@@ -81,7 +81,10 @@ public class ShoppingCartControllerTests
     [Fact]
     public async Task GetCart_CartExists_Returns200WithCart()
     {
-        var cart = new CartResponse(5, [new CartItemResponse(ProductId, 2)]);
+        var cart = new CartResponse(
+            5,
+            [new CartItemResponse(ProductId, "Chai", "Beverages", 18, 2)]
+        );
         _repository.RetrieveCartAsync(UserId, Arg.Any<CancellationToken>()).Returns(cart);
 
         var result = await _controller.GetCart(CancellationToken.None);

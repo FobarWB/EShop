@@ -2,10 +2,11 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 
 import { CartService } from './cart.service';
 import { AuthService } from './auth.service';
+import { LocalCartService } from './local-cart.service';
 import { ICart } from '../models/cart.model';
 
 const apiUrl = '/api/carts/me';
@@ -15,12 +16,25 @@ describe('CartService', () =>
   let service: CartService;
   let httpTesting: HttpTestingController;
   const auth = { isAuthenticated: signal(true) };
+  const localCart = {
+    getCart: vi.fn(),
+    addItem: vi.fn(),
+    updateQuantity: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn()
+  };
 
   beforeEach(() =>
   {
     auth.isAuthenticated.set(true);
+    vi.clearAllMocks();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: AuthService, useValue: auth }]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AuthService, useValue: auth },
+        { provide: LocalCartService, useValue: localCart }
+      ]
     });
     service = TestBed.inject(CartService);
     httpTesting = TestBed.inject(HttpTestingController);
@@ -30,7 +44,6 @@ describe('CartService', () =>
   {
     // Fails the test if it sent a request nobody expected.
     httpTesting.verify();
-    localStorage.clear();
   });
 
   describe('authenticated user (API)', () =>
@@ -93,77 +106,52 @@ describe('CartService', () =>
       expect(req.request.body).toEqual(body);
       req.flush(null);
     });
+
+    it('never touches the local cart', () =>
+    {
+      service.addItemToCart(7, 2).subscribe();
+      httpTesting.expectOne(`${apiUrl}/items`).flush(null);
+
+      expect(localCart.addItem).not.toHaveBeenCalled();
+    });
   });
 
-  describe('anonymous user (localStorage)', () =>
+  // Storage and loading of product details are tested in local-cart.service.spec.ts.
+  describe('anonymous user (LocalCartService)', () =>
   {
     beforeEach(() => auth.isAuthenticated.set(false));
 
-    it('adds a new item to the stored cart without calling the API', () =>
+    it('returns the local cart', () =>
     {
-      service.addItemToCart(7, 2).subscribe();
-
-      expect(storedCart().cartItems).toEqual([{ productId: 7, quantity: 2 }]);
-    });
-
-    it('adds up the quantity of an item that is already in the cart', () =>
-    {
-      service.addItemToCart(7, 2).subscribe();
-      service.addItemToCart(7, 3).subscribe();
-
-      expect(storedCart().cartItems).toEqual([{ productId: 7, quantity: 5 }]);
-    });
-
-    it('returns the stored cart', () =>
-    {
-      service.addItemToCart(7, 2).subscribe();
+      const cart: ICart = { cartId: 0, cartItems: [] };
+      localCart.getCart.mockReturnValue(of(cart));
       let result: ICart | undefined;
 
       service.getCart().subscribe(c => result = c);
 
-      expect(result?.cartItems).toEqual([{ productId: 7, quantity: 2 }]);
+      expect(result).toBe(cart);
     });
 
-    it('updates the quantity of an item', () =>
+    it.each([
+      { name: 'addItemToCart', call: (s: CartService) => s.addItemToCart(7, 2), method: 'addItem', args: [7, 2] },
+      { name: 'updateItemQuantity', call: (s: CartService) => s.updateItemQuantity(7, 3), method: 'updateQuantity', args: [7, 3] },
+      { name: 'removeItemFromCart', call: (s: CartService) => s.removeItemFromCart(7), method: 'removeItem', args: [7] },
+      { name: 'clearCart', call: (s: CartService) => s.clearCart(), method: 'clear', args: [] },
+    ] as { name: string; call: (s: CartService) => Observable<void>; method: keyof typeof localCart; args: unknown[] }[])(
+      '$name calls LocalCartService.$method and emits once', ({ call, method, args }) =>
     {
-      service.addItemToCart(7, 2).subscribe();
-
-      service.updateItemQuantity(7, 4).subscribe();
-
-      expect(storedCart().cartItems[0].quantity).toBe(4);
-    });
-
-    it('removes an item', () =>
-    {
-      service.addItemToCart(7, 2).subscribe();
-      service.addItemToCart(9, 1).subscribe();
-
-      service.removeItemFromCart(7).subscribe();
-
-      expect(storedCart().cartItems.map(i => i.productId)).toEqual([9]);
-    });
-
-    it('clears the cart', () =>
-    {
-      service.addItemToCart(7, 2).subscribe();
-
-      service.clearCart().subscribe();
-
-      expect(localStorage.getItem('cart')).toBeNull();
-    });
-
-    // Anonymous changes emit once, like the API calls, so callers can refresh.
-    it('emits after a change so callers can refresh', () =>
-    {
+      // Anonymous changes emit once, like the API calls, so callers can refresh.
       const next = vi.fn();
 
-      service.removeItemFromCart(7).subscribe(next);
+      call(service).subscribe(next);
 
-      expect(next).toHaveBeenCalled();
+      expect(localCart[method]).toHaveBeenCalledWith(...args);
+      expect(next).toHaveBeenCalledTimes(1);
     });
 
     it('switches to the server as soon as the user signs in', () =>
     {
+      localCart.getCart.mockReturnValue(of({ cartId: 0, cartItems: [] }));
       service.getCart().subscribe();
       httpTesting.expectNone(apiUrl);
 
@@ -174,8 +162,3 @@ describe('CartService', () =>
     });
   });
 });
-
-function storedCart(): ICart
-{
-  return JSON.parse(localStorage.getItem('cart') ?? 'null');
-}

@@ -121,6 +121,51 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RetrieveCart_ReturnsProductCategoryAndCurrentPrice()
+    {
+        // The price is read with the cart, so a later price change shows up in the cart.
+        var beverages = await _database.SeedAsync(
+            new Category { CategoryName = "Beverages" },
+            _cancellationToken
+        );
+        var chai = await _database.SeedAsync(
+            new Product
+            {
+                ProductName = "Chai",
+                CategoryId = beverages.CategoryId,
+                UnitPrice = 18,
+                UnitsInStock = 10,
+            },
+            _cancellationToken
+        );
+        await ActAsync(r => r.AddItemToCartAsync(UserId, chai.ProductId, 2, _cancellationToken));
+        await using (var db = _database.CreateContext())
+        {
+            await db
+                .Products.Where(p => p.ProductId == chai.ProductId)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.UnitPrice, 20), _cancellationToken);
+        }
+
+        var cart = await ActAsync(r => r.RetrieveCartAsync(UserId, _cancellationToken));
+
+        var item = cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem();
+        item.ProductName.ShouldBe("Chai");
+        item.CategoryName.ShouldBe("Beverages");
+        item.UnitPrice.ShouldBe(20);
+        item.Quantity.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task RetrieveCart_ProductWithoutCategory_HasNullCategoryName()
+    {
+        await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);
+
+        var cart = await ActAsync(r => r.RetrieveCartAsync(UserId, _cancellationToken));
+
+        cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem().CategoryName.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task UpdateItemQuantity_WithinStock_UpdatesQuantity()
     {
         var productId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 1);

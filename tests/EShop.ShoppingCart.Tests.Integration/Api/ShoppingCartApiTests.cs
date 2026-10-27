@@ -109,7 +109,10 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
 
         var cart = await _client.GetFromJsonAsync<CartResponse>("api/carts/me", _cancellationToken);
 
-        cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem().ProductId.ShouldBe(productId);
+        var item = cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem();
+        item.ProductId.ShouldBe(productId);
+        item.ProductName.ShouldBe("Test product"); // TestDatabase.SeedProductAsync
+        item.Quantity.ShouldBe(2);
     }
 
     [Fact]
