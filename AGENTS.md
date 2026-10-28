@@ -19,7 +19,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
-| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin and Keycloak; with the profile `app` also the migrator, the four APIs and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180 |
+| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the four APIs and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
 | `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin` and `customer`/`customer` (local only, never on a server) | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
@@ -72,7 +72,7 @@ The APIs and the integration tests need the database: start Docker Desktop and `
 (the containers do not start on their own). Unit tests and Angular tests do not need it.
 
 ```powershell
-docker compose up -d                                # PostgreSQL + pgAdmin + Keycloak; docker compose stop when done
+docker compose up -d                                # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose stop when done
 docker compose --profile app up -d --build --wait   # the whole shop in containers: http://localhost:8080
                                                     # from CI images instead: ESHOP_TAG=latest (or sha-<commit>),
                                                     # docker compose --profile app pull; up -d --no-build --wait
@@ -109,7 +109,7 @@ and the role and database `keycloak`, see `db/init/`):
 
 ```powershell
 Copy-Item .env.example .env          # set the passwords; ESHOP_DB_PASSWORD is the password of the role eshop
-docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak; docker compose ps shows them as "healthy"
+docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose ps shows them as "healthy"
 dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
 dotnet ef database update --project src/EShop.Data --startup-project src/EShop.ProductApi
 docker compose cp db/northwind-data.sql postgres:/tmp/northwind-data.sql                                   # empty database only

@@ -1,5 +1,6 @@
 # Local environment.
-#   docker compose up -d                          PostgreSQL and pgAdmin (run the APIs and the client from the IDE)
+#   docker compose up -d                          PostgreSQL, pgAdmin, Keycloak, RabbitMQ and Mailpit
+#                                                 (run the APIs and the client from the IDE)
 #   docker compose --profile app up -d --build    the whole shop on http://localhost:8080
 #   ESHOP_TAG=latest (or sha-<commit>): docker compose --profile app pull, then up -d --no-build
 #                                                 runs the images published by CI instead of local builds
@@ -103,6 +104,44 @@ services:
       postgres:
         condition: service_healthy
 
+  # Message broker (AMQP 0-9-1). Port 5672 for the services, management UI on http://localhost:15672.
+  rabbitmq:
+    image: rabbitmq:4-management
+    # RabbitMQ names its node rabbit@<hostname> and keeps the data under that name: without a fixed hostname
+    # every new container gets a new node name and does not find the queues stored in the volume.
+    hostname: rabbitmq
+    environment:
+      # The default user "guest" may connect from localhost only, and connections through the port mapping
+      # do not count as local: an own user, created on the first start with an empty volume.
+      RABBITMQ_DEFAULT_USER: eshop
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+    ports:
+      # Also on ::1, as for postgres.
+      - "127.0.0.1:5672:5672"
+      - "[::1]:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  # Fake SMTP server for development: accepts every email and sends nothing; the inbox is on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "[::1]:1025:1025"
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   # One-off: applies the EF Core migrations and exits; the APIs start only after it succeeds.
   migrator:
     profiles: [app]
@@ -173,3 +212,4 @@ services:
 volumes:
   postgres-data:
   pgadmin-data:
+  rabbitmq-data:
