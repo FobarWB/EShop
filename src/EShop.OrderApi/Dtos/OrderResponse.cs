@@ -1,9 +1,12 @@
+using EShop.Data.Entities;
+
 namespace EShop.OrderApi.Dtos;
 
 // The prices are the copies stored with the order at checkout, not the current product prices.
 public sealed record OrderResponse(
     int OrderId,
     DateTime OrderDate,
+    OrderStatus Status,
     string ShipName,
     string ShipAddress,
     string ShipCity,

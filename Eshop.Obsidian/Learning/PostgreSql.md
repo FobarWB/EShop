@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-27
+verified: 2026-10-28
 issue: 14
 ---
 
@@ -61,6 +61,15 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 - **NULLs in unique indexes are distinct** (by default; `NULLS NOT DISTINCT` since PG 15): many rows with `(NULL, NULL)`
   do not violate a unique index. A violation is `23505` with the index name in `constraint_name`.
 - **Adding a nullable column without a default** only changes the catalog: no table rewrite, instant on any size.
+- **CHECK constraints and NULL.** A CHECK rejects only a `false` result; `NULL IN (...)` is `NULL`, so a nullable column
+  passes. Adding a constraint checks every existing row (error `23514`, the migration rolls back).
+- **Changing `timestamp` to `timestamptz`.** `ALTER COLUMN … TYPE timestamptz` reads the old values in the session's
+  time zone; say which with `USING col AT TIME ZONE 'UTC'`. The reverse, `timestamptz AT TIME ZONE 'UTC'`, gives the
+  UTC wall-clock time. EF Core generates the change without `USING`.
+- **`ADD COLUMN … DEFAULT` (PG 11+)** stores the default in the catalog: no table rewrite. Filling existing rows with a
+  value and `DROP DEFAULT` right after is a cheap way to backfill a NOT NULL column.
+- **Row locks in Read Committed.** A second `UPDATE` of a row another transaction has updated waits for its commit, then
+  re-evaluates its `WHERE` on the new row version; a `WHERE xmin = …` then matches nothing.
 
 ## Applied in this project
 
@@ -68,6 +77,8 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
   `pg_dump -Fc` → `pg_restore`.
 - Schema from EF Core migrations, data from [db/northwind-data.sql](../../db/northwind-data.sql), loaded with `psql -f`.
   The script sets `\set ON_ERROR_STOP on`, `client_encoding = 'UTF8'` and runs in one transaction.
+- `orders` dates are `timestamptz` since #43; `migrationBuilder.Sql` adds the `USING` and the backfills to the
+  generated migration.
 - EF Core takes an advisory lock (`pg_advisory_lock`) while applying migrations, so parallel app instances do not
   apply the same migration twice. The first `database update` logs a failed `SELECT` from `"__EFMigrationsHistory"`:
   expected, the table does not exist yet.

@@ -24,6 +24,13 @@ namespace EShop.Data
         public virtual DbSet<Territory> Territories { get; set; } = null!;
         public virtual DbSet<Cart> Carts { get; set; } = null!;
         public virtual DbSet<CartItem> CartItems { get; set; } = null!;
+        public virtual DbSet<OrderStatusChange> OrderStatusChanges { get; set; } = null!;
+
+        // 'Pending', 'Paid', ...: the CHECK constraints follow the enum, so a new status shows up in the next migration.
+        private static readonly string OrderStatusValues = string.Join(
+            ", ",
+            Enum.GetNames<OrderStatus>().Select(name => $"'{name}'")
+        );
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -123,9 +130,17 @@ namespace EShop.Data
             {
                 entity.Property(e => e.Freight).HasDefaultValue(0m);
 
+                entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+                entity.ToTable(t =>
+                    t.HasCheckConstraint("ck_orders_status", $"status IN ({OrderStatusValues})")
+                );
+
                 // One order per checkout attempt of a user. The index also serves lookups by user_id
                 // (its leading column), so user_id needs no index of its own.
                 entity.HasIndex(e => new { e.UserId, e.IdempotencyKey }).IsUnique();
+
+                // The user's order list: WHERE user_id = … ORDER BY order_date DESC.
+                entity.HasIndex(e => new { e.UserId, e.OrderDate });
 
                 entity
                     .HasOne(d => d.Customer)
@@ -160,6 +175,33 @@ namespace EShop.Data
                     .WithMany(p => p.OrderDetails)
                     .HasForeignKey(d => d.ProductId)
                     .OnDelete(DeleteBehavior.ClientSetNull);
+            });
+
+            modelBuilder.Entity<OrderStatusChange>(entity =>
+            {
+                entity.Property(e => e.FromStatus).HasConversion<string>().HasMaxLength(20);
+                entity.Property(e => e.ToStatus).HasConversion<string>().HasMaxLength(20);
+                // A NULL from_status (the creation) passes: CHECK rejects only a false result, and NULL IN (...) is NULL.
+                entity.ToTable(t =>
+                {
+                    t.HasCheckConstraint(
+                        "ck_order_status_changes_from_status",
+                        $"from_status IN ({OrderStatusValues})"
+                    );
+                    t.HasCheckConstraint(
+                        "ck_order_status_changes_to_status",
+                        $"to_status IN ({OrderStatusValues})"
+                    );
+                });
+
+                entity.HasIndex(e => new { e.OrderId, e.ChangedAt });
+
+                // Restrict: the journal is a record; deleting an order with a history is an error, not a cascade.
+                entity
+                    .HasOne(d => d.Order)
+                    .WithMany(p => p.StatusChanges)
+                    .HasForeignKey(d => d.OrderId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<Product>(entity =>

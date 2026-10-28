@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EShop.ServiceDefaults;
 
-// The row changed between reading and writing it: its concurrency token (products.xmin) no longer matches,
+// The row changed between reading and writing it: its concurrency token (xmin of products or orders) no longer matches,
 // the UPDATE or DELETE affects no rows and EF Core throws. Nothing of that SaveChanges is stored;
 // the client gets 409 and can reload the data and try again.
 public sealed class ConcurrencyConflictHandler(IProblemDetailsService problemDetails)

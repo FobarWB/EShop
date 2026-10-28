@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-27
+verified: 2026-10-28
 ---
 
 # ClientApp
@@ -18,7 +18,7 @@ Angular 22 single-page application: catalog, product pages, the shopping cart an
 | `/privacy` | Privacy |
 | `/cart` | Shopping cart |
 | `/checkout` | Checkout (sign-in required) |
-| `/orders/:id` | Order confirmation (sign-in required) |
+| `/orders/:id` | Order confirmation: status and cancel (sign-in required) |
 | `/:categoryName/c{id}` | Category page |
 | `/:productName/p{id}` | Product page |
 
@@ -98,6 +98,13 @@ In the anonymous mode `CartService` emits once after each change, like the API c
 - 409: a message, the cart is reloaded (current stock), and the items named in `productIds` are marked even if the
   reloaded cart looks fine. 400 (empty cart): a message and a reload.
 - Success: the API has emptied the cart; the client opens `/orders/:id`, which loads the order by id (works after a reload).
+
+## Order page
+
+- `/orders/:id` shows the order with its status. "Cancel order" is shown for `Pending` and `Paid`
+  (`cancellableStatuses` in `order.model.ts`, a copy of the server rule for the button only) and asks for confirmation.
+- Success shows the cancelled order from the response; 409 (shipped meanwhile, or cancelled in another tab) shows
+  "The order can no longer be cancelled." and keeps the page. The order list is #44.
 
 ## Known issues
 

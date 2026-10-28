@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using EShop.Data;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
@@ -12,7 +13,8 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
 builder.Services.AddCors(options =>
     options.AddPolicy(
         ClientCorsPolicy,
-        policy => policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST").AllowAnyHeader()
+        policy =>
+            policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST", "PUT").AllowAnyHeader()
     )
 );
 
@@ -21,7 +23,12 @@ builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 
-builder.Services.AddControllers();
+// Enums as names in JSON ("status": "Cancelled"), in responses and in request bodies.
+builder
+    .Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter())
+    );
 
 builder.Services.AddOpenApi(options =>
 {

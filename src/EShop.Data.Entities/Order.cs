@@ -17,6 +17,7 @@ namespace EShop.Data.Entities
         public Order()
         {
             OrderDetails = new HashSet<OrderDetail>();
+            StatusChanges = new HashSet<OrderStatusChange>();
         }
 
         [Key]
@@ -29,17 +30,25 @@ namespace EShop.Data.Entities
         // Client-generated key of the checkout attempt: a retried request returns the same order.
         public Guid? IdempotencyKey { get; set; }
 
+        // Changed only through TryChangeStatus (Order.Lifecycle.cs), which enforces the allowed transitions.
+        public OrderStatus Status { get; private set; } = OrderStatus.Pending;
+
+        // xmin, as on Product: two concurrent status changes (a double cancel) cannot both be saved.
+        [Timestamp]
+        public uint Version { get; set; }
+
         [StringLength(5)]
         public string? CustomerId { get; set; }
         public int? EmployeeId { get; set; }
 
-        [Column(TypeName = "timestamp without time zone")]
+        // timestamptz: an instant in UTC; Npgsql reads and writes DateTime of kind Utc.
+        [Column(TypeName = "timestamp with time zone")]
         public DateTime? OrderDate { get; set; }
 
-        [Column(TypeName = "timestamp without time zone")]
+        [Column(TypeName = "timestamp with time zone")]
         public DateTime? RequiredDate { get; set; }
 
-        [Column(TypeName = "timestamp without time zone")]
+        [Column(TypeName = "timestamp with time zone")]
         public DateTime? ShippedDate { get; set; }
         public int? ShipVia { get; set; }
 
@@ -78,5 +87,8 @@ namespace EShop.Data.Entities
 
         [InverseProperty("Order")]
         public virtual ICollection<OrderDetail> OrderDetails { get; set; }
+
+        [InverseProperty("Order")]
+        public virtual ICollection<OrderStatusChange> StatusChanges { get; set; }
     }
 }

@@ -44,13 +44,63 @@ public sealed class OrderApiDatabase : TestDatabase
             cancellationToken
         );
 
+    // The shortest way through the lifecycle to each status: Status has no public setter.
+    private static readonly Dictionary<OrderStatus, OrderStatus[]> PathTo = new()
+    {
+        [OrderStatus.Pending] = [],
+        [OrderStatus.Paid] = [OrderStatus.Paid],
+        [OrderStatus.Shipped] = [OrderStatus.Paid, OrderStatus.Shipped],
+        [OrderStatus.Delivered] = [OrderStatus.Paid, OrderStatus.Shipped, OrderStatus.Delivered],
+        [OrderStatus.Cancelled] = [OrderStatus.Cancelled],
+    };
+
+    // An order of the user in the given status, with one line per product.
+    public Task<Order> SeedOrderAsync(
+        string userId,
+        OrderStatus status,
+        CancellationToken cancellationToken,
+        params (int ProductId, short Quantity)[] lines
+    )
+    {
+        var order = NewOrder(userId, Guid.NewGuid());
+        foreach (var (productId, quantity) in lines)
+        {
+            order.OrderDetails.Add(
+                new OrderDetail
+                {
+                    ProductId = productId,
+                    ProductName = "Test product",
+                    UnitPrice = 10m,
+                    Quantity = quantity,
+                }
+            );
+        }
+        foreach (var next in PathTo[status])
+        {
+            order.TryChangeStatus(next, "seed", DateTime.UtcNow).ShouldBeTrue();
+        }
+        return SeedAsync(order, cancellationToken);
+    }
+
+    // The order as stored, with its lines and its status journal.
+    public async Task<Order> LoadOrderAsync(int orderId, CancellationToken cancellationToken)
+    {
+        await using var db = CreateContext();
+        return await db
+            .Orders.AsNoTracking()
+            .Include(o => o.OrderDetails)
+            .Include(o => o.StatusChanges)
+            .AsSplitQuery()
+            .SingleAsync(o => o.OrderId == orderId, cancellationToken);
+    }
+
     // An order as the API stores it: every column the response needs is set.
-    public static Order NewOrder(string userId, Guid idempotencyKey) =>
+    public static Order NewOrder(string userId, Guid idempotencyKey, DateTime? orderDate = null) =>
         new()
         {
             UserId = userId,
             IdempotencyKey = idempotencyKey,
-            OrderDate = new DateTime(2026, 10, 27),
+            OrderDate = orderDate ?? new DateTime(2026, 10, 27, 0, 0, 0, DateTimeKind.Utc),
             Freight = 5m,
             ShipName = "Jane Doe",
             ShipAddress = "1 Main St",

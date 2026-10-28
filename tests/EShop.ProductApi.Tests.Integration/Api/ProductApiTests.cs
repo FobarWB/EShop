@@ -401,6 +401,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
                     new OrderDetail
                     {
                         ProductId = chai.ProductId,
+                        ProductName = "Chai",
                         UnitPrice = 18,
                         Quantity = 1,
                     },

@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-10-27
+verified: 2026-10-28
 issue: 42
 ---
 
@@ -37,4 +37,6 @@ Considered:
   overwriting the stock with an old value (a lost update in [ProductApi](../Services/ProductApi.md) before #42).
 - Removing the token changes the model: a test run then fails on `PendingModelChangesWarning` before any test runs,
   so seeing the concurrency tests fail needs that warning ignored for the experiment.
+- Orders carry the same token since #43: two concurrent status changes of one order cannot both be saved
+  ([OrderLifecycle](OrderLifecycle.md)).
 - Carts have no token: two concurrent changes of one cart still end as "last write wins" (see [EfCore](../Learning/EfCore.md)).

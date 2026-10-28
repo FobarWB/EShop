@@ -358,11 +358,11 @@ namespace EShop.Data.Migrations
                         .HasColumnName("idempotency_key");
 
                     b.Property<DateTime?>("OrderDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("order_date");
 
                     b.Property<DateTime?>("RequiredDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("required_date");
 
                     b.Property<string>("ShipAddress")
@@ -400,13 +400,25 @@ namespace EShop.Data.Migrations
                         .HasColumnName("ship_via");
 
                     b.Property<DateTime?>("ShippedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("shipped_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
 
                     b.Property<string>("UserId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("user_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("OrderId")
                         .HasName("pk_orders");
@@ -433,7 +445,13 @@ namespace EShop.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_orders_user_id_idempotency_key");
 
-                    b.ToTable("orders", (string)null);
+                    b.HasIndex("UserId", "OrderDate")
+                        .HasDatabaseName("ix_orders_user_id_order_date");
+
+                    b.ToTable("orders", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_orders_status", "status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                        });
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.OrderDetail", b =>
@@ -449,6 +467,12 @@ namespace EShop.Data.Migrations
                     b.Property<float>("Discount")
                         .HasColumnType("real")
                         .HasColumnName("discount");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("product_name");
 
                     b.Property<short>("Quantity")
                         .ValueGeneratedOnAdd()
@@ -471,6 +495,54 @@ namespace EShop.Data.Migrations
                         .HasDatabaseName("ix_order_details_product_id");
 
                     b.ToTable("order_details", (string)null);
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.OrderStatusChange", b =>
+                {
+                    b.Property<long>("OrderStatusChangeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_status_change_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("OrderStatusChangeId"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("changed_by");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("from_status");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("to_status");
+
+                    b.HasKey("OrderStatusChangeId")
+                        .HasName("pk_order_status_changes");
+
+                    b.HasIndex("OrderId", "ChangedAt")
+                        .HasDatabaseName("ix_order_status_changes_order_id_changed_at");
+
+                    b.ToTable("order_status_changes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_order_status_changes_from_status", "from_status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_order_status_changes_to_status", "to_status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                        });
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Product", b =>
@@ -806,6 +878,18 @@ namespace EShop.Data.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.OrderStatusChange", b =>
+                {
+                    b.HasOne("EShop.Data.Entities.Order", "Order")
+                        .WithMany("StatusChanges")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_order_status_changes_orders_order_id");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.Product", b =>
                 {
                     b.HasOne("EShop.Data.Entities.Category", "Category")
@@ -874,6 +958,8 @@ namespace EShop.Data.Migrations
             modelBuilder.Entity("EShop.Data.Entities.Order", b =>
                 {
                     b.Navigation("OrderDetails");
+
+                    b.Navigation("StatusChanges");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Product", b =>

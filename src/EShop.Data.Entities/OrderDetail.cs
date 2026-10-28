@@ -18,6 +18,10 @@ namespace EShop.Data.Entities
 
         [Precision(19, 4)]
         public decimal UnitPrice { get; set; }
+
+        // A copy of the product name at checkout, like UnitPrice: renaming the product does not alter the order.
+        [StringLength(40)]
+        public string ProductName { get; set; } = null!;
         public short Quantity { get; set; }
         public float Discount { get; set; }
 

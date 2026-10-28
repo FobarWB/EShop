@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using EShop.Data.Entities;
 using EShop.OrderApi.Controllers;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;
@@ -26,6 +27,7 @@ public class OrdersControllerTests
     private static readonly OrderResponse Order = new(
         7,
         new DateTime(2026, 10, 27, 12, 0, 0, DateTimeKind.Utc),
+        OrderStatus.Pending,
         "Jane Doe",
         "1 Main St",
         "Berlin",
@@ -136,6 +138,88 @@ public class OrdersControllerTests
 
         result.Value.ShouldBe(Order);
     }
+
+    [Theory]
+    [InlineData(ChangeOrderStatusResult.Changed, 200)]
+    [InlineData(ChangeOrderStatusResult.NotFound, 404)]
+    [InlineData(ChangeOrderStatusResult.NotAllowed, 409)]
+    public async Task CancelOrder_MapsRepositoryResultToStatusCode(
+        ChangeOrderStatusResult status,
+        int expected
+    )
+    {
+        ReturnsChangeResult(status);
+        _repository.RetrieveOrderAsync(UserId, 7, Arg.Any<CancellationToken>()).Returns(Order);
+
+        var result = await _controller.CancelOrder(7, CancellationToken.None);
+
+        StatusCodeOf(result.Result.ShouldNotBeNull()).ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task CancelOrder_CancelsOnlyOwnOrder()
+    {
+        ReturnsChangeResult(ChangeOrderStatusResult.Changed);
+
+        await _controller.CancelOrder(7, CancellationToken.None);
+
+        await _repository
+            .Received(1)
+            .ChangeStatusAsync(
+                7,
+                UserId,
+                OrderStatus.Cancelled,
+                UserId,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData(ChangeOrderStatusResult.Changed, 204)]
+    [InlineData(ChangeOrderStatusResult.NotFound, 404)]
+    [InlineData(ChangeOrderStatusResult.NotAllowed, 409)]
+    public async Task ChangeStatus_MapsRepositoryResultToStatusCode(
+        ChangeOrderStatusResult status,
+        int expected
+    )
+    {
+        ReturnsChangeResult(status);
+
+        var result = await _controller.ChangeStatus(
+            7,
+            new ChangeOrderStatusRequest { Status = OrderStatus.Paid },
+            CancellationToken.None
+        );
+
+        StatusCodeOf(result).ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task ChangeStatus_ChangesAnyOrderAndRecordsTheAdmin()
+    {
+        ReturnsChangeResult(ChangeOrderStatusResult.Changed);
+
+        await _controller.ChangeStatus(
+            7,
+            new ChangeOrderStatusRequest { Status = OrderStatus.Paid },
+            CancellationToken.None
+        );
+
+        await _repository
+            .Received(1)
+            .ChangeStatusAsync(7, null, OrderStatus.Paid, UserId, Arg.Any<CancellationToken>());
+    }
+
+    private void ReturnsChangeResult(ChangeOrderStatusResult result) =>
+        _repository
+            .ChangeStatusAsync(
+                7,
+                Arg.Any<string?>(),
+                Arg.Any<OrderStatus>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(result);
 
     private void ReturnsResult(PlaceOrderResult result) =>
         _repository

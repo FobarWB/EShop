@@ -23,4 +23,10 @@ export class OrdersService
   {
     return this.http.get<IOrder>(`${this.apiUrl}/${orderId}`);
   }
+
+  // A command without a body; the answer is the cancelled order.
+  cancelOrder(orderId: number): Observable<IOrder>
+  {
+    return this.http.post<IOrder>(`${this.apiUrl}/${orderId}/cancel`, null);
+  }
 }
