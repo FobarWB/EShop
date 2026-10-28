@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-27
+verified: 2026-10-28
 issue: 33
 ---
 
@@ -34,6 +34,13 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
   database error inside). In PostgreSQL the token is the system column `xmin` (`uint`), read back after each write.
 - **One SaveChanges, one transaction.** Inserts, updates and deletes of one `SaveChangesAsync` run in one implicit
   transaction: any failure leaves the database as it was, no explicit `BeginTransaction` needed.
+- **`ExecuteUpdateAsync` bypasses the change tracker** and runs at once, outside `SaveChanges`: one `UPDATE` for many
+  rows, with expressions over the row (`x => x.Stock + …`). Together with `SaveChanges` it needs an explicit
+  `BeginTransactionAsync` to be atomic.
+- **Enums as text.** `HasConversion<string>()` stores the name; a private setter (`get; private set;`) is still mapped,
+  so the entity can guard its own state.
+- **Generated migrations are a draft.** Read the SQL (`dotnet ef migrations script <from> <to>`) before applying: EF does
+  not know how to fill a new NOT NULL column or convert existing values.
 
 ## Applied in this project
 
@@ -44,6 +51,8 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
   (`PostgresException.SqlState`), see `ForeignKeyViolationHandler`.
 - `Product.Version` → `xmin`; `ConcurrencyConflictHandler` maps the exception to 409; the checkout writes order, stock
   and cart in one `SaveChangesAsync` (#42, [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md)).
+- `Order.Version` → `xmin` too; the cancel saves the order, then `ExecuteUpdateAsync`s the stock, in one explicit
+  transaction (#43, [OrderLifecycle](../Decisions/OrderLifecycle.md)).
 
 ## Open questions
 

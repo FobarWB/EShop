@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-27
+verified: 2026-10-28
 ---
 
 # Decisions
@@ -21,3 +21,5 @@ Architecture decision records: the context, the decision and its consequences. N
   token; a concurrent change becomes 409 instead of a lost update.
 - [IdempotentCheckout](IdempotentCheckout.md): the client sends one `Idempotency-Key` per checkout attempt; a retry
   returns the same order.
+- [OrderLifecycle](OrderLifecycle.md): order statuses with transitions in one place, stored as text with a CHECK,
+  an append-only status journal; cancelling returns the stock in the same transaction.

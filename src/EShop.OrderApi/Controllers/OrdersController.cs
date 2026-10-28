@@ -1,3 +1,4 @@
+using EShop.Data.Entities;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
@@ -74,11 +75,83 @@ public class OrdersController : ControllerBase
     )
     {
         var order = await _repository.RetrieveOrderAsync(UserId, id, cancellationToken);
-        // Another user's order is a 404 too: the response does not reveal that it exists.
-        return order is null
-            ? Problem(statusCode: StatusCodes.Status404NotFound, title: "Order not found")
-            : order;
+        return order is null ? OrderNotFound() : order;
     }
+
+    // GET api/orders?page=1&pageSize=20: the user's orders, newest first.
+    [HttpGet]
+    [ProducesResponseType(400)]
+    public async Task<ActionResult<PagedResponse<OrderSummaryResponse>>> GetOrders(
+        [FromQuery] PageRequest paging,
+        CancellationToken cancellationToken
+    ) => await _repository.RetrieveOrdersAsync(UserId, paging, cancellationToken);
+
+    // POST api/orders/5/cancel: a command, not a DELETE. The order stays as a document, and the stock comes back.
+    [HttpPost("{id:int}/cancel")]
+    public async Task<ActionResult<OrderResponse>> CancelOrder(
+        int id,
+        CancellationToken cancellationToken
+    )
+    {
+        _logger.LogInformation("Cancelling order {OrderId}", id);
+
+        var result = await _repository.ChangeStatusAsync(
+            id,
+            ownerId: UserId,
+            OrderStatus.Cancelled,
+            changedBy: UserId,
+            cancellationToken
+        );
+        return result switch
+        {
+            ChangeOrderStatusResult.Changed => Ok(
+                await _repository.RetrieveOrderAsync(UserId, id, cancellationToken)
+            ),
+            ChangeOrderStatusResult.NotFound => OrderNotFound(),
+            ChangeOrderStatusResult.NotAllowed => Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The order can no longer be cancelled"
+            ),
+            _ => throw new InvalidOperationException($"Unexpected status change result {result}."),
+        };
+    }
+
+    // PUT api/orders/5/status: an admin moves any order through its lifecycle.
+    // Both [Authorize] apply: signed in (class) and the admin role (here).
+    [HttpPut("{id:int}/status")]
+    [Authorize(Roles = EShopAuthenticationExtensions.AdminRole)]
+    public async Task<IActionResult> ChangeStatus(
+        int id,
+        [FromBody] ChangeOrderStatusRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        // Not null: [Required] on the request, checked by [ApiController] before the action runs.
+        var next = request.Status!.Value;
+        _logger.LogInformation("Changing order {OrderId} to {Status}", id, next);
+
+        var result = await _repository.ChangeStatusAsync(
+            id,
+            ownerId: null,
+            next,
+            changedBy: UserId,
+            cancellationToken
+        );
+        return result switch
+        {
+            ChangeOrderStatusResult.Changed => NoContent(),
+            ChangeOrderStatusResult.NotFound => OrderNotFound(),
+            ChangeOrderStatusResult.NotAllowed => Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: $"The order cannot change to {next}"
+            ),
+            _ => throw new InvalidOperationException($"Unexpected status change result {result}."),
+        };
+    }
+
+    // Another user's order is a 404 too: the response does not reveal that it exists.
+    private ObjectResult OrderNotFound() =>
+        Problem(statusCode: StatusCodes.Status404NotFound, title: "Order not found");
 
     // 409 with the ids of the cart items to fix, so the client can mark them.
     private ObjectResult ProductsProblem(string title, IReadOnlyList<int> productIds)

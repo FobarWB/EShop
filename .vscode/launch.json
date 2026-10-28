@@ -23,6 +23,13 @@
       "cwd": "${workspaceFolder}/src/EShop.ShoppingCart"
     },
     {
+      "name": "OrderApi",
+      "command": "dotnet run --no-build",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}/src/EShop.OrderApi"
+    },
+    {
       "name": "ClientApp",
       "command": "npm.cmd start -- --open",
       "request": "launch",
@@ -33,7 +40,7 @@
   "compounds": [
     {
       "name": "Launch API and Angular",
-      "configurations": ["CategoryApi", "ProductApi", "ShoppingCart", "ClientApp"],
+      "configurations": ["CategoryApi", "ProductApi", "ShoppingCart", "OrderApi", "ClientApp"],
       "preLaunchTask": "build solution",
       "stopAll": true
     }

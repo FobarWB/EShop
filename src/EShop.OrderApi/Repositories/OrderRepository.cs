@@ -1,6 +1,7 @@
 using EShop.Data;
 using EShop.Data.Entities;
 using EShop.OrderApi.Dtos;
+using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -72,12 +73,12 @@ public class OrderRepository : IOrderRepository
             );
         }
 
+        var now = DateTime.UtcNow;
         var order = new Order
         {
             UserId = userId,
             IdempotencyKey = idempotencyKey,
-            // order_date has no time zone: the API stores UTC there, and Npgsql refuses a DateTime of kind Utc.
-            OrderDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+            OrderDate = now,
             Freight = StandardFreight,
             ShipName = request.ShipName,
             ShipAddress = request.ShipAddress,
@@ -86,6 +87,7 @@ public class OrderRepository : IOrderRepository
             ShipPostalCode = request.ShipPostalCode,
             ShipCountry = request.ShipCountry,
         };
+        order.RecordPlaced(userId, now);
         foreach (var (item, product) in items)
         {
             // The quantity fits a smallint: it is at most units_in_stock (checked above).
@@ -97,6 +99,7 @@ public class OrderRepository : IOrderRepository
                     // A copy of the current price (not null: checked above), so later price changes
                     // do not alter the order.
                     UnitPrice = product.UnitPrice!.Value,
+                    ProductName = product.ProductName,
                     Quantity = quantity,
                 }
             );
@@ -139,6 +142,77 @@ public class OrderRepository : IOrderRepository
             .Orders.Where(o => o.UserId == userId && o.OrderId == orderId)
             .ToResponse()
             .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<PagedResponse<OrderSummaryResponse>> RetrieveOrdersAsync(
+        string userId,
+        PageRequest paging,
+        CancellationToken cancellationToken
+    ) =>
+        // ix_orders_user_id_order_date serves both the filter and the order; order_id breaks ties of equal dates,
+        // so the paging stays stable.
+        _db
+            .Orders.Where(o => o.UserId == userId)
+            .OrderByDescending(o => o.OrderDate)
+            .ThenByDescending(o => o.OrderId)
+            .ToSummaryResponse()
+            .ToPageAsync(paging, cancellationToken);
+
+    public async Task<ChangeOrderStatusResult> ChangeStatusAsync(
+        int orderId,
+        string? ownerId,
+        OrderStatus next,
+        string changedBy,
+        CancellationToken cancellationToken
+    )
+    {
+        // Tracked: the status changes below. The xmin of the order is read here, and SaveChanges writes
+        // the new status only if no other request changed the order since.
+        var order = await _db.Orders.FirstOrDefaultAsync(
+            o => o.OrderId == orderId && (ownerId == null || o.UserId == ownerId),
+            cancellationToken
+        );
+        if (order == null)
+        {
+            return ChangeOrderStatusResult.NotFound;
+        }
+        if (!order.TryChangeStatus(next, changedBy, DateTime.UtcNow))
+        {
+            return ChangeOrderStatusResult.NotAllowed;
+        }
+
+        // Two statements, one transaction: the status (with its journal row) and the stock are stored together.
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+        // The order first. A concurrent change of the same order (a double cancel) waits for this row's lock,
+        // then fails the xmin check: DbUpdateConcurrencyException, 409, and its stock is never returned.
+        await _db.SaveChangesAsync(cancellationToken);
+
+        if (next == OrderStatus.Cancelled)
+        {
+            // A relative update, units_in_stock = units_in_stock + quantity: it does not depend on a value read
+            // earlier, so a checkout running at the same time cannot make it wrong. It changes products.xmin,
+            // so that checkout fails its own check (409) instead of writing a stale stock.
+            await _db
+                .Products.Where(p => p.OrderDetails.Any(d => d.OrderId == orderId))
+                .ExecuteUpdateAsync(
+                    s =>
+                        s.SetProperty(
+                            p => p.UnitsInStock,
+                            p =>
+                                (short)(
+                                    p.UnitsInStock
+                                    + p.OrderDetails.Where(d => d.OrderId == orderId)
+                                        .Select(d => d.Quantity)
+                                        .First()
+                                )
+                        ),
+                    cancellationToken
+                );
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return ChangeOrderStatusResult.Changed;
+    }
 
     private Task<OrderResponse?> RetrieveOrderAsync(
         string userId,

@@ -9,8 +9,8 @@ public static class OrderMappings
     public static IQueryable<OrderResponse> ToResponse(this IQueryable<Order> query) =>
         query.Select(o => new OrderResponse(
             o.OrderId,
-            // order_date has no time zone and the API stores UTC there: say so in the JSON ("Z").
-            DateTime.SpecifyKind(o.OrderDate!.Value, DateTimeKind.Utc),
+            o.OrderDate!.Value,
+            o.Status,
             o.ShipName!,
             o.ShipAddress!,
             o.ShipCity!,
@@ -22,10 +22,21 @@ public static class OrderMappings
             o.OrderDetails.OrderBy(d => d.ProductId)
                 .Select(d => new OrderItemResponse(
                     d.ProductId,
-                    d.Product.ProductName,
+                    d.ProductName,
                     d.UnitPrice,
                     d.Quantity
                 ))
                 .ToList()
+        ));
+
+    public static IQueryable<OrderSummaryResponse> ToSummaryResponse(
+        this IQueryable<Order> query
+    ) =>
+        query.Select(o => new OrderSummaryResponse(
+            o.OrderId,
+            o.OrderDate!.Value,
+            o.Status,
+            o.OrderDetails.Sum(d => d.UnitPrice * d.Quantity) + (o.Freight ?? 0m),
+            o.OrderDetails.Count
         ));
 }

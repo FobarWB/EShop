@@ -46,4 +46,13 @@ describe('OrdersService', () =>
 
     expect(httpTesting.expectOne('/api/orders/7').request.method).toBe('GET');
   });
+
+  it('cancels an order with a POST without a body', () =>
+  {
+    service.cancelOrder(7).subscribe();
+
+    const req = httpTesting.expectOne('/api/orders/7/cancel');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toBeNull();
+  });
 });

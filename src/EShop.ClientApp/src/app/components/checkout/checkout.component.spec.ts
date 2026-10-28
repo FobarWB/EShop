@@ -36,7 +36,7 @@ const address = {
 };
 
 const order: IOrder = {
-  orderId: 7, orderDate: '2026-10-27T12:00:00Z', freight: 5, total: 51, items: [],
+  orderId: 7, orderDate: '2026-10-27T12:00:00Z', status: 'Pending', freight: 5, total: 51, items: [],
   ...address, shipRegion: null
 };
 
