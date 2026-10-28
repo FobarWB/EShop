@@ -17,7 +17,8 @@ using `_templates/Topic.md`, and linked here.
 - [Authentication](Authentication.md): OpenID Connect, Code + PKCE, JWT validation, Keycloak realm and roles,
   debugging lessons (#41).
 - [EfCore](EfCore.md): `Update()` and overposting, change tracking, projections, paging, interceptors (#33).
+- [RabbitMq](RabbitMq.md): exchanges, queues, bindings, acks, TTL and dead-lettering, durability, lab lessons (#50).
 
 ## Planned topics
 
-- RabbitMQ — events between the services (e.g. product price changes → cart).
+- (none)

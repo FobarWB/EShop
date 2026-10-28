@@ -13,6 +13,7 @@ namespace EShop.OrderApi.Tests.Unit.Controllers;
 public class OrdersControllerTests
 {
     private const string UserId = "user-1";
+    private const string Email = "jane@example.com";
     private const int ProductId = 42;
 
     private static readonly Guid Key = Guid.NewGuid();
@@ -28,6 +29,7 @@ public class OrdersControllerTests
         7,
         new DateTime(2026, 10, 27, 12, 0, 0, DateTimeKind.Utc),
         OrderStatus.Pending,
+        Email,
         "Jane Doe",
         "1 Main St",
         "Berlin",
@@ -46,14 +48,13 @@ public class OrdersControllerTests
     {
         _controller = new OrdersController(_repository, NullLogger<OrdersController>.Instance)
         {
-            // The signed-in user: the controller takes the user id from the token's sub claim.
+            // The signed-in user: the controller takes the user id from the token's sub claim
+            // and the email from its email claim.
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    User = new ClaimsPrincipal(
-                        new ClaimsIdentity([new Claim("sub", UserId)], "Test")
-                    ),
+                    User = SignedInUser(new Claim("sub", UserId), new Claim("email", Email)),
                 },
             },
         };
@@ -114,7 +115,21 @@ public class OrdersControllerTests
 
         await _controller.PlaceOrder(Key, Request, cts.Token);
 
-        await _repository.Received(1).PlaceOrderAsync(UserId, Key, Request, cts.Token);
+        await _repository.Received(1).PlaceOrderAsync(UserId, Email, Key, Request, cts.Token);
+    }
+
+    [Fact]
+    public async Task PlaceOrder_UserWithoutEmail_PlacesOrderWithoutEmail()
+    {
+        _controller.ControllerContext.HttpContext.User = SignedInUser(new Claim("sub", UserId));
+        ReturnsResult(new PlaceOrderResult(PlaceOrderStatus.Placed, Order));
+
+        var result = await _controller.PlaceOrder(Key, Request, CancellationToken.None);
+
+        StatusCodeOf(result).ShouldBe(201);
+        await _repository
+            .Received(1)
+            .PlaceOrderAsync(UserId, null, Key, Request, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -223,8 +238,11 @@ public class OrdersControllerTests
 
     private void ReturnsResult(PlaceOrderResult result) =>
         _repository
-            .PlaceOrderAsync(UserId, Key, Request, Arg.Any<CancellationToken>())
+            .PlaceOrderAsync(UserId, Arg.Any<string?>(), Key, Request, Arg.Any<CancellationToken>())
             .Returns(result);
+
+    private static ClaimsPrincipal SignedInUser(params Claim[] claims) =>
+        new(new ClaimsIdentity(claims, "Test"));
 
     private static int? StatusCodeOf(IActionResult result) =>
         result.ShouldBeAssignableTo<IStatusCodeActionResult>()!.StatusCode;

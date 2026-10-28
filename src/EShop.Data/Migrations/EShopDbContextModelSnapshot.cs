@@ -337,6 +337,11 @@ namespace EShop.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("OrderId"));
 
+                    b.Property<string>("CustomerEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("customer_email");
+
                     b.Property<string>("CustomerId")
                         .HasMaxLength(5)
                         .HasColumnType("character varying(5)")

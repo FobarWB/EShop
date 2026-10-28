@@ -23,6 +23,7 @@ public class OrderRepository : IOrderRepository
 
     public async Task<PlaceOrderResult> PlaceOrderAsync(
         string userId,
+        string? customerEmail,
         Guid idempotencyKey,
         PlaceOrderRequest request,
         CancellationToken cancellationToken
@@ -77,6 +78,7 @@ public class OrderRepository : IOrderRepository
         var order = new Order
         {
             UserId = userId,
+            CustomerEmail = customerEmail,
             IdempotencyKey = idempotencyKey,
             OrderDate = now,
             Freight = StandardFreight,

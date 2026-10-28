@@ -13,6 +13,7 @@ namespace EShop.OrderApi.Tests.Integration.Repositories;
 public class OrderRepositoryTests : IAsyncLifetime
 {
     private const string UserId = "user-1";
+    private const string Email = "jane@example.com";
 
     private static readonly PlaceOrderRequest Address = new()
     {
@@ -62,6 +63,7 @@ public class OrderRepositoryTests : IAsyncLifetime
             .Total.ShouldBe(18m * 2 + 19m + OrderRepository.StandardFreight);
         var order = (await _database.LoadOrdersAsync(_cancellationToken)).ShouldHaveSingleItem();
         order.UserId.ShouldBe(UserId);
+        order.CustomerEmail.ShouldBe(Email);
         order.IdempotencyKey.ShouldBe(_key);
         order.Freight.ShouldBe(OrderRepository.StandardFreight);
         order.ShipCity.ShouldBe("Berlin");
@@ -473,7 +475,10 @@ public class OrderRepositoryTests : IAsyncLifetime
         );
 
     private Task<PlaceOrderResult> PlaceOrderAsync(params IInterceptor[] interceptors) =>
-        ActAsync(r => r.PlaceOrderAsync(UserId, _key, Address, _cancellationToken), interceptors);
+        ActAsync(
+            r => r.PlaceOrderAsync(UserId, Email, _key, Address, _cancellationToken),
+            interceptors
+        );
 
     private async Task<T> ActAsync<T>(
         Func<OrderRepository, Task<T>> action,

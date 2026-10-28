@@ -33,6 +33,7 @@ public sealed class TestAuthHandler(
         [
             new("sub", user),
             new(EShopAuthenticationExtensions.NameClaimType, user),
+            new("email", $"{user}@example.com"),
         ];
         claims.AddRange(
             Request

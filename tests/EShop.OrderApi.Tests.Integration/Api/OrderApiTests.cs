@@ -76,6 +76,8 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
             await response.Content.ReadFromJsonAsync<OrderResponse>(Json, _cancellationToken)
         ).ShouldNotBeNull();
         order.Items.ShouldHaveSingleItem().ProductId.ShouldBe(chai.ProductId);
+        // From the token's email claim (TestAuthHandler: <user>@example.com).
+        order.CustomerEmail.ShouldBe($"{UserId}@example.com");
         var location = response.Headers.Location.ShouldNotBeNull();
         (await _user.GetFromJsonAsync<OrderResponse>(location, Json, _cancellationToken))
             .ShouldNotBeNull()

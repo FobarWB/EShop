@@ -27,6 +27,11 @@ namespace EShop.Data.Entities
         [StringLength(50)]
         public string? UserId { get; set; }
 
+        // The buyer's email from the token at checkout: order notifications go there, also when an admin
+        // changes the order. Null for the Northwind orders and for users without an email.
+        [StringLength(254)]
+        public string? CustomerEmail { get; set; }
+
         // Client-generated key of the checkout attempt: a retried request returns the same order.
         public Guid? IdempotencyKey { get; set; }
 
