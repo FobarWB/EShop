@@ -25,6 +25,7 @@ namespace EShop.Data
         public virtual DbSet<Cart> Carts { get; set; } = null!;
         public virtual DbSet<CartItem> CartItems { get; set; } = null!;
         public virtual DbSet<OrderStatusChange> OrderStatusChanges { get; set; } = null!;
+        public virtual DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
 
         // 'Pending', 'Paid', ...: the CHECK constraints follow the enum, so a new status shows up in the next migration.
         private static readonly string OrderStatusValues = string.Join(
@@ -203,6 +204,9 @@ namespace EShop.Data
                     .HasForeignKey(d => d.OrderId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            modelBuilder.Entity<OutboxMessage>(entity =>
+                entity.HasIndex(m => m.OccurredAt).HasFilter("processed_at IS NULL")
+            );
 
             modelBuilder.Entity<Product>(entity =>
             {
