@@ -1,5 +1,7 @@
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.Messaging.Outbox;
+using EShop.OrderApi.Contracts;
 using EShop.OrderApi.Dtos;
 using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
@@ -177,14 +179,26 @@ public class OrderRepository : IOrderRepository
         {
             return ChangeOrderStatusResult.NotFound;
         }
-        if (!order.TryChangeStatus(next, changedBy, DateTime.UtcNow))
+        // One instant for the status journal and the event.
+        var changedAt = DateTime.UtcNow;
+        if (!order.TryChangeStatus(next, changedBy, changedAt))
         {
             return ChangeOrderStatusResult.NotAllowed;
         }
 
+        if (next == OrderStatus.Cancelled)
+        {
+            // Only tracked here; the SaveChanges below stores it with the status, in one transaction.
+            _db.OutboxMessages.Add(
+                OutboxMessageFactory.Create(
+                    OrderEventTypes.OrderCancelled,
+                    new OrderCancelled(order.OrderId, order.CustomerEmail, changedAt),
+                    changedAt
+                )
+            );
+        }
         // Two statements, one transaction: the status (with its journal row) and the stock are stored together.
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-
         // The order first. A concurrent change of the same order (a double cancel) waits for this row's lock,
         // then fails the xmin check: DbUpdateConcurrencyException, 409, and its stock is never returned.
         await _db.SaveChangesAsync(cancellationToken);
