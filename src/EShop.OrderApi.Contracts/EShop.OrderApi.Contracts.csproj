@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Events published by OrderApi: the contract its consumers deserialize. Plain records, no dependencies.
+       Fields are only added (nullable), never renamed or removed: queued messages keep the old shape. -->
+</Project>
