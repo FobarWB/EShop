@@ -94,11 +94,14 @@ public sealed class OrderApiDatabase : TestDatabase
             .SingleAsync(o => o.OrderId == orderId, cancellationToken);
     }
 
+    public const string BuyerEmail = "jane@example.com";
+
     // An order as the API stores it: every column the response needs is set.
     public static Order NewOrder(string userId, Guid idempotencyKey, DateTime? orderDate = null) =>
         new()
         {
             UserId = userId,
+            CustomerEmail = BuyerEmail,
             IdempotencyKey = idempotencyKey,
             OrderDate = orderDate ?? new DateTime(2026, 10, 27, 0, 0, 0, DateTimeKind.Utc),
             Freight = 5m,
@@ -115,6 +118,16 @@ public sealed class OrderApiDatabase : TestDatabase
         return await db
             .Orders.AsNoTracking()
             .Include(o => o.OrderDetails)
+            .ToListAsync(cancellationToken);
+    }
+
+    // The outbox rows in the order the events occurred.
+    public async Task<List<OutboxMessage>> LoadOutboxAsync(CancellationToken cancellationToken)
+    {
+        await using var db = CreateContext();
+        return await db
+            .OutboxMessages.AsNoTracking()
+            .OrderBy(m => m.OccurredAt)
             .ToListAsync(cancellationToken);
     }
 

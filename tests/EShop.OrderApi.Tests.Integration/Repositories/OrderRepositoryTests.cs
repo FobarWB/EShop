@@ -1,4 +1,6 @@
+using System.Text.Json;
 using EShop.Data.Entities;
+using EShop.OrderApi.Contracts;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
@@ -73,6 +75,38 @@ public class OrderRepositoryTests : IAsyncLifetime
                 [(chai.ProductId, 18m, (short)2), (chang.ProductId, 19m, (short)1)],
                 ignoreOrder: true
             );
+    }
+
+    [Fact]
+    public async Task PlaceOrder_CartWithItems_StoresOrderPlacedInOutbox()
+    {
+        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
+        var chang = await _database.SeedProductAsync("Chang", 19m, 5, _cancellationToken);
+        await _database.SeedAsync(
+            new Cart
+            {
+                UserId = UserId,
+                CartItems =
+                [
+                    new CartItem { ProductId = chai.ProductId, Quantity = 2 },
+                    new CartItem { ProductId = chang.ProductId, Quantity = 1 },
+                ],
+            },
+            _cancellationToken
+        );
+
+        var placed = (await PlaceOrderAsync()).Order.ShouldNotBeNull();
+
+        var message = (await _database.LoadOutboxAsync(_cancellationToken)).ShouldHaveSingleItem();
+        message.Type.ShouldBe(OrderEventTypes.OrderPlaced);
+        message.ProcessedAt.ShouldBeNull();
+        var payload = PayloadOf<OrderPlaced>(message);
+        payload.OrderId.ShouldBe(placed.OrderId);
+        payload.Email.ShouldBe(Email);
+        payload.Total.ShouldBe(18m * 2 + 19m + OrderRepository.StandardFreight);
+        payload
+            .Items.Select(i => (i.ProductName, i.Quantity, i.UnitPrice))
+            .ShouldBe([("Chai", 2, 18m), ("Chang", 1, 19m)], ignoreOrder: true);
     }
 
     [Fact]
@@ -163,6 +197,7 @@ public class OrderRepositoryTests : IAsyncLifetime
 
         result.Status.ShouldBe(PlaceOrderStatus.CartEmpty);
         (await _database.LoadOrdersAsync(_cancellationToken)).ShouldBeEmpty();
+        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
     }
 
     [Fact]
@@ -190,6 +225,8 @@ public class OrderRepositoryTests : IAsyncLifetime
         (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
             .ShouldNotBeNull()
             .UnitsInStock.ShouldBe((short)7);
+        // One order, one event: the retry publishes nothing again.
+        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -324,6 +361,74 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ChangeStatus_CancelPending_StoresOrderCancelledInOutbox()
+    {
+        var seeded = await _database.SeedOrderAsync(
+            UserId,
+            OrderStatus.Pending,
+            _cancellationToken
+        );
+
+        await CancelAsync(seeded.OrderId);
+
+        var message = (await _database.LoadOutboxAsync(_cancellationToken)).ShouldHaveSingleItem();
+        message.Type.ShouldBe(OrderEventTypes.OrderCancelled);
+        message.ProcessedAt.ShouldBeNull();
+        var payload = PayloadOf<OrderCancelled>(message);
+        payload.OrderId.ShouldBe(seeded.OrderId);
+        // The same instant as the status journal.
+        var change = (
+            await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken)
+        ).StatusChanges.ShouldHaveSingleItem();
+        payload.CancelledAt.ShouldBe(change.ChangedAt, TimeSpan.FromMilliseconds(1));
+    }
+
+    [Fact]
+    public async Task ChangeStatus_CancelByAdmin_EventHasBuyersEmail()
+    {
+        var seeded = await _database.SeedOrderAsync(
+            "user-2",
+            OrderStatus.Pending,
+            _cancellationToken
+        );
+
+        await ActAsync(r =>
+            r.ChangeStatusAsync(
+                seeded.OrderId,
+                null,
+                OrderStatus.Cancelled,
+                "admin-1",
+                _cancellationToken
+            )
+        );
+
+        var message = (await _database.LoadOutboxAsync(_cancellationToken)).ShouldHaveSingleItem();
+        PayloadOf<OrderCancelled>(message).Email.ShouldBe(OrderApiDatabase.BuyerEmail);
+    }
+
+    [Fact]
+    public async Task ChangeStatus_ToPaid_StoresNoEvent()
+    {
+        var seeded = await _database.SeedOrderAsync(
+            UserId,
+            OrderStatus.Pending,
+            _cancellationToken
+        );
+
+        await ActAsync(r =>
+            r.ChangeStatusAsync(
+                seeded.OrderId,
+                null,
+                OrderStatus.Paid,
+                "admin-1",
+                _cancellationToken
+            )
+        );
+
+        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task ChangeStatus_CancelShipped_ReturnsNotAllowedAndChangesNothing()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
@@ -343,6 +448,7 @@ public class OrderRepositoryTests : IAsyncLifetime
         (await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken)).Status.ShouldBe(
             OrderStatus.Shipped
         );
+        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
     }
 
     [Fact]
@@ -415,6 +521,10 @@ public class OrderRepositoryTests : IAsyncLifetime
         (
             await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken)
         ).StatusChanges.ShouldHaveSingleItem();
+        // Only the committed cancellation published its event; ours was rolled back with the rest.
+        (await _database.LoadOutboxAsync(_cancellationToken))
+            .ShouldHaveSingleItem()
+            .Type.ShouldBe(OrderEventTypes.OrderCancelled);
     }
 
     [Fact]
@@ -489,7 +599,12 @@ public class OrderRepositoryTests : IAsyncLifetime
         return await action(new OrderRepository(db));
     }
 
-    // The checkout wrote nothing: no order of its own, the stock as expected, the cart item still there.
+    // The outbox payload as a consumer reads it.
+    private static T PayloadOf<T>(OutboxMessage message)
+        where T : class =>
+        JsonSerializer.Deserialize<T>(message.Payload, JsonSerializerOptions.Web).ShouldNotBeNull();
+
+    // The checkout wrote nothing: no order and no event of its own, the stock as expected, the cart item still there.
     private async Task ShouldBeUnchangedAsync(
         int productId,
         short unitsInStock,
@@ -497,6 +612,7 @@ public class OrderRepositoryTests : IAsyncLifetime
     )
     {
         (await _database.LoadOrdersAsync(_cancellationToken)).Count.ShouldBe(expectedOrders);
+        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
         (await _database.FindAsync<Product>(productId, _cancellationToken))
             .ShouldNotBeNull()
             .UnitsInStock.ShouldBe(unitsInStock);

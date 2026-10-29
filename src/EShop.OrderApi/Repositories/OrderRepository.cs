@@ -112,9 +112,10 @@ public class OrderRepository : IOrderRepository
         _db.Orders.Add(order);
         cart.CartItems.Clear();
 
-        // One SaveChanges is one transaction: the order, the stock and the emptied cart are stored together or not
-        // at all. A product changed since it was read (another buyer, an admin edit) fails the xmin check:
-        // DbUpdateConcurrencyException, which the exception handler turns into 409.
+        // Two SaveChanges, one transaction: the order (its id comes from the database) and then the OrderPlaced event
+        // that needs this id are committed together or not at all. A product changed since it was read (another buyer,
+        // an admin edit) fails the xmin check: DbUpdateConcurrencyException, which the exception handler turns into 409.
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
@@ -129,11 +130,36 @@ public class OrderRepository : IOrderRepository
             )
         {
             // A concurrent request with the same key placed the order between the check above and this save.
+            // Inside a transaction SaveChanges works under a savepoint and rolls back to it on failure,
+            // so the transaction is still usable for this read.
             var placed = await RetrieveOrderAsync(userId, idempotencyKey, cancellationToken);
             return new PlaceOrderResult(PlaceOrderStatus.AlreadyPlaced, placed);
         }
 
+        // The order has its id now; the event is saved by the second SaveChanges, in the same transaction.
+        _db.OutboxMessages.Add(
+            OutboxMessageFactory.Create(
+                OrderEventTypes.OrderPlaced,
+                new OrderPlaced(
+                    order.OrderId,
+                    order.CustomerEmail,
+                    order.ShipName,
+                    order.OrderDetails.Sum(d => d.UnitPrice * d.Quantity) + StandardFreight,
+                    now,
+                    order
+                        .OrderDetails.Select(d => new OrderPlacedItem(
+                            d.ProductName,
+                            d.Quantity,
+                            d.UnitPrice
+                        ))
+                        .ToList()
+                ),
+                now
+            )
+        );
+        await _db.SaveChangesAsync(cancellationToken);
         var created = await RetrieveOrderAsync(userId, order.OrderId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return new PlaceOrderResult(PlaceOrderStatus.Placed, created);
     }
 
