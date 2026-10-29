@@ -1,7 +1,9 @@
+using EShop.Messaging;
 using EShop.NotificationService.Email;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+builder.Services.AddEShopMessaging(builder.Configuration);
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.AddSingleton<IEmailSender, MailKitEmailSender>();
 
