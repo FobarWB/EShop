@@ -17,6 +17,9 @@ x-api: &api
     # Tokens are issued for http://localhost:8180 (Authority in appsettings.json), but inside the network
     # Keycloak is keycloak:8080: the signing keys are read through the internal address.
     Authentication__MetadataAddress: http://keycloak:8080/realms/eshop/.well-known/openid-configuration
+    # The broker by its service name; the password comes from .env (user-secrets do not reach containers).
+    RabbitMq__Host: rabbitmq
+    RabbitMq__Password: ${RABBITMQ_PASSWORD}
   depends_on:
     migrator:
       condition: service_completed_successfully
@@ -179,6 +182,14 @@ services:
 
   orderapi:
     <<: *api
+    # The anchor's depends_on is replaced, not merged: repeated in full, plus the broker of the outbox publisher.
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     image: ghcr.io/fobarwb/eshop-orderapi:${ESHOP_TAG:-local}
     build:
       context: .
