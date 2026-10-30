@@ -1,11 +1,15 @@
 using EShop.Messaging;
 using EShop.NotificationService.Email;
+using EShop.NotificationService.Messaging;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddEShopMessaging(builder.Configuration);
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.AddSingleton<IEmailSender, MailKitEmailSender>();
+
+// Runs before the consumers (hosted services start in registration order).
+builder.Services.AddHostedService<TopologyInitializer>();
 
 // The consumers of the OrderApi events are registered here (step 6).
 
