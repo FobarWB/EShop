@@ -12,7 +12,8 @@ public static class MessagingExtensions
     )
     {
         services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
-        // RabbitMqConnection (step 4) is registered here.
+        // One connection per process; channels are opened from it by each publisher and consumer.
+        services.AddSingleton<RabbitMqConnection>();
         return services;
     }
 }
