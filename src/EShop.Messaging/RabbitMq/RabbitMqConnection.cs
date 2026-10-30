@@ -26,7 +26,10 @@ public sealed class RabbitMqConnection : IAsyncDisposable
         };
     }
 
-    public async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken)
+    public async Task<IChannel> CreateChannelAsync(
+        CancellationToken cancellationToken,
+        CreateChannelOptions? options = null
+    )
     {
         if (_connection == null)
         {
@@ -41,7 +44,7 @@ public sealed class RabbitMqConnection : IAsyncDisposable
             }
         }
 
-        return await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        return await _connection.CreateChannelAsync(options, cancellationToken);
     }
 
     public async ValueTask DisposeAsync()

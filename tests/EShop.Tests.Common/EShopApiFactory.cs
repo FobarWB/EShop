@@ -1,4 +1,5 @@
 using EShop.Data;
+using EShop.Messaging.Outbox;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -31,13 +32,24 @@ public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
         );
         // Tests never reach Keycloak: the test scheme becomes the default one instead of JwtBearer.
         builder.ConfigureTestServices(services =>
+        {
+            // The outbox publisher would reach the developer's RabbitMQ (user-secrets hold its password) and publish
+            // test events there. API tests check the outbox rows; publishing is tested against its own broker.
+            var publisher = services.SingleOrDefault(d =>
+                d.ImplementationType == typeof(OutboxPublisher)
+            );
+            if (publisher != null)
+            {
+                services.Remove(publisher);
+            }
+
             services
                 .AddAuthentication(TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                     TestAuthHandler.SchemeName,
                     null
-                )
-        );
+                );
+        });
     }
 
     protected override IHost CreateHost(IHostBuilder builder)

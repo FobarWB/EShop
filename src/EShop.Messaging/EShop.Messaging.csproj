@@ -2,6 +2,8 @@
   <!-- Shared messaging infrastructure: the transactional outbox, the inbox of the consumers and RabbitMQ. -->
   <ItemGroup>
     <PackageReference Include="RabbitMQ.Client" />
+    <!-- BackgroundService for the outbox publisher; the host itself comes from each service's SDK. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
   <ItemGroup>
