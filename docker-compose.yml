@@ -1,7 +1,8 @@
 # Local environment.
 #   docker compose up -d                          PostgreSQL, pgAdmin, Keycloak, RabbitMQ and Mailpit
 #                                                 (run the APIs and the client from the IDE)
-#   docker compose --profile app up -d --build    the whole shop on http://localhost:8080
+#   docker compose --profile app up -d --build    the whole shop on http://localhost:8080 (APIs, client, migrator
+#                                                 and the notification service; emails in Mailpit)
 #   ESHOP_TAG=latest (or sha-<commit>): docker compose --profile app pull, then up -d --no-build
 #                                                 runs the images published by CI instead of local builds
 #   docker compose --profile app down            stop everything (data stays in the named volumes)
@@ -194,6 +195,30 @@ services:
     build:
       context: .
       dockerfile: src/EShop.OrderApi/Dockerfile
+
+  # Worker: consumes the order events from RabbitMQ and sends the emails to Mailpit. No HTTP, no published port.
+  notificationservice:
+    profiles: [app]
+    image: ghcr.io/fobarwb/eshop-notificationservice:${ESHOP_TAG:-local}
+    build:
+      context: .
+      dockerfile: src/EShop.NotificationService/Dockerfile
+    environment:
+      # Not the x-api anchor: no Keycloak and no /health endpoint for the HTTP health check.
+      ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      Smtp__Host: mailpit
+    depends_on:
+      # The migrator has created inbox_messages.
+      migrator:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    # No health check: there is no endpoint to probe; a crashed process is restarted.
+    restart: unless-stopped
 
   # nginx: the only shop service published to the host; it serves the client and proxies /api to the APIs.
   client:

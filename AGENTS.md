@@ -17,12 +17,12 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
-| `src/EShop.NotificationService/` | Worker: consumes order events from RabbitMQ, sends emails through Mailpit (SMTP localhost:1025) | — |
+| `src/EShop.NotificationService/` | Worker: consumes order events from RabbitMQ, sends emails through Mailpit (SMTP localhost:1025); `Dockerfile` of the worker container | — |
 | `src/EShop.Messaging/` | Shared messaging infrastructure: transactional outbox, inbox (idempotent consumers), RabbitMQ connection and topology | — |
 | `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderCancelled`): the contract its consumers deserialize | — |
 | `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
-| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the four APIs and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
+| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the four APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
 | `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin` and `customer`/`customer` (local only, never on a server) | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
@@ -97,8 +97,8 @@ curl.exe -d "grant_type=password&client_id=eshop-dev&username=customer&password=
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`,
-then builds the six Docker images (job `images`); only on `master` it pushes them to ghcr.io as
-`ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|orderapi|client|migrator>` with the tags `sha-<commit>` and `latest`.
+then builds the seven Docker images (job `images`); only on `master` it pushes them to ghcr.io as
+`ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|orderapi|notificationservice|client|migrator>` with the tags `sha-<commit>` and `latest`.
 The packages are public (they inherit the visibility of this public repository): `docker pull` needs no login.
 Test rules: `.claude/rules/testing.md`. After a change, build and test the affected projects and report which checks actually ran.
 
