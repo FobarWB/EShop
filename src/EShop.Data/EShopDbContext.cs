@@ -26,6 +26,7 @@ namespace EShop.Data
         public virtual DbSet<CartItem> CartItems { get; set; } = null!;
         public virtual DbSet<OrderStatusChange> OrderStatusChanges { get; set; } = null!;
         public virtual DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
+        public virtual DbSet<InboxMessage> InboxMessages { get; set; } = null!;
 
         // 'Pending', 'Paid', ...: the CHECK constraints follow the enum, so a new status shows up in the next migration.
         private static readonly string OrderStatusValues = string.Join(
