@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-28
+verified: 2026-11-02
 ---
 
 # Decisions
@@ -23,3 +23,10 @@ Architecture decision records: the context, the decision and its consequences. N
   returns the same order.
 - [OrderLifecycle](OrderLifecycle.md): order statuses with transitions in one place, stored as text with a CHECK,
   an append-only status journal; cancelling returns the stock in the same transaction.
+- [TransactionalOutbox](TransactionalOutbox.md): events are stored with the change in one transaction and published by a
+  polling publisher; consumers keep an inbox (at least once, idempotent consumers).
+- [UseRabbitMqClient](UseRabbitMqClient.md): `RabbitMQ.Client` with a thin shared layer instead of MassTransit.
+- [MessageContractsOwnedByProducer](MessageContractsOwnedByProducer.md): each producer owns a contracts project;
+  fields are only added.
+- [DelayedRetryWithTtlQueues](DelayedRetryWithTtlQueues.md): retries through wait queues with a TTL that dead-letter
+  back to the work queue; then a dead letter queue.

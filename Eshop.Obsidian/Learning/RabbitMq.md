@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-28
+verified: 2026-11-02
 issue: 50
 ---
 
@@ -75,8 +75,51 @@ Related: [Docker](Docker.md), [OrderApi](../Services/OrderApi.md).
   `help <command>`. Exchanges are deleted in the UI or the HTTP API, not with `rabbitmqctl`.
 - Never `docker compose down -v` to clean RabbitMQ: it deletes the PostgreSQL volume too.
 
+## In code (#50)
+
+- **Connection and channels.** A connection is one TCP connection (handshake, authentication): one per process,
+  `RabbitMqConnection`, a singleton opened on first use under a `SemaphoreSlim`. Not `Lazy<T>`: it would cache a failed
+  first attempt (broker still starting) forever. A channel is a light session inside it, not thread-safe: one per
+  publisher and per consumer. `ClientProvidedName` (the entry assembly) names the connection in the management UI.
+- **Automatic recovery** (on by default in `RabbitMQ.Client` 7) reconnects an established connection every 5 s and
+  restores its channels and consumers; it does not retry the first connect. Seen live: after `docker compose stop
+  rabbitmq` the publisher logged `CONNECTION_FORCED … 'shutdown'` (the broker closed the connections itself), then
+  `AlreadyClosed` from `AutorecoveringConnection` until the broker was back; then it carried on without a restart.
+- **Publisher confirms** (`CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true)`):
+  `BasicPublishAsync` waits for the broker's ack and throws on a nack. The client adds `x-dotnet-pub-seq-no` to match them.
+- **Message properties**: `MessageId` (idempotency), `Type` (which contract), `ContentType`, `Persistent = true`
+  (delivery mode 2). Properties are standard AMQP fields, headers are free key-values: `message.id` typed as a property
+  key in the UI is simply unknown, and the message arrived without an id.
+- **`mandatory: false`** for events: no subscriber is not an error in publish/subscribe; `true` would stall the outbox
+  until a consumer exists.
+- **Consumer**: `AsyncEventingBasicConsumer` + `BasicConsumeAsync(queue, autoAck: false)`; ack or reject only when done;
+  `BasicQosAsync(prefetchCount: 10)` limits the unacked messages one consumer holds. Handlers on one channel run one
+  after another, so acks and publishes never overlap. `ea.Body` is valid only inside the handler.
+- **Declaring is idempotent**: producer (`OutboxPublisher`) declares the exchange, the consumer side declares the exchange
+  and its own queues; the topology exists whoever starts first. Binding to a missing exchange fails with `NOT_FOUND`.
+- **`QueueDeclareAsync` defaults are for temporary queues** (`exclusive: true`, `autoDelete: true`): durable queues need
+  both set to false explicitly (`DeclareDurableQueueAsync`).
+- **Two retry bugs caught in review**: `x-dead-letter-key` (should be `-routing-key`) would have been ignored; DLX
+  `eshop.events` for the wait queues would have dropped every retried message (no binding for the queue name). Both are
+  now integration tests ([DelayedRetryWithTtlQueues](../Decisions/DelayedRetryWithTtlQueues.md)).
+- **Erlang shows an empty string as `[]`** in `rabbitmqctl list_queues arguments`: `{"x-dead-letter-exchange",[]}` is `""`.
+- In containers a stopped service disappears from the compose DNS: the consumer got `Name or service not known` for
+  `mailpit`, not `Connection refused`.
+
+## Applied in #50
+
+Outbox and polling publisher in OrderApi, consumer with inbox, retries 5 s / 30 s / 2 min and a DLQ in
+[NotificationService](../Services/NotificationService.md); decisions [TransactionalOutbox](../Decisions/TransactionalOutbox.md),
+[UseRabbitMqClient](../Decisions/UseRabbitMqClient.md), [MessageContractsOwnedByProducer](../Decisions/MessageContractsOwnedByProducer.md),
+[DelayedRetryWithTtlQueues](../Decisions/DelayedRetryWithTtlQueues.md). Checked by hand in containers: an order with
+the broker stopped is published later; a redelivered `MessageId` is acknowledged as a duplicate; a message without
+`MessageId` goes to the DLQ; with Mailpit stopped a message went retry.1 → retry.2 → retry.3 → DLQ (5 s and 30 s
+apart, plus ~4 s per failed SMTP attempt). Tested against a RabbitMQ container (Testcontainers), see [Testing](Testing.md).
+
 ## Open questions
 
 - Topology from code (queue arguments) or from policies: arguments for now, they are visible next to the code.
 - Quorum queues instead of classic ones once there is more than one node (#59).
-- MassTransit after the first flow on `RabbitMQ.Client` (v9 is commercial, v8 Apache 2.0): to be decided in this issue.
+- MassTransit: decided against for now ([UseRabbitMqClient](../Decisions/UseRabbitMqClient.md)); revisit with #51.
+- Moving messages back from a DLQ: the shovel plugin (`rabbitmq_shovel_management`) or a small tool.
+- Cleanup of `outbox_messages` and `inbox_messages` (e.g. delete rows older than 30 days).

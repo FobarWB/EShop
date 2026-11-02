@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-27
+verified: 2026-11-02
 ---
 
 # Learning
@@ -17,7 +17,8 @@ using `_templates/Topic.md`, and linked here.
 - [Authentication](Authentication.md): OpenID Connect, Code + PKCE, JWT validation, Keycloak realm and roles,
   debugging lessons (#41).
 - [EfCore](EfCore.md): `Update()` and overposting, change tracking, projections, paging, interceptors (#33).
-- [RabbitMq](RabbitMq.md): exchanges, queues, bindings, acks, TTL and dead-lettering, durability, lab lessons (#50).
+- [RabbitMq](RabbitMq.md): exchanges, queues, bindings, acks, TTL and dead-lettering, durability, lab lessons;
+  connection and channels, publisher confirms, consumers, automatic recovery, outbox and inbox in practice (#50).
 
 ## Planned topics
 

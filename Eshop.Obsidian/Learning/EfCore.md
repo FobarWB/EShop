@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-28
+verified: 2026-11-02
 issue: 33
 ---
 
@@ -53,6 +53,24 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
   and cart in one `SaveChangesAsync` (#42, [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md)).
 - `Order.Version` → `xmin` too; the cancel saves the order, then `ExecuteUpdateAsync`s the stock, in one explicit
   transaction (#43, [OrderLifecycle](../Decisions/OrderLifecycle.md)).
+
+## Outbox and background services (#50)
+
+- **`SaveChanges` inside an explicit transaction uses a savepoint.** On a failure EF rolls back to the savepoint, so
+  the transaction stays usable: after a unique violation (23505) the checkout still reads the concurrent order in the
+  same transaction. Expected "current transaction is aborted" (25P02) was wrong; the test showed it.
+- **Change tracker vs direct SQL.** `Add`/property changes are only tracked until `SaveChanges`; `ExecuteUpdate`
+  runs SQL at once and saves nothing tracked. An entity added after the last `SaveChanges` is never stored.
+- **Ids from the database** (identity) exist only after `SaveChanges`: the checkout saves twice in one transaction
+  because the event needs the order id. Ids generated in code (`Guid.CreateVersion7()`) are known before the insert;
+  Npgsql 9+ also generates UUIDv7 for `Guid` keys by default.
+- **`FromSql($"… {value} …")`** turns the interpolated values into SQL parameters (`LIMIT @p0`): no injection. Used for
+  `FOR UPDATE SKIP LOCKED`, which LINQ cannot express.
+- **Captive dependency.** A hosted service is a singleton; `EShopDbContext` is scoped. Injected into the constructor, one
+  DbContext would live for hours (growing change tracker, broken after a lost connection), and DI validation refuses it
+  in Development. Background work creates a scope per pass with `IServiceScopeFactory`.
+- **Composite key by attribute**: `[PrimaryKey(nameof(Consumer), nameof(MessageId))]` (`InboxMessage`); a filtered
+  index needs the fluent API (`HasIndex(…).HasFilter("processed_at IS NULL")`, raw SQL names in snake_case).
 
 ## Open questions
 

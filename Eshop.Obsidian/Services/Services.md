@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-10-27
+verified: 2026-11-02
 ---
 
 # Services
@@ -14,7 +14,16 @@ Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 - [CategoryApi](CategoryApi.md): categories CRUD.
 - [ShoppingCart](ShoppingCart.md): carts and cart items per user.
 - [OrderApi](OrderApi.md): checkout (cart → order) and the user's orders.
+- [NotificationService](NotificationService.md): worker that emails the buyer on the order events from RabbitMQ.
 - [ClientApp](ClientApp.md): Angular SPA that calls the four APIs.
+
+## Messaging
+
+OrderApi publishes `order.placed` and `order.cancelled` to the topic exchange `eshop.events` through a transactional
+outbox; NotificationService consumes them from its own queue with an inbox, delayed retries and a dead letter queue.
+Shared code in `EShop.Messaging`, contracts in `EShop.OrderApi.Contracts`. See
+[TransactionalOutbox](../Decisions/TransactionalOutbox.md), [DelayedRetryWithTtlQueues](../Decisions/DelayedRetryWithTtlQueues.md)
+and [RabbitMq](../Learning/RabbitMq.md).
 
 ## Common to all APIs
 

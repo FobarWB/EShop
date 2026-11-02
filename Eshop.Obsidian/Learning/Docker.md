@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-26
+verified: 2026-11-02
 issue: 47
 ---
 
@@ -135,6 +135,28 @@ eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
   at run time, `.env` never enters the build context, and the code is public anyway. A private package needs
   `docker login ghcr.io` with a classic token that has `read:packages`, and read access per person
   (Package settings → Manage access).
+
+## Messaging services (#50)
+
+- **RabbitMQ and Mailpit** in the default services (`rabbitmq:4-management`, `axllent/mailpit:v1`), see
+  [RabbitMq](RabbitMq.md). `hostname: rabbitmq` keeps the node name, so the volume's queues are found again.
+- **A worker image is based on `runtime`, not `aspnet`**: no Kestrel, no port, no `EXPOSE`
+  (`src/EShop.NotificationService/Dockerfile`, 327 MB against 354 MB for an API).
+- **A worker has no health check**: nothing to probe without an endpoint; `restart: unless-stopped` restarts a crashed
+  process. `docker compose ps` shows `(healthy)` only for services with a health check. Options for later: a heartbeat
+  file or a small TCP listener.
+- **`docker compose ps` lists running containers only**: the one-off migrator (`Exited (0)`) appears with `ps -a`.
+- **`depends_on` is replaced, not merged, by `<<:`**: `orderapi` repeats the anchor's `depends_on` and adds
+  `rabbitmq: service_healthy`.
+- **A stopped container leaves the network's DNS**: clients get "Name or service not known", not "Connection refused".
+- **Container logs** stay with the container (`docker compose logs [-f] [-t] [--since 30m] <service>`) after the terminal
+  closes and across `stop`/`start`; they are lost when the container is recreated or removed (`down`).
+- **A container can run an image whose tag has moved**: `docker compose ps` showed the client with `sha256:…` instead of
+  `…:local` (an older image); `up -d --force-recreate client` recreated it from the current tag.
+- **After a reboot** Docker starts only containers with a restart policy (the shop services), not PostgreSQL or RabbitMQ:
+  run `docker compose --profile app up -d --wait`.
+- **The environment**: the API containers get `ASPNETCORE_ENVIRONMENT=Development`; the worker runs as `Production`
+  and reads only `appsettings.json`.
 
 ## Open questions
 

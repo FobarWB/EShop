@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-27
+verified: 2026-11-02
 issue: 9
 ---
 
@@ -49,6 +49,28 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
   (done in #26, which also enabled the #24 test for the anonymous cart).
 - CI (`.github/workflows/ci.yml`, #10) runs `dotnet test` against a throwaway `postgres:18` service container and
   `ng test` on every pull request and push to `master`. Coverage goes to the job summary and the `backend-test-results` artifact.
+
+## Messaging tests (#50)
+
+- **RabbitMQ from Testcontainers**: `RabbitMqFixture` (in `EShop.Tests.Common`) starts a `rabbitmq:4` container per test
+  project (assembly fixture) and removes it afterwards. The tests never touch the developer's broker; Docker is needed
+  locally and is available on the GitHub runners. PostgreSQL stays the configured test server
+  ([TestAgainstRealPostgreSql](../Decisions/TestAgainstRealPostgreSql.md)); moving it to Testcontainers is #49.
+- **Background services are started for real** (`StartAsync`/`StopAsync`) with a scope factory on the test database,
+  and the test waits for the effect (`Eventually.HoldsAsync`, `RabbitMqFixture.WaitForMessageAsync`) instead of sleeping.
+- **Behavior, not declarations**: the broker ignores misspelled arguments, so topology tests check where a message ends
+  up (a wait queue sends it back after the TTL, a rejected one lands in the DLQ). Shared exchange, unique queue names
+  and routing keys per test.
+- **No waiting for real delays**: the consumer tests use the production queues (5 s / 30 s / 2 min) and publish a
+  message as it arrives on its last attempt (`x-retry-attempt: 3`); the TTL mechanics are tested with 200 ms delays.
+- **Ordering as a signal**: handlers on one channel run in order, so after a duplicate the test publishes another event;
+  when that email arrives, the duplicate has been handled.
+- **A first failure showed the design**: the test checked the inbox row right after the email and failed, because the
+  consumer writes the inbox after sending. It now waits for the row too.
+- **The API tests remove `OutboxPublisher`** from the services: it would read the developer's user-secrets and publish
+  test events to the local broker.
+- Each new test was seen failing: retry DLX pointed at the events exchange, publisher without `Persistent`, newest first,
+  consumer without the inbox check, one retry too many, unknown type treated as known.
 
 ## Open questions
 

@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-10-28
-issue: 43
+verified: 2026-11-02
+issue: 50
 ---
 
 # OrderApi
@@ -40,17 +40,20 @@ Orders are documents: no PUT of the order or DELETE. Status changes follow
 
 ## Checkout
 
-`OrderRepository.PlaceOrderAsync` writes everything in one `SaveChangesAsync`, so in one transaction:
+`OrderRepository.PlaceOrderAsync` writes in one explicit transaction with two `SaveChangesAsync`:
 
 1. An order of this user with this key exists: return it (the cart is already empty after the first success).
 2. Load the cart with its items and their products, tracked; each product's `xmin` is read here.
 3. Check availability and stock; a failed check returns a result and writes nothing.
 4. Insert `orders` and `order_details` with the current prices and names copied into `order_details.unit_price` and
    `order_details.product_name`, freight 5 (`OrderRepository.StandardFreight`, a flat fee), `order_date` =
-   `DateTime.UtcNow`; record the creation in the journal (`null → Pending`); decrement `products.units_in_stock`;
-   delete the cart items.
+   `DateTime.UtcNow`, `customer_email` from the token's `email` claim; record the creation in the journal
+   (`null → Pending`); decrement `products.units_in_stock`; delete the cart items. First `SaveChanges`: the order gets its id.
 5. A unique violation (23505) on `ix_orders_user_id_idempotency_key`: a concurrent request with the same key committed
-   first; return its order.
+   first; return its order. Inside a transaction `SaveChanges` runs under a savepoint and rolls back to it, so the
+   transaction is still usable for this read.
+6. Add the `OrderPlaced` event (id, email, recipient, total, items) to `outbox_messages`; second `SaveChanges`; commit.
+   The order and its event are stored together or not at all ([TransactionalOutbox](../Decisions/TransactionalOutbox.md)).
 
 ## Status changes
 
@@ -58,25 +61,49 @@ Orders are documents: no PUT of the order or DELETE. Status changes follow
 
 1. Load the order, tracked (`ownerId` filters to the user's orders); none: `NotFound`.
 2. `Order.TryChangeStatus`: a forbidden transition is `NotAllowed` and writes nothing. An allowed one adds a journal row;
-   `Shipped` also sets `shipped_date`.
-3. In an explicit transaction: `SaveChanges` (journal row, `UPDATE orders … WHERE xmin = …`), then for `Cancelled`
-   one `UPDATE products SET units_in_stock = units_in_stock + quantity` for the order's products; commit.
+   `Shipped` also sets `shipped_date`. For `Cancelled` an `OrderCancelled` event (id, the buyer's `customer_email`,
+   the same time as the journal row) is added to the outbox: the buyer is emailed also when an admin cancels.
+3. In an explicit transaction: `SaveChanges` (journal row, outbox row, `UPDATE orders … WHERE xmin = …`), then for
+   `Cancelled` one `UPDATE products SET units_in_stock = units_in_stock + quantity` for the order's products; commit.
+   The outbox row is added before `SaveChanges`: `ExecuteUpdate` after it writes SQL directly and saves nothing tracked.
 4. A concurrent change of the same order fails the `xmin` check: `DbUpdateConcurrencyException`, 409, nothing stored.
 
 ## Contract
 
 - `PlaceOrderRequest`: `shipName` (40), `shipAddress` (60), `shipCity` (15), `shipRegion` (optional, 15),
   `shipPostalCode` (10), `shipCountry` (15): the lengths of the Northwind columns. Items and prices never come from the client.
-- `OrderResponse`: `orderId`, `orderDate` (UTC, with `Z`), `status`, the address, `freight`, `total` (items + freight,
+- `OrderResponse`: `orderId`, `orderDate` (UTC, with `Z`), `status`, `customerEmail` (null without an `email` claim), the address, `freight`, `total` (items + freight,
   summed in SQL), `items` (`productId`, `productName` and `unitPrice` as copied at checkout, `quantity`).
 - `OrderSummaryResponse`: `orderId`, `orderDate`, `status`, `total`, `itemCount`.
 - `ChangeOrderStatusRequest`: `status` (required).
 - Enums are sent as names (`JsonStringEnumConverter` in `Program.cs`): `"status": "Cancelled"`.
 
+## Events
+
+Published to the topic exchange `eshop.events` by `OutboxPublisher` (a `BackgroundService` from `EShop.Messaging`,
+registered with `AddOutboxPublisher()`): routing key = `Type`, `MessageId` = outbox row id, persistent, publisher
+confirms, up to ~2 s after the commit, in the order they occurred. Contracts in
+[EShop.OrderApi.Contracts](../../src/EShop.OrderApi.Contracts/), see
+[MessageContractsOwnedByProducer](../Decisions/MessageContractsOwnedByProducer.md).
+
+| Type | Contract | When |
+| --- | --- | --- |
+| `order.placed` | `OrderPlaced(OrderId, Email, ShipName, Total, PlacedAt, Items[ProductName, Quantity, UnitPrice])` | checkout |
+| `order.cancelled` | `OrderCancelled(OrderId, Email, CancelledAt)` | cancel by the buyer or an admin |
+
+With RabbitMQ down the API keeps working: the publisher logs a warning every 2 s, the rows wait, and the client's
+automatic recovery reconnects when the broker is back. Consumer: [NotificationService](NotificationService.md).
+
 ## Data
 
-Writes `orders`, `order_details`, `order_status_changes`, `products.units_in_stock` and `cart_items`; reads `carts`
-and `products`.
+Writes `orders`, `order_details`, `order_status_changes`, `outbox_messages`, `products.units_in_stock` and
+`cart_items`; reads `carts` and `products`.
+
+- `orders.customer_email` (`varchar(254)`, the maximum length of an address; null for Northwind and users without an
+  address): a copy of the buyer's address at checkout, like the prices.
+- `outbox_messages`: `id` (UUIDv7 from code: the `MessageId`, known before the insert, appended at the end of the
+  key index), `type`, `payload` (`jsonb`), `occurred_at`, `processed_at` (null = pending), `attempts`, `last_error`;
+  partial index `ix_outbox_messages_occurred_at … WHERE processed_at IS NULL`.
 
 - `orders.user_id` (`varchar(50)`, null for the Northwind orders) and `orders.idempotency_key` (`uuid`), with a unique
   index on both. PostgreSQL treats NULLs as distinct in a unique index, so the 830 Northwind rows do not collide.
@@ -92,8 +119,10 @@ and `products`.
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`); reads the cart of [ShoppingCart](ShoppingCart.md) and the products
 of [ProductApi](ProductApi.md) directly. With a database per service ([#51](https://github.com/FobarWB/EShop/issues/51))
-the checkout would get the cart by request and publish `OrderPlaced` to change the stock ([#50](https://github.com/FobarWB/EShop/issues/50)).
-JWT validation, `User.GetUserId()` and error handling (`ConcurrencyConflictHandler`) from `EShop.ServiceDefaults`.
+the checkout would get the cart by request and change the stock through events.
+JWT validation, `User.GetUserId()`, `User.GetUserEmail()` and error handling (`ConcurrencyConflictHandler`) from
+`EShop.ServiceDefaults`; outbox and RabbitMQ from `EShop.Messaging` (`RabbitMq:Password` from user-secrets, in compose
+`RabbitMq__Host=rabbitmq` and the password from `.env`; the container waits for a healthy RabbitMQ).
 Called by [ClientApp](ClientApp.md).
 
 ## Tests
@@ -104,6 +133,10 @@ API test a second buyer runs a whole checkout inside the first buyer's `SaveChan
 is stored and the stock is 0. In the repository test `ChangeStatus_CancelledConcurrently_ThrowsAndReturnsStockOnce`
 a second cancel commits inside the first one's `SaveChanges`: the first throws, the stock comes back once.
 `OrderLifecycleTests` checks all 25 pairs of statuses.
+Outbox: checkout and cancel store exactly one event with the right payload (also an admin's cancel: the buyer's email),
+a retry with the same key and every failed or concurrent checkout store none, other status changes store none.
+The API tests remove `OutboxPublisher` from the services (`EShopApiFactory`): it would publish test events to the
+developer's broker. The publisher itself is tested in [EShop.Messaging.Tests.Integration](../../tests/EShop.Messaging.Tests.Integration/).
 
 ## Known issues
 
