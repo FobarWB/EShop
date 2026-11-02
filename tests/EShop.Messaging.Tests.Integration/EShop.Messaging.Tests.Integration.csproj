@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EShop.Messaging\EShop.Messaging.csproj" />
+    <ProjectReference Include="..\EShop.Tests.Common\EShop.Tests.Common.csproj" />
+  </ItemGroup>
+</Project>
