@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
+    <ProjectReference Include="..\EShop.Messaging\EShop.Messaging.csproj" />
+    <ProjectReference Include="..\EShop.OrderApi.Contracts\EShop.OrderApi.Contracts.csproj" />
     <ProjectReference Include="..\EShop.ServiceDefaults\EShop.ServiceDefaults.csproj" />
   </ItemGroup>
 

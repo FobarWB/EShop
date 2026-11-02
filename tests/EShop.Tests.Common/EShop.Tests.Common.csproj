@@ -5,9 +5,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="xunit.v3.extensibility.core" />
+    <PackageReference Include="Testcontainers.RabbitMq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\EShop.Data\EShop.Data.csproj" />
+    <ProjectReference Include="..\..\src\EShop.Messaging\EShop.Messaging.csproj" />
     <ProjectReference Include="..\..\src\EShop.ServiceDefaults\EShop.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

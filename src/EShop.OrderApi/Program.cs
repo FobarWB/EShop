@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using EShop.Data;
+using EShop.Messaging;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.HttpLogging;
@@ -19,6 +20,10 @@ builder.Services.AddCors(options =>
 );
 
 builder.Services.AddEShopDbContext(builder.Configuration);
+
+// The checkout and the cancellation write events to the outbox; the publisher sends them to RabbitMQ.
+builder.Services.AddEShopMessaging(builder.Configuration);
+builder.Services.AddOutboxPublisher();
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();

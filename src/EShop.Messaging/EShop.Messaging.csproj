@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shared messaging infrastructure: the transactional outbox, the inbox of the consumers and RabbitMQ. -->
+  <ItemGroup>
+    <PackageReference Include="RabbitMQ.Client" />
+    <!-- BackgroundService for the outbox publisher; the host itself comes from each service's SDK. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- OutboxMessage is stored by the shared EShopDbContext in the same transaction as the change it describes. -->
+    <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
+  </ItemGroup>
+</Project>

@@ -17,9 +17,12 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
+| `src/EShop.NotificationService/` | Worker: consumes order events from RabbitMQ, sends emails through Mailpit (SMTP localhost:1025); `Dockerfile` of the worker container | — |
+| `src/EShop.Messaging/` | Shared messaging infrastructure: transactional outbox, inbox (idempotent consumers), RabbitMQ connection and topology | — |
+| `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderCancelled`): the contract its consumers deserialize | — |
 | `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
-| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin and Keycloak; with the profile `app` also the migrator, the four APIs and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180 |
+| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the four APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
 | `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin` and `customer`/`customer` (local only, never on a server) | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
@@ -62,7 +65,8 @@ GitHub is the source of truth for progress; do not copy task status into files.
   is stopped (startup type Manual); its client tools (`psql`, `pg_dump`) in `C:\Program Files\PostgreSQL\18\bin`
   (not on `PATH`) still work against the container.
 - The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
-  (`UserSecretsId` `eshop`, shared by the four APIs); it is never committed.
+  (`UserSecretsId` `eshop`, shared by the four APIs and NotificationService); it is never committed.
+  The same user-secrets hold `RabbitMq:Password` (the value of `RABBITMQ_PASSWORD` in `.env`) for OrderApi and NotificationService.
 - Windows PowerShell may block `.ps1` scripts (execution policy): use `npm.cmd` or
   `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
@@ -72,13 +76,14 @@ The APIs and the integration tests need the database: start Docker Desktop and `
 (the containers do not start on their own). Unit tests and Angular tests do not need it.
 
 ```powershell
-docker compose up -d                                # PostgreSQL + pgAdmin + Keycloak; docker compose stop when done
+docker compose up -d                                # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose stop when done
 docker compose --profile app up -d --build --wait   # the whole shop in containers: http://localhost:8080
                                                     # from CI images instead: ESHOP_TAG=latest (or sha-<commit>),
                                                     # docker compose --profile app pull; up -d --no-build --wait
 docker compose --profile app down                   # stop the shop and the infrastructure (data stays)
 dotnet build EShop.sln                              # whole solution
 dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart, OrderApi
+dotnet run --project src/EShop.NotificationService  # worker: order events → emails in Mailpit (http://localhost:8025)
                                                     # API reference (Development): https://localhost:<port>/scalar
 cd src/EShop.ClientApp; npm ci; npm start           # Angular dev server on :4200
 dotnet test                                         # all .NET tests; integration tests need the test database (below)
@@ -94,8 +99,8 @@ curl.exe -d "grant_type=password&client_id=eshop-dev&username=customer&password=
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`,
-then builds the six Docker images (job `images`); only on `master` it pushes them to ghcr.io as
-`ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|orderapi|client|migrator>` with the tags `sha-<commit>` and `latest`.
+then builds the seven Docker images (job `images`); only on `master` it pushes them to ghcr.io as
+`ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|orderapi|notificationservice|client|migrator>` with the tags `sha-<commit>` and `latest`.
 The packages are public (they inherit the visibility of this public repository): `docker pull` needs no login.
 Test rules: `.claude/rules/testing.md`. After a change, build and test the affected projects and report which checks actually ran.
 
@@ -109,8 +114,9 @@ and the role and database `keycloak`, see `db/init/`):
 
 ```powershell
 Copy-Item .env.example .env          # set the passwords; ESHOP_DB_PASSWORD is the password of the role eshop
-docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak; docker compose ps shows them as "healthy"
+docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose ps shows them as "healthy"
 dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
+dotnet user-secrets set "RabbitMq:Password" '<RABBITMQ_PASSWORD from .env>' --project src/EShop.ProductApi
 dotnet ef database update --project src/EShop.Data --startup-project src/EShop.ProductApi
 docker compose cp db/northwind-data.sql postgres:/tmp/northwind-data.sql                                   # empty database only
 docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-data.sql

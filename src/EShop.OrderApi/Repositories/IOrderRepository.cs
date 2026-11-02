@@ -8,6 +8,7 @@ public interface IOrderRepository
 {
     Task<PlaceOrderResult> PlaceOrderAsync(
         string userId,
+        string? customerEmail,
         Guid idempotencyKey,
         PlaceOrderRequest request,
         CancellationToken cancellationToken

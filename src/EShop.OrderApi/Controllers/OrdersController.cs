@@ -44,6 +44,7 @@ public class OrdersController : ControllerBase
 
         var result = await _repository.PlaceOrderAsync(
             UserId,
+            User.GetUserEmail(),
             idempotencyKey,
             request,
             cancellationToken

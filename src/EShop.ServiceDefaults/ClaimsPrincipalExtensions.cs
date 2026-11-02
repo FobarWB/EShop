@@ -11,4 +11,10 @@ public static class ClaimsPrincipalExtensions
     public static string GetUserId(this ClaimsPrincipal user) =>
         user.FindFirstValue("sub")
         ?? throw new InvalidOperationException("The signed-in user has no 'sub' claim.");
+
+    /// <summary>
+    /// The email address of the signed-in user (<c>email</c>), or null: Keycloak does not require one,
+    /// and a token issued without the scope <c>email</c> has no such claim.
+    /// </summary>
+    public static string? GetUserEmail(this ClaimsPrincipal user) => user.FindFirstValue("email");
 }

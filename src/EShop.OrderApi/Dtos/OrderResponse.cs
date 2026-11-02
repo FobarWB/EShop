@@ -7,6 +7,7 @@ public sealed record OrderResponse(
     int OrderId,
     DateTime OrderDate,
     OrderStatus Status,
+    string? CustomerEmail,
     string ShipName,
     string ShipAddress,
     string ShipCity,

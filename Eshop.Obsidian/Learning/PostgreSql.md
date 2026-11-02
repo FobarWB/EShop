@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-10-28
+verified: 2026-11-02
 issue: 14
 ---
 
@@ -86,6 +86,19 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
   The prompt ends with `#` for a superuser and `>` otherwise; `-#` means an unfinished statement (`\r` clears it).
 - Useful `psql` commands: `\l`, `\dt`, `\d <table>`, `\du`, `\password`, `\q`. GUI: pgAdmin 4
   (eshop → Schemas → public → Tables; Tools → Query Tool).
+
+## Outbox (#50)
+
+- **`FOR UPDATE SKIP LOCKED`**: `FOR UPDATE` locks the selected rows until the commit; `SKIP LOCKED` makes another
+  session skip them instead of waiting. Several publisher instances share the pending rows without coordination.
+- **Partial index**: `CREATE INDEX … ON outbox_messages (occurred_at) WHERE processed_at IS NULL` holds only pending rows;
+  a row leaves it when it is marked processed. The poll stays fast however many rows were sent.
+- **`jsonb` vs `json`**: `jsonb` stores the parsed structure: it validates the JSON, reorders the keys (shorter first)
+  and prints spaces after `:`. The payload read back is not the string written, but the same JSON. `json` keeps the text.
+  Queries: `payload->>'orderId'`.
+- **`numeric` scale**: `unit_price numeric(19,4)` comes back as `18.0000`: the same `decimal` value.
+- **Adding a nullable column without a default** (`customer_email`) changes only the catalog: instant, no table rewrite.
+- **DDL is transactional**: a migration and its `__EFMigrationsHistory` row commit together.
 
 ## Open questions
 

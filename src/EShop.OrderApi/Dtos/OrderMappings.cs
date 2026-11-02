@@ -11,6 +11,7 @@ public static class OrderMappings
             o.OrderId,
             o.OrderDate!.Value,
             o.Status,
+            o.CustomerEmail,
             o.ShipName!,
             o.ShipAddress!,
             o.ShipCity!,

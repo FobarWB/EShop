@@ -1,6 +1,8 @@
 # Local environment.
-#   docker compose up -d                          PostgreSQL and pgAdmin (run the APIs and the client from the IDE)
-#   docker compose --profile app up -d --build    the whole shop on http://localhost:8080
+#   docker compose up -d                          PostgreSQL, pgAdmin, Keycloak, RabbitMQ and Mailpit
+#                                                 (run the APIs and the client from the IDE)
+#   docker compose --profile app up -d --build    the whole shop on http://localhost:8080 (APIs, client, migrator
+#                                                 and the notification service; emails in Mailpit)
 #   ESHOP_TAG=latest (or sha-<commit>): docker compose --profile app pull, then up -d --no-build
 #                                                 runs the images published by CI instead of local builds
 #   docker compose --profile app down            stop everything (data stays in the named volumes)
@@ -16,6 +18,9 @@ x-api: &api
     # Tokens are issued for http://localhost:8180 (Authority in appsettings.json), but inside the network
     # Keycloak is keycloak:8080: the signing keys are read through the internal address.
     Authentication__MetadataAddress: http://keycloak:8080/realms/eshop/.well-known/openid-configuration
+    # The broker by its service name; the password comes from .env (user-secrets do not reach containers).
+    RabbitMq__Host: rabbitmq
+    RabbitMq__Password: ${RABBITMQ_PASSWORD}
   depends_on:
     migrator:
       condition: service_completed_successfully
@@ -103,6 +108,44 @@ services:
       postgres:
         condition: service_healthy
 
+  # Message broker (AMQP 0-9-1). Port 5672 for the services, management UI on http://localhost:15672.
+  rabbitmq:
+    image: rabbitmq:4-management
+    # RabbitMQ names its node rabbit@<hostname> and keeps the data under that name: without a fixed hostname
+    # every new container gets a new node name and does not find the queues stored in the volume.
+    hostname: rabbitmq
+    environment:
+      # The default user "guest" may connect from localhost only, and connections through the port mapping
+      # do not count as local: an own user, created on the first start with an empty volume.
+      RABBITMQ_DEFAULT_USER: eshop
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+    ports:
+      # Also on ::1, as for postgres.
+      - "127.0.0.1:5672:5672"
+      - "[::1]:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  # Fake SMTP server for development: accepts every email and sends nothing; the inbox is on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "[::1]:1025:1025"
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   # One-off: applies the EF Core migrations and exits; the APIs start only after it succeeds.
   migrator:
     profiles: [app]
@@ -140,10 +183,42 @@ services:
 
   orderapi:
     <<: *api
+    # The anchor's depends_on is replaced, not merged: repeated in full, plus the broker of the outbox publisher.
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     image: ghcr.io/fobarwb/eshop-orderapi:${ESHOP_TAG:-local}
     build:
       context: .
       dockerfile: src/EShop.OrderApi/Dockerfile
+
+  # Worker: consumes the order events from RabbitMQ and sends the emails to Mailpit. No HTTP, no published port.
+  notificationservice:
+    profiles: [app]
+    image: ghcr.io/fobarwb/eshop-notificationservice:${ESHOP_TAG:-local}
+    build:
+      context: .
+      dockerfile: src/EShop.NotificationService/Dockerfile
+    environment:
+      # Not the x-api anchor: no Keycloak and no /health endpoint for the HTTP health check.
+      ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      Smtp__Host: mailpit
+    depends_on:
+      # The migrator has created inbox_messages.
+      migrator:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    # No health check: there is no endpoint to probe; a crashed process is restarted.
+    restart: unless-stopped
 
   # nginx: the only shop service published to the host; it serves the client and proxies /api to the APIs.
   client:
@@ -173,3 +248,4 @@ services:
 volumes:
   postgres-data:
   pgadmin-data:
+  rabbitmq-data:
