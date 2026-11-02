@@ -5,4 +5,6 @@
 .obsidian/community-plugins.json
 .obsidian/plugins/
 .obsidian/cache
+.obsidian/appearance.json
+.obsidian/graph.json
 .trash/

@@ -65,7 +65,8 @@ GitHub is the source of truth for progress; do not copy task status into files.
   is stopped (startup type Manual); its client tools (`psql`, `pg_dump`) in `C:\Program Files\PostgreSQL\18\bin`
   (not on `PATH`) still work against the container.
 - The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
-  (`UserSecretsId` `eshop`, shared by the four APIs); it is never committed.
+  (`UserSecretsId` `eshop`, shared by the four APIs and NotificationService); it is never committed.
+  The same user-secrets hold `RabbitMq:Password` (the value of `RABBITMQ_PASSWORD` in `.env`) for OrderApi and NotificationService.
 - Windows PowerShell may block `.ps1` scripts (execution policy): use `npm.cmd` or
   `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
@@ -82,6 +83,7 @@ docker compose --profile app up -d --build --wait   # the whole shop in containe
 docker compose --profile app down                   # stop the shop and the infrastructure (data stays)
 dotnet build EShop.sln                              # whole solution
 dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart, OrderApi
+dotnet run --project src/EShop.NotificationService  # worker: order events → emails in Mailpit (http://localhost:8025)
                                                     # API reference (Development): https://localhost:<port>/scalar
 cd src/EShop.ClientApp; npm ci; npm start           # Angular dev server on :4200
 dotnet test                                         # all .NET tests; integration tests need the test database (below)
@@ -114,6 +116,7 @@ and the role and database `keycloak`, see `db/init/`):
 Copy-Item .env.example .env          # set the passwords; ESHOP_DB_PASSWORD is the password of the role eshop
 docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose ps shows them as "healthy"
 dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
+dotnet user-secrets set "RabbitMq:Password" '<RABBITMQ_PASSWORD from .env>' --project src/EShop.ProductApi
 dotnet ef database update --project src/EShop.Data --startup-project src/EShop.ProductApi
 docker compose cp db/northwind-data.sql postgres:/tmp/northwind-data.sql                                   # empty database only
 docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-data.sql
