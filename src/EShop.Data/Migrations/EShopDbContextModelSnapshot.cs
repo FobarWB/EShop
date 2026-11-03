@@ -205,6 +205,78 @@ namespace EShop.Data.Migrations
                     b.ToTable("customers", (string)null);
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.CustomerAddress", b =>
+                {
+                    b.Property<int>("AddressId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("address_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AddressId"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("city");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("country");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("postal_code");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("recipient_name");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("region");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("AddressId")
+                        .HasName("pk_customer_addresses");
+
+                    b.HasIndex(new[] { "UserId" }, "ix_customer_addresses_user_id")
+                        .HasDatabaseName("ix_customer_addresses_user_id");
+
+                    b.HasIndex(new[] { "UserId" }, "ix_customer_addresses_user_id_default")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_addresses_user_id_default")
+                        .HasFilter("is_default");
+
+                    b.ToTable("customer_addresses", (string)null);
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.CustomerDemographic", b =>
                 {
                     b.Property<string>("CustomerTypeId")
@@ -220,6 +292,32 @@ namespace EShop.Data.Migrations
                         .HasName("pk_customer_demographics");
 
                     b.ToTable("customer_demographics", (string)null);
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.CustomerProfile", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("phone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("UserId")
+                        .HasName("pk_customer_profiles");
+
+                    b.ToTable("customer_profiles", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Employee", b =>
@@ -895,6 +993,18 @@ namespace EShop.Data.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.CustomerAddress", b =>
+                {
+                    b.HasOne("EShop.Data.Entities.CustomerProfile", "Profile")
+                        .WithMany("Addresses")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_addresses_customer_profiles_user_id");
+
+                    b.Navigation("Profile");
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.Employee", b =>
                 {
                     b.HasOne("EShop.Data.Entities.Employee", "ReportsToNavigation")
@@ -1016,6 +1126,11 @@ namespace EShop.Data.Migrations
             modelBuilder.Entity("EShop.Data.Entities.Customer", b =>
                 {
                     b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.CustomerProfile", b =>
+                {
+                    b.Navigation("Addresses");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Employee", b =>

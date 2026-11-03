@@ -27,6 +27,8 @@ namespace EShop.Data
         public virtual DbSet<OrderStatusChange> OrderStatusChanges { get; set; } = null!;
         public virtual DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
         public virtual DbSet<InboxMessage> InboxMessages { get; set; } = null!;
+        public virtual DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
+        public virtual DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
 
         // 'Pending', 'Paid', ...: the CHECK constraints follow the enum, so a new status shows up in the next migration.
         private static readonly string OrderStatusValues = string.Join(
@@ -208,6 +210,26 @@ namespace EShop.Data
             modelBuilder.Entity<OutboxMessage>(entity =>
                 entity.HasIndex(m => m.OccurredAt).HasFilter("processed_at IS NULL")
             );
+
+            modelBuilder.Entity<CustomerAddress>(entity =>
+            {
+                // Two indexes on the same column need names: HasIndex without a name returns the same index.
+                // The user's address list.
+                entity.HasIndex(e => e.UserId, "ix_customer_addresses_user_id");
+
+                // At most one default address per user; a concurrent second one fails with 23505.
+                entity
+                    .HasIndex(e => e.UserId, "ix_customer_addresses_user_id_default")
+                    .HasDatabaseName("ix_customer_addresses_user_id_default")
+                    .IsUnique()
+                    .HasFilter("is_default");
+
+                entity
+                    .HasOne(e => e.Profile)
+                    .WithMany(p => p.Addresses)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             modelBuilder.Entity<Product>(entity =>
             {
