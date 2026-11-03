@@ -30,3 +30,5 @@ Architecture decision records: the context, the decision and its consequences. N
   fields are only added.
 - [DelayedRetryWithTtlQueues](DelayedRetryWithTtlQueues.md): retries through wait queues with a TTL that dead-letter
   back to the work queue; then a dead letter queue.
+- [AccountLifecycleInKeycloak](AccountLifecycleInKeycloak.md): sign-up, email confirmation, password reset and the
+  password policy are realm settings; the password is set after the email is confirmed.

@@ -1,7 +1,25 @@
 {
   "realm": "eshop",
   "enabled": true,
-  "registrationAllowed": false,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": true,
+  "resetPasswordAllowed": true,
+  "rememberMe": false,
+  "passwordPolicy": "length(8) and notUsername and notEmail",
+  "actionTokenGeneratedByUserLifespan": 1800,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "noreply@eshop.local",
+    "fromDisplayName": "EShop"
+  },
   "roles": {
     "realm": [{ "name": "admin", "description": "Manages products and categories" }]
   },
@@ -51,7 +69,7 @@
       "emailVerified": true,
       "firstName": "Shop",
       "lastName": "Admin",
-      "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
+      "credentials": [{ "type": "password", "value": "admin1234", "temporary": false }],
       "realmRoles": ["default-roles-eshop", "admin"]
     },
     {
@@ -61,7 +79,7 @@
       "emailVerified": true,
       "firstName": "Test",
       "lastName": "Customer",
-      "credentials": [{ "type": "password", "value": "customer", "temporary": false }],
+      "credentials": [{ "type": "password", "value": "customer1234", "temporary": false }],
       "realmRoles": ["default-roles-eshop"]
     }
   ]

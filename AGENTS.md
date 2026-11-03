@@ -23,7 +23,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
 | `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the four APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
-| `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin` and `customer`/`customer` (local only, never on a server) | — |
+| `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin1234` and `customer`/`customer1234` (local only, never on a server) | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
@@ -95,7 +95,7 @@ csharpier format <file>                             # format edited C# files
 An access token for manual API calls (client `eshop-dev`, development only; use `curl.exe` in PowerShell 5.1):
 
 ```powershell
-curl.exe -d "grant_type=password&client_id=eshop-dev&username=customer&password=customer" http://localhost:8180/realms/eshop/protocol/openid-connect/token
+curl.exe -d "grant_type=password&client_id=eshop-dev&username=customer&password=customer1234" http://localhost:8180/realms/eshop/protocol/openid-connect/token
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`,
