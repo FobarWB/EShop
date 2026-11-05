@@ -8,7 +8,7 @@ import { CategoryService } from './categories.service';
 type StoredItem = Pick<ICartItem, 'productId' | 'quantity'>;
 
 // The cart of an anonymous user: only product ids and quantities are stored, so prices never go stale;
-// names, categories and current prices are loaded when the cart is read (moving it to the server: #24).
+// names, categories and current prices are loaded when the cart is read (CartService moves it to the server after the sign-in).
 @Injectable({
   providedIn: 'root'
 })
@@ -20,7 +20,7 @@ export class LocalCartService
 
   getCart(): Observable<ICart>
   {
-    const items = this.read();
+    const items = this.readItems();
     if (items.length === 0)
     {
       // forkJoin([]) would complete without emitting.
@@ -33,7 +33,7 @@ export class LocalCartService
 
   addItem(productId: number, quantity: number): void
   {
-    const items = this.read();
+    const items = this.readItems();
     const existingItem = items.find(item => item.productId === productId);
     if (existingItem)
     {
@@ -48,7 +48,7 @@ export class LocalCartService
 
   updateQuantity(productId: number, quantity: number): void
   {
-    const items = this.read();
+    const items = this.readItems();
     const item = items.find(i => i.productId === productId);
     if (item)
     {
@@ -59,12 +59,22 @@ export class LocalCartService
 
   removeItem(productId: number): void
   {
-    this.save(this.read().filter(item => item.productId !== productId));
+    this.save(this.readItems().filter(item => item.productId !== productId));
   }
 
   clear(): void
   {
     localStorage.removeItem(this.storageKey);
+  }
+
+  quantityOf(productId: number): number
+  {
+    return this.readItems().find(item => item.productId === productId)?.quantity ?? 0;
+  }
+
+  itemCount(): number
+  {
+    return this.readItems().reduce((sum, item) => sum + item.quantity, 0);
   }
 
   // A product deleted since it was added drops out of the cart instead of failing the whole page.
@@ -91,7 +101,7 @@ export class LocalCartService
   }
 
   // Reads only productId and quantity, so carts stored in an older format (with cartId) still work.
-  private read(): StoredItem[]
+  readItems(): StoredItem[]
   {
     const json = localStorage.getItem(this.storageKey);
     const stored: { cartItems?: StoredItem[] } = json ? JSON.parse(json) : {};

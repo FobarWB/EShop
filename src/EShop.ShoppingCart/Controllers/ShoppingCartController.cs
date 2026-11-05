@@ -56,6 +56,17 @@ public class ShoppingCartController : ControllerBase
         };
     }
 
+    // POST api/carts/me/merge
+    [HttpPost("merge")]
+    public async Task<IActionResult> MergeCart(
+        [FromBody] MergeCartRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        await _repository.MergeItemsAsync(UserId, request.Items, cancellationToken);
+        return NoContent();
+    }
+
     // GET api/carts/me
     [HttpGet]
     public async Task<ActionResult<CartResponse>> GetCart(CancellationToken cancellationToken)

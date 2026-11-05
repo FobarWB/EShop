@@ -129,7 +129,7 @@
                   </div>
                 </div>
                 @if (p.unitsInStock > 0) {
-                <span class="text-success">In stock</span>
+                <span class="text-success">In stock: {{ p.unitsInStock }}</span>
                 } @else {
                 <span class="text-danger">Out of stock</span>
                 }
@@ -152,6 +152,7 @@
                 <div>
                   <button
                     (click)="AddProductToCart(p)"
+                    [disabled]="p.unitsInStock <= 0"
                     type="button"
                     class="btn btn-cart"
                   >
@@ -159,6 +160,9 @@
                   </button>
                 </div>
               </div>
+              @if (addError?.productId === p.productId) {
+              <div class="text-danger small text-end">{{ addError?.message }}</div>
+              }
             </div>
           </div>
         </div>

@@ -30,12 +30,27 @@
       <div class="card border-secondary-subtle mb-3">
         <div class="card-body">
           <div class="fw-bold h3">{{ product?.unitPrice }} $</div>
+          @if (product; as p) {
+            @if (p.unitsInStock > 0) {
+            <div class="text-success mb-2">In stock: {{ p.unitsInStock }}</div>
+            } @else {
+            <div class="text-danger mb-2">Out of stock</div>
+            }
+          }
           <div class="d-flex justify-content-start">
             <div class="card border-secondary-subtle w-25 me-3"></div>
-            <button type="button" class="btn btn-danger flex-grow-1">
+            <button
+              (click)="addToCart()"
+              [disabled]="!product || product.unitsInStock <= 0"
+              type="button"
+              class="btn btn-danger flex-grow-1"
+            >
               Buy
             </button>
           </div>
+          @if (addError) {
+          <div class="text-danger small mt-2">{{ addError }}</div>
+          }
         </div>
       </div>
       <ul class="list-group">

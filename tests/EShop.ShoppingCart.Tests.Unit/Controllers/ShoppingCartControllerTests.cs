@@ -67,6 +67,28 @@ public class ShoppingCartControllerTests
     }
 
     [Fact]
+    public async Task MergeCart_ReturnsNoContent()
+    {
+        var result = await _controller.MergeCart(
+            new MergeCartRequest { Items = [Request()] },
+            CancellationToken.None
+        );
+
+        StatusCodeOf(result).ShouldBe(204);
+    }
+
+    [Fact]
+    public async Task MergeCart_PassesItemsAndCancellationTokenToRepository()
+    {
+        using var cts = new CancellationTokenSource();
+        var request = new MergeCartRequest { Items = [Request()] };
+
+        await _controller.MergeCart(request, cts.Token);
+
+        await _repository.Received(1).MergeItemsAsync(UserId, request.Items, cts.Token);
+    }
+
+    [Fact]
     public async Task GetCart_CartMissing_Returns404()
     {
         _repository

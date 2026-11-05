@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-02
+verified: 2026-11-05
 ---
 
 # Decisions
@@ -32,3 +32,5 @@ Architecture decision records: the context, the decision and its consequences. N
   back to the work queue; then a dead letter queue.
 - [AccountLifecycleInKeycloak](AccountLifecycleInKeycloak.md): sign-up, email confirmation, password reset and the
   password policy are realm settings; the password is set after the email is confirmed.
+- [AnonymousCartMerge](AnonymousCartMerge.md): the anonymous cart moves to the server in one transaction, capped by
+  the stock, when the signed-in client first reads the cart.

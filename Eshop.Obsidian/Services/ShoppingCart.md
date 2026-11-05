@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-10-27
+verified: 2026-11-05
 ---
 
 # ShoppingCart
@@ -20,6 +20,7 @@ Every endpoint needs a signed-in user and works on that user's cart: the id is t
 | --- | --- | --- |
 | GET | `/` | Get the cart (`CartResponse`); 404 while the user has none |
 | POST | `/items` | Add a product, body `{ "productId": 7, "quantity": 2 }`; creates the cart if the user has none. 404 unknown product, 409 not enough stock |
+| POST | `/merge` | Move the anonymous cart here, body `{ "items": [{ "productId": 7, "quantity": 2 }] }`, at most 100 items; 204. Sums quantities, caps by stock, skips unknown products ([AnonymousCartMerge](../Decisions/AnonymousCartMerge.md)) |
 | PUT | `/items/{productId}` | Change the quantity, body `{ "quantity": 3 }` (a bare number is rejected since #33); 400 above stock or not in the cart |
 | DELETE | `/items/{productId}` | Remove an item |
 | DELETE | `/items` | Remove all items (400 if the user has no cart) |

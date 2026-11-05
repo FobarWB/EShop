@@ -18,6 +18,11 @@ public interface IShoppingCartRepository
         CancellationToken cancellationToken
     );
     Task<bool> ClearCartAsync(string userId, CancellationToken cancellationToken);
+    Task MergeItemsAsync(
+        string userId,
+        IReadOnlyCollection<AddCartItemRequest> items,
+        CancellationToken cancellationToken
+    );
     Task<bool> UpdateItemQuantityAsync(
         string userId,
         int productId,

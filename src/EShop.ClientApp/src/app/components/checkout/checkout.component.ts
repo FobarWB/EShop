@@ -97,7 +97,11 @@ export class CheckoutComponent implements OnInit
     const value = this.form.getRawValue();
     this.ordersService.placeOrder({ ...value, shipRegion: value.shipRegion || null }, this.idempotencyKey).subscribe({
       // The API has emptied the cart; the confirmation page loads the order by its id.
-      next: order => this.router.navigate(['/orders', order.orderId], { queryParams: { placed: true } }),
+      next: order =>
+      {
+        this.cartService.refreshItemCount();
+        this.router.navigate(['/orders', order.orderId], { queryParams: { placed: true } });
+      },
       error: (error: HttpErrorResponse) =>
       {
         this.placing.set(false);

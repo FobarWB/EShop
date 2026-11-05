@@ -78,6 +78,29 @@ describe('LocalCartService', () =>
 
       expect(stored()).toEqual({ cartItems: [{ productId: 7, quantity: 2 }, { productId: 9, quantity: 1 }] });
     });
+
+    it('reads the stored items without any request', () =>
+    {
+      service.addItem(7, 2);
+
+      expect(service.readItems()).toEqual([{ productId: 7, quantity: 2 }]);
+    });
+
+    it('knows the quantity of one product', () =>
+    {
+      service.addItem(7, 2);
+
+      expect(service.quantityOf(7)).toBe(2);
+      expect(service.quantityOf(9)).toBe(0);
+    });
+
+    it('counts units, not distinct products', () =>
+    {
+      service.addItem(7, 2);
+      service.addItem(9, 3);
+
+      expect(service.itemCount()).toBe(5);
+    });
   });
 
   describe('getCart', () =>
