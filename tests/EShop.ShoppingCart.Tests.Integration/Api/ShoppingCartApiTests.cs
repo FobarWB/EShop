@@ -102,6 +102,41 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     }
 
     [Fact]
+    public async Task MergeCart_ValidItems_Returns204AndStoresItems()
+    {
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+
+        var response = await MergeAsync(new { productId, quantity = 2 });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await _database.LoadCartAsync(UserId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CartItems.ShouldHaveSingleItem()
+            .Quantity.ShouldBe(2);
+    }
+
+    // The attributes of the list elements are validated too, not only those of the request.
+    [Fact]
+    public async Task MergeCart_InvalidQuantity_Returns400ValidationProblem()
+    {
+        var response = await MergeAsync(new { productId = 1, quantity = 0 });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+    }
+
+    [Fact]
+    public async Task MergeCart_TooManyItems_Returns400ValidationProblem()
+    {
+        var items = Enumerable.Range(1, 101).Select(i => new { productId = i, quantity = 1 });
+
+        var response = await MergeAsync(items.ToArray());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+    }
+
+    [Fact]
     public async Task GetCart_Existing_Returns200WithItems()
     {
         var productId = await _database.SeedProductAsync(10, _cancellationToken);
@@ -284,6 +319,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Theory]
     [InlineData("GET", "api/carts/me")]
     [InlineData("POST", "api/carts/me/items")]
+    [InlineData("POST", "api/carts/me/merge")]
     [InlineData("PUT", "api/carts/me/items/1")]
     [InlineData("DELETE", "api/carts/me/items/1")]
     [InlineData("DELETE", "api/carts/me/items")]
@@ -325,6 +361,9 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
             new { productId, quantity },
             _cancellationToken
         );
+
+    private Task<HttpResponseMessage> MergeAsync(params object[] items) =>
+        _client.PostAsJsonAsync("api/carts/me/merge", new { items }, _cancellationToken);
 
     private Task<HttpResponseMessage> UpdateQuantityAsync(int productId, int quantity) =>
         _client.PutAsJsonAsync(

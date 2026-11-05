@@ -1,4 +1,5 @@
 using EShop.Data.Entities;
+using EShop.ShoppingCart.Dtos;
 using EShop.ShoppingCart.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -372,8 +373,108 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
         cleared.ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task MergeItems_NoServerCart_CreatesCartWithItems()
+    {
+        var first = await _database.SeedProductAsync(10, _cancellationToken);
+        var second = await _database.SeedProductAsync(10, _cancellationToken);
+
+        await MergeAsync((first, 2), (second, 3));
+
+        var cart = (await _database.LoadCartAsync(UserId, _cancellationToken)).ShouldNotBeNull();
+        cart.CartItems.Select(i => i.Quantity).OrderBy(q => q).ShouldBe(new[] { 2, 3 });
+    }
+
+    [Fact]
+    public async Task MergeItems_ProductInServerCart_AddsUpQuantity()
+    {
+        var productId = await SeedCartWithItemAsync(unitsInStock: 10, quantity: 2);
+
+        await MergeAsync((productId, 3));
+
+        (await LoadItemAsync()).Quantity.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task MergeItems_SumAboveStock_CapsByStock()
+    {
+        var productId = await SeedCartWithItemAsync(unitsInStock: 4, quantity: 3);
+
+        await MergeAsync((productId, 3));
+
+        (await LoadItemAsync()).Quantity.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task MergeItems_ServerCartAboveStock_KeepsQuantity()
+    {
+        var productId = await _database.SeedProductAsync(2, _cancellationToken);
+        await _database.SeedAsync(
+            new Cart { UserId = UserId, CartItems = { Item(productId, 5) } },
+            _cancellationToken
+        );
+
+        await MergeAsync((productId, 1));
+
+        (await LoadItemAsync()).Quantity.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task MergeItems_UnknownProduct_SkipsItAndMergesTheRest()
+    {
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+
+        await MergeAsync((999, 1), (productId, 2));
+
+        (await LoadItemAsync()).ProductId.ShouldBe(productId);
+    }
+
+    [Fact]
+    public async Task MergeItems_OnlyUnavailableProducts_CreatesNoCart()
+    {
+        var outOfStock = await _database.SeedProductAsync(0, _cancellationToken);
+
+        await MergeAsync((999, 1), (outOfStock, 1));
+
+        (await _database.LoadCartAsync(UserId, _cancellationToken)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task MergeItems_DuplicateProduct_AddsUpQuantity()
+    {
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+
+        await MergeAsync((productId, 1), (productId, 2));
+
+        (await LoadItemAsync()).Quantity.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task MergeItems_HugeQuantities_CapsByStockWithoutOverflow()
+    {
+        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+
+        await MergeAsync((productId, int.MaxValue), (productId, int.MaxValue));
+
+        (await LoadItemAsync()).Quantity.ShouldBe(10);
+    }
+
     private static CartItem Item(int productId, int quantity) =>
         new() { ProductId = productId, Quantity = quantity };
+
+    private async Task MergeAsync(params (int ProductId, int Quantity)[] items)
+    {
+        await using var db = _database.CreateContext();
+        var request = items
+            .Select(i => new AddCartItemRequest { ProductId = i.ProductId, Quantity = i.Quantity })
+            .ToList();
+        await new ShoppingCartRepository(db).MergeItemsAsync(UserId, request, _cancellationToken);
+    }
+
+    private async Task<CartItem> LoadItemAsync() =>
+        (await _database.LoadCartAsync(UserId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CartItems.ShouldHaveSingleItem();
 
     // Runs one repository call on a fresh DbContext, as one HTTP request would.
     private async Task<T> ActAsync<T>(Func<ShoppingCartRepository, Task<T>> action)

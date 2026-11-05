@@ -64,6 +64,58 @@ public class ShoppingCartRepository : IShoppingCartRepository
         return AddItemResult.Added;
     }
 
+    // One SaveChanges is one transaction: a failed merge leaves the cart as it was, so the client can retry.
+    public async Task MergeItemsAsync(
+        string userId,
+        IReadOnlyCollection<AddCartItemRequest> items,
+        CancellationToken cancellationToken
+    )
+    {
+        // long: quantities come from the browser, and their sum must not overflow int.
+        var quantities = items
+            .GroupBy(i => i.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(i => (long)i.Quantity));
+        var productIds = quantities.Keys.ToArray();
+
+        // Products deleted since they were added are simply absent here and are skipped.
+        var stocks = await _db
+            .Products.AsNoTracking()
+            .Where(p => productIds.Contains(p.ProductId))
+            .Select(p => new { p.ProductId, p.UnitsInStock })
+            .ToDictionaryAsync(p => p.ProductId, p => p.UnitsInStock, cancellationToken);
+
+        var cart = await LoadCartAsync(userId, cancellationToken);
+        foreach (var (productId, unitsInStock) in stocks)
+        {
+            var existingItem = cart?.CartItems.FirstOrDefault(i => i.ProductId == productId);
+            var quantityInCart = existingItem?.Quantity ?? 0;
+            var merged = (int)Math.Min(quantityInCart + quantities[productId], unitsInStock);
+
+            // No room left. A cart above the current stock stays as it is: the cart page marks it.
+            if (merged <= quantityInCart)
+            {
+                continue;
+            }
+
+            if (cart == null)
+            {
+                cart = new Cart { UserId = userId };
+                _db.Carts.Add(cart);
+            }
+
+            if (existingItem != null)
+            {
+                existingItem.Quantity = merged;
+            }
+            else
+            {
+                cart.CartItems.Add(new CartItem { ProductId = productId, Quantity = merged });
+            }
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<bool> RemoveItemFromCartAsync(
         string userId,
         int productId,
