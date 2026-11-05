@@ -50,6 +50,15 @@ describe('HeaderComponent', () =>
     expect(auth.signUp).toHaveBeenCalledOnce();
   });
 
+  it('links to the orders next to the cart, also for an anonymous user', () =>
+  {
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a[aria-label="My orders"]') as HTMLAnchorElement;
+
+    expect(link.getAttribute('href')).toBe('/account/orders');
+  });
+
   it('links a signed-in user to the account pages and hides sign-up', () =>
   {
     auth.isAuthenticated.set(true);

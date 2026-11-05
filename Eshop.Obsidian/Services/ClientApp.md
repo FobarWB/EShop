@@ -59,9 +59,10 @@ Sign-in with Keycloak through `angular-auth-oidc-client` (see [Authentication](.
 - `AuthService` wraps the library for the components: signals `isAuthenticated`, `userName` (`preferred_username`),
   `isAdmin` (realm role `admin` from the access token), `accountUrl` (the Keycloak account console, `<authority>/account`),
   `signIn()`, `signUp()` (`prompt=create` opens the Keycloak registration form), `signOut()`.
-- The header shows "Sign in" and "Sign up", or the user name with "My account", "My orders" and "Sign out". Edit and
-  "Add new" buttons on the home and category pages are shown only to admins: convenience only, the APIs refuse writes
-  without the role.
+- The header has one account menu: "Account" with "Sign in" and "Sign up", or the user name with "My account",
+  "My orders" and "Sign out". The orders button next to the cart is shown to everyone: the route guard sends an
+  anonymous visitor to the sign-in. Edit and "Add new" buttons on the home and category pages are shown only to admins:
+  convenience only, the APIs refuse writes without the role.
 - `/checkout`, `/orders/:id` and the `/account` pages use the library's `autoLoginPartialRoutesGuard`: an anonymous visitor is sent to
   Keycloak and brought back to the requested route after the sign-in (checked by hand). Other pages need no sign-in
   (the cart works for anonymous users too, edits open in modals).
