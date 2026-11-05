@@ -103,7 +103,7 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
 - **SPA has no server of its own.** `ng serve` / Vite are development tools; in production a static server serves
   the build. A Node server appears only with server-side rendering (Next.js, Angular SSR).
 
-Applied: `src/EShop.*/Dockerfile` (four APIs, `EShop.Data` = migrator, `EShop.ClientApp` = nginx), `.dockerignore`,
+Applied: `src/EShop.*/Dockerfile` (five APIs, `EShop.Data` = migrator, `EShop.ClientApp` = nginx), `.dockerignore`,
 services `migrator`, `productapi`, `categoryapi`, `shoppingcart`, `orderapi`, `client` in [docker-compose.yml](../../docker-compose.yml)
 (`restart: unless-stopped` for the shop services). Manual cycle:
 `docker build -f src/EShop.ProductApi/Dockerfile -t eshop-productapi:dev .`, `docker history`, `docker run --network

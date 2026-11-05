@@ -196,6 +196,13 @@ services:
       context: .
       dockerfile: src/EShop.OrderApi/Dockerfile
 
+  customerapi:
+    <<: *api
+    image: ghcr.io/fobarwb/eshop-customerapi:${ESHOP_TAG:-local}
+    build:
+      context: .
+      dockerfile: src/EShop.CustomerApi/Dockerfile
+
   # Worker: consumes the order events from RabbitMQ and sends the emails to Mailpit. No HTTP, no published port.
   notificationservice:
     profiles: [app]
@@ -237,6 +244,8 @@ services:
       shoppingcart:
         condition: service_healthy
       orderapi:
+        condition: service_healthy
+      customerapi:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]

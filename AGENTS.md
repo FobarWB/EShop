@@ -14,6 +14,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.CategoryApi/` | Categories REST API | https://localhost:5003 |
 | `src/EShop.ShoppingCart/` | Shopping cart REST API | https://localhost:5004 |
 | `src/EShop.OrderApi/` | Orders REST API: checkout from the cart | https://localhost:5005 |
+| `src/EShop.CustomerApi/` | Customer REST API: the signed-in user's phone and saved shipping addresses | https://localhost:5006 |
 | `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
@@ -22,7 +23,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderCancelled`): the contract its consumers deserialize | — |
 | `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
-| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the four APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
+| `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the five APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
 | `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin1234` and `customer`/`customer1234` (local only, never on a server) | — |
 | `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
@@ -39,7 +40,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 - CORS origins come from `Cors:AllowedOrigins` in each API's `appsettings.json` (`http://localhost:4200`);
   our client is same-origin through the proxies and does not need it.
 - Authentication: Keycloak issues the tokens, the APIs validate them (`Authentication:Authority`). Product and category
-  reads are public, writes need the realm role `admin`; every cart and order endpoint needs a signed-in user (`/api/carts/me`, `/api/orders`).
+  reads are public, writes need the realm role `admin`; every cart, order and customer endpoint needs a signed-in user (`/api/carts/me`, `/api/orders`, `/api/customers/me`).
   The client reads `authority` and `clientId` from `src/EShop.ClientApp/public/config.json` at start.
 - In containers the APIs read the Keycloak metadata from `keycloak:8080` (`Authentication__MetadataAddress`);
   the token issuer stays `http://localhost:8180`.
@@ -65,7 +66,7 @@ GitHub is the source of truth for progress; do not copy task status into files.
   is stopped (startup type Manual); its client tools (`psql`, `pg_dump`) in `C:\Program Files\PostgreSQL\18\bin`
   (not on `PATH`) still work against the container.
 - The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
-  (`UserSecretsId` `eshop`, shared by the four APIs and NotificationService); it is never committed.
+  (`UserSecretsId` `eshop`, shared by the five APIs and NotificationService); it is never committed.
   The same user-secrets hold `RabbitMq:Password` (the value of `RABBITMQ_PASSWORD` in `.env`) for OrderApi and NotificationService.
 - Windows PowerShell may block `.ps1` scripts (execution policy): use `npm.cmd` or
   `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
@@ -82,7 +83,7 @@ docker compose --profile app up -d --build --wait   # the whole shop in containe
                                                     # docker compose --profile app pull; up -d --no-build --wait
 docker compose --profile app down                   # stop the shop and the infrastructure (data stays)
 dotnet build EShop.sln                              # whole solution
-dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart, OrderApi
+dotnet run --project src/EShop.ProductApi           # same for CategoryApi, ShoppingCart, OrderApi, CustomerApi
 dotnet run --project src/EShop.NotificationService  # worker: order events → emails in Mailpit (http://localhost:8025)
                                                     # API reference (Development): https://localhost:<port>/scalar
 cd src/EShop.ClientApp; npm ci; npm start           # Angular dev server on :4200
@@ -99,8 +100,8 @@ curl.exe -d "grant_type=password&client_id=eshop-dev&username=customer&password=
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same build and tests on every pull request and push to `master`,
-then builds the seven Docker images (job `images`); only on `master` it pushes them to ghcr.io as
-`ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|orderapi|notificationservice|client|migrator>` with the tags `sha-<commit>` and `latest`.
+then builds the eight Docker images (job `images`); only on `master` it pushes them to ghcr.io as
+`ghcr.io/fobarwb/eshop-<productapi|categoryapi|shoppingcart|orderapi|customerapi|notificationservice|client|migrator>` with the tags `sha-<commit>` and `latest`.
 The packages are public (they inherit the visibility of this public repository): `docker pull` needs no login.
 Test rules: `.claude/rules/testing.md`. After a change, build and test the affected projects and report which checks actually ran.
 

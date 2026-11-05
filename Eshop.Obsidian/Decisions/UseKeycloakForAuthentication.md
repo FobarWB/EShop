@@ -38,4 +38,5 @@ customer data (addresses, phone, carts, orders), keyed by the token's `sub`.
   and is imported at start.
 - The realm file holds development users and a password-grant client; a server needs its own realm configuration (#59).
 - Resources: Keycloak needs about 0.5–1 GB of RAM; the server in #59 needs about 2 GB.
-- Open: the Northwind `customers` table (5-character ids) vs new customer records, decided in #44.
+- The Northwind `customers` table (5-character ids, required `company_name`: business customers) is not reused:
+  shop customers get `customer_profiles` and `customer_addresses` keyed by `user_id` (#44, see [CustomerApi](../Services/CustomerApi.md)).
