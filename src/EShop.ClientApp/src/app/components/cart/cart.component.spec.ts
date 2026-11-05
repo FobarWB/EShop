@@ -46,7 +46,12 @@ describe('CartComponent', () =>
     httpTesting = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => httpTesting.verify());
+  afterEach(() =>
+  {
+    // A confirmed change re-reads the cart for the header counter (tested in cart.service.spec.ts).
+    httpTesting.match(cartUrl);
+    httpTesting.verify();
+  });
 
   it('shows each item with its product and category', () =>
   {

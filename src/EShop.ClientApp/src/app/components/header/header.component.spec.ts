@@ -4,6 +4,13 @@ import { provideRouter } from '@angular/router';
 
 import { HeaderComponent } from './header.component';
 import { AuthService } from '../../services/auth.service';
+import { CartService } from '../../services/cart.service';
+
+class FakeCartService
+{
+  readonly itemCount = signal(0);
+  readonly refreshItemCount = vi.fn();
+}
 
 class FakeAuthService
 {
@@ -19,13 +26,19 @@ describe('HeaderComponent', () =>
 {
   let fixture: ComponentFixture<HeaderComponent>;
   let auth: FakeAuthService;
+  let cart: FakeCartService;
 
   beforeEach(async () =>
   {
     auth = new FakeAuthService();
+    cart = new FakeCartService();
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
-      providers: [provideRouter([]), { provide: AuthService, useValue: auth }]
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: auth },
+        { provide: CartService, useValue: cart }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(HeaderComponent);
@@ -83,6 +96,57 @@ describe('HeaderComponent', () =>
 
     expect(auth.signOut).toHaveBeenCalledOnce();
   });
+
+  it('hides the cart counter while the cart is empty', () =>
+  {
+    fixture.detectChanges();
+
+    expect(cartCount()).toBeNull();
+    expect(cartButton().getAttribute('aria-label')).toBe('Cart');
+  });
+
+  it('shows the number of units on the cart button and updates it', () =>
+  {
+    cart.itemCount.set(3);
+    fixture.detectChanges();
+    expect(cartCount()?.textContent?.trim()).toBe('3');
+
+    cart.itemCount.set(4);
+    fixture.detectChanges();
+
+    expect(cartCount()?.textContent?.trim()).toBe('4');
+    expect(cartButton().getAttribute('aria-label')).toBe('Cart, 4 items');
+  });
+
+  it('shortens a large number', () =>
+  {
+    cart.itemCount.set(100);
+    fixture.detectChanges();
+
+    expect(cartCount()?.textContent?.trim()).toBe('99+');
+    expect(cartButton().getAttribute('aria-label')).toBe('Cart, 100 items');
+  });
+
+  it('loads the counter at start and again after the sign-in', () =>
+  {
+    fixture.detectChanges();
+    expect(cart.refreshItemCount).toHaveBeenCalledOnce();
+
+    auth.isAuthenticated.set(true);
+    fixture.detectChanges();
+
+    expect(cart.refreshItemCount).toHaveBeenCalledTimes(2);
+  });
+
+  function cartButton(): HTMLButtonElement
+  {
+    return fixture.nativeElement.querySelector('button.btn-cart');
+  }
+
+  function cartCount(): HTMLElement | null
+  {
+    return fixture.nativeElement.querySelector('.cart-count');
+  }
 
   function button(label: string, required = true): HTMLButtonElement
   {

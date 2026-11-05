@@ -1,5 +1,6 @@
 import { Component, TemplateRef, ViewChild, ViewContainerRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, NgClass } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SideBarComponent } from '../side-bar/side-bar.component';
 import { IProduct } from '../../../models/product.model';
@@ -35,6 +36,8 @@ export class PageComponent
   categoryName?: string = undefined;
   isLoading: boolean = false;
   filters = new Map<string, any>();
+  // The product whose add failed: the message appears on its card, next to the click.
+  protected addError: { productId: number; message: string } | null = null;
 
   constructor(
     private router: Router,
@@ -179,10 +182,15 @@ export class PageComponent
     this.sideBarComponent.removeAllFilters();
   }
 
-  AddProductToCart(product: IProduct): void 
+  AddProductToCart(product: IProduct): void
   {
     const quantity = 1;
-    this.cartService.addItemToCart(product.productId, quantity).subscribe();
-    // debugger;
+    this.addError = null;
+    this.cartService.addItemToCart(product.productId, quantity, product.unitsInStock).subscribe({
+      error: (error: HttpErrorResponse) => this.addError = {
+        productId: product.productId,
+        message: this.cartService.addItemErrorMessage(error)
+      }
+    });
   }
 }

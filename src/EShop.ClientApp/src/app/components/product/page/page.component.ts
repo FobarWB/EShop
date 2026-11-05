@@ -1,5 +1,7 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
+import { CartService } from '../../../services/cart.service';
 import { ProductService } from '../../../services/products.service';
 import { IProduct } from '../../../models/product.model';
 import { SpinnerComponent } from "../../spinner/spinner.component";
@@ -17,10 +19,12 @@ export class PageComponent
   productId?: number;
   productName?: string;
   isLoading: boolean = false;
+  protected addError: string | null = null;
 
   constructor(private router: Router,
     private activatedRoute: ActivatedRoute,
-    private productService: ProductService) { }
+    private productService: ProductService,
+    private cartService: CartService) { }
 
   ngOnInit(): void
   {
@@ -40,6 +44,18 @@ export class PageComponent
         {
           this.router.navigate(["/"]);
         });
+    });
+  }
+
+  protected addToCart(): void
+  {
+    if (!this.product)
+    {
+      return;
+    }
+    this.addError = null;
+    this.cartService.addItemToCart(this.product.productId, 1, this.product.unitsInStock).subscribe({
+      error: (error: HttpErrorResponse) => this.addError = this.cartService.addItemErrorMessage(error)
     });
   }
 

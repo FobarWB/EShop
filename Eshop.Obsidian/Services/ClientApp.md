@@ -39,7 +39,7 @@ See [RelativeApiUrlsBehindProxy](../Decisions/RelativeApiUrlsBehindProxy.md).
   the pre-22 behavior): the code changes state inside `subscribe` and relies on it. New components default to `OnPush`.
 - `provideHttpClient(withXhr())` keeps the XHR backend; Angular 22 defaults to `fetch`.
 - The `initial` budget is raised to 1 MB warning / 1.5 MB error until the bundle is reduced ([#27](https://github.com/FobarWB/EShop/issues/27));
-  it is 1.14 MB after `angular-auth-oidc-client` was added (#41) and 1.16 MB after the checkout pages (#42).
+  it is 1.14 MB after `angular-auth-oidc-client` was added (#41), 1.16 MB after the checkout pages (#42) and 1.18 MB after #24.
 - Unit tests run on Vitest (`@angular/build:unit-test`, jsdom): `npm test`. The category page tests stub
   `ResizeObserver`: jsdom has none, and the price slider (`ngx-slider`) needs it.
 - Docker image ([Dockerfile](../../src/EShop.ClientApp/Dockerfile)): built on `node:24-alpine` (`npm ci`, `npm run build`),
@@ -90,6 +90,13 @@ The page changes its state only after a change is confirmed (remove, quantity, c
 A failed request keeps the confirmed state, restores the quantity input and shows an error message.
 In the anonymous mode `CartService` emits once after each change, like the API calls.
 
+- After the sign-in `CartService.getCart()` moves the local items to the server first, once, and clears `localStorage`
+  after a success ([AnonymousCartMerge](../Decisions/AnonymousCartMerge.md)).
+- Anonymous adds are checked against the stock in the browser and refused like the API's 409.
+- The header shows `CartService.itemCount` on the cart button: units, not distinct products, hidden at 0, `99+` above 99.
+  It is read at start and after every change: from `localStorage` without a request for an anonymous user,
+  by `GET /api/carts/me` for a signed-in one. A failed refresh keeps the last number.
+
 - Each item shows a mark when it cannot be ordered as it is (`cartItemProblem()` in `cart-item.model.ts`, the same
   rules as OrderApi): "No longer available" (discontinued or no price; quantity controls disabled) or "Only N left" /
   "Out of stock" ("+" stops at the stock). CHECKOUT is disabled for an empty cart and while an item is marked.
@@ -127,8 +134,14 @@ In the anonymous mode `CartService` emits once after each change, like the API c
 - `/account/orders` (`AccountOrdersComponent`): 10 orders per page, newest first, Previous and Next from the response's
   `page`, `pageSize` and `totalCount`. A row links to `/orders/:id`, where the order can be cancelled.
 
+## Catalog pages
+
+The category and product pages show `In stock: N` or `Out of stock`; the add button (cart icon, `Buy`) is disabled at 0.
+Both add one unit and stay on the page. A failed add shows `No more available` (409) or `Could not add the item`
+next to the button.
+
 ## Known issues
 
-- The anonymous cart is not moved to the server on sign-in ([#24](https://github.com/FobarWB/EShop/issues/24)):
-  an anonymous visitor who signs in for the checkout finds an empty server cart.
+- A product deleted while it is in an anonymous cart stays in the header counter but not on the cart page, so it cannot
+  be removed by hand; the merge after the sign-in drops it.
 - The category page filters and sorts in the browser (see [Lists](#lists), #61).
