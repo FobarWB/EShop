@@ -1,0 +1,47 @@
+<section class="addresses">
+  <h5>Shipping addresses</h5>
+  @if (errorMessage(); as message) {
+  <div class="alert alert-danger" role="alert">{{ message }}</div>
+  }
+  @for (address of addresses(); track address.addressId) {
+  <div class="address-row border-bottom py-2">
+    <address class="mb-1">
+      {{ address.recipientName }}
+      @if (address.isDefault) {
+      <span class="badge text-bg-secondary address-default">Default</span>
+      }
+      <br />
+      {{ address.address }}<br />
+      {{ address.postalCode }} {{ address.city }}@if (address.region) {, {{ address.region }}}<br />
+      {{ address.country }}
+    </address>
+    <button type="button" class="btn btn-sm btn-outline-dark me-2 edit-address" (click)="startEditing(address)">Edit</button>
+    @if (!address.isDefault) {
+    <button type="button" class="btn btn-sm btn-outline-dark me-2 make-default" (click)="makeDefault(address)">Make default</button>
+    }
+    <button type="button" class="btn btn-sm btn-outline-danger delete-address" (click)="deleteAddress(address)">Delete</button>
+  </div>
+  } @empty {
+  <p class="no-addresses">No saved addresses yet.</p>
+  }
+  @if (editing() === null) {
+  @if (canAdd()) {
+  <button type="button" class="btn btn-dark mt-3 add-address" (click)="startAdding()">Add address</button>
+  }
+  } @else {
+  <form class="address-form mt-3" [formGroup]="form" (ngSubmit)="saveAddress()">
+    @for (field of fields; track field.name) {
+    <div class="mb-3">
+      <label class="form-label" [for]="field.name">{{ field.label }}</label>
+      <input class="form-control" [id]="field.name" [formControlName]="field.name" [attr.maxlength]="field.maxLength" />
+    </div>
+    }
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="isDefault" formControlName="isDefault" />
+      <label class="form-check-label" for="isDefault">Use as the default address</label>
+    </div>
+    <button type="submit" class="btn btn-dark me-2 save-address" [disabled]="form.invalid || saving()">Save</button>
+    <button type="button" class="btn btn-outline-dark" (click)="cancelEditing()">Cancel</button>
+  </form>
+  }
+</section>

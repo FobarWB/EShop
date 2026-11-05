@@ -1,7 +1,7 @@
 ---
 type: topic
-verified: 2026-10-26
-issue: 41
+verified: 2026-11-03
+issue: 44
 ---
 
 # Authentication
@@ -31,7 +31,11 @@ Related: [UseKeycloakForAuthentication](../Decisions/UseKeycloakForAuthenticatio
   later changes made in the admin console stay in the database.
 - Realm contents: role `admin`; client `eshop-client` (public, Code + PKCE, redirect URIs for :4200 and :8080,
   audience mapper `eshop-api`); client `eshop-dev` (password grant, tokens from the command line);
-  development users `admin`/`admin` and `customer`/`customer`. Development only: the server realm comes in #59.
+  development users `admin`/`admin1234` and `customer`/`customer1234`. Development only: the server realm comes in #59.
+- Sign-up, email confirmation and password reset are realm settings, emails go to Mailpit:
+  see [AccountLifecycleInKeycloak](../Decisions/AccountLifecycleInKeycloak.md). To re-import the realm after
+  changing the file: `docker compose exec keycloak bash -c '/opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user $KC_BOOTSTRAP_ADMIN_USERNAME --password $KC_BOOTSTRAP_ADMIN_PASSWORD && /opt/keycloak/bin/kcadm.sh delete realms/eshop'`,
+  then `docker compose restart keycloak`.
 - Two different admins: the Keycloak administrator (master realm, admin console, password in `.env`) and the shop user
   `admin` (realm `eshop`, role `admin`).
 - APIs: [EShopAuthenticationExtensions](../../src/EShop.ServiceDefaults/EShopAuthenticationExtensions.cs) in
@@ -46,7 +50,7 @@ Related: [UseKeycloakForAuthentication](../Decisions/UseKeycloakForAuthenticatio
 - API tests do not need Keycloak: `EShopApiFactory` replaces JwtBearer with `TestAuthHandler`
   (user and roles from the `X-Test-User` / `X-Test-Roles` headers, see [Testing](Testing.md)).
 - A token for manual API calls (development only):
-  `curl -d "grant_type=password&client_id=eshop-dev&username=customer&password=customer" http://localhost:8180/realms/eshop/protocol/openid-connect/token`.
+  `curl -d "grant_type=password&client_id=eshop-dev&username=customer&password=customer1234" http://localhost:8180/realms/eshop/protocol/openid-connect/token`.
 
 ## Debugging lessons
 
@@ -55,6 +59,8 @@ Related: [UseKeycloakForAuthentication](../Decisions/UseKeycloakForAuthenticatio
   Fix: `Authentication__MetadataAddress=http://keycloak:8080/...` for the APIs in compose, while the issuer stays
   `http://localhost:8180` (`KC_HOSTNAME`; `KC_HOSTNAME_BACKCHANNEL_DYNAMIC` lets the key and token URLs follow the
   internal address).
+- **"Import skipped" after a restart** means the realm still exists: the file is not applied. A realm the import cannot
+  create (a password that fails the policy) stops Keycloak with an error naming the message key.
 - **Seconds of delay from the IDE on Windows** were connections, not queries: see `::1` in [Docker](Docker.md).
 
 ## Open questions

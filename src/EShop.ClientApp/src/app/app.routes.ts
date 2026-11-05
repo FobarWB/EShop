@@ -7,6 +7,8 @@ import { CartComponent } from './components/cart/cart.component';
 import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 import { CheckoutComponent } from './components/checkout/checkout.component';
 import { OrderComponent } from './components/order/order.component';
+import { AccountComponent } from './components/account/account.component';
+import { AccountOrdersComponent } from './components/account/orders/orders.component';
 
 export const routes: Routes = [
     {
@@ -31,6 +33,16 @@ export const routes: Routes = [
     {
         path: 'orders/:id',
         component: OrderComponent,
+        canActivate: [autoLoginPartialRoutesGuard]
+    },
+    {
+        path: 'account',
+        component: AccountComponent,
+        canActivate: [autoLoginPartialRoutesGuard]
+    },
+    {
+        path: 'account/orders',
+        component: AccountOrdersComponent,
         canActivate: [autoLoginPartialRoutesGuard]
     },
     {

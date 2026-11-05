@@ -51,15 +51,31 @@
                   <span class="ms-2">{{ auth.userName() }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" routerLink="/account">My account</a></li>
+                  <li><a class="dropdown-item" routerLink="/account/orders">My orders</a></li>
                   <li><button class="dropdown-item" type="button" (click)="auth.signOut()">Sign out</button></li>
                 </ul>
               </div>
             } @else {
-              <button class="btn d-flex align-items-center" type="button" (click)="auth.signIn()">
-                <i class="bi bi-person-circle fs-2"></i>
-                <span class="ms-2">Sign in</span>
-              </button>
+              <div class="dropdown">
+                <button class="btn d-flex align-items-center dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="bi bi-person-circle fs-2"></i>
+                  <span class="ms-2">Account</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><button class="dropdown-item" type="button" (click)="auth.signIn()">Sign in</button></li>
+                  <li><hr class="dropdown-divider" /></li>
+                  <li><span class="dropdown-item-text small text-muted">New customer?</span></li>
+                  <li><button class="dropdown-item" type="button" (click)="auth.signUp()">Sign up</button></li>
+                </ul>
+              </div>
             }
+          </div>
+          <div class="nav-link ms-4">
+            <a class="btn btn-cart" routerLink="/account/orders" title="My orders" aria-label="My orders">
+              <i class="bi bi-box-seam fs-2"></i>
+            </a>
           </div>
           <div class="nav-link ms-4">
             <button class="btn btn-cart" [routerLink]="['/cart']">

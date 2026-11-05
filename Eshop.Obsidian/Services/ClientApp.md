@@ -1,11 +1,11 @@
 ---
 type: service
-verified: 2026-10-28
+verified: 2026-11-05
 ---
 
 # ClientApp
 
-Angular 22 single-page application: catalog, product pages, the shopping cart and the checkout.
+Angular 22 single-page application: catalog, product pages, the shopping cart, the checkout and the personal account.
 
 - Project: [EShop.ClientApp](../../src/EShop.ClientApp/)
 - Local URL: http://localhost:4200 (`npm start`); in containers http://localhost:8080 (service `client`)
@@ -18,14 +18,16 @@ Angular 22 single-page application: catalog, product pages, the shopping cart an
 | `/privacy` | Privacy |
 | `/cart` | Shopping cart |
 | `/checkout` | Checkout (sign-in required) |
-| `/orders/:id` | Order confirmation: status and cancel (sign-in required) |
+| `/orders/:id` | One order: status and cancel; `?placed=true` after the checkout shows the thanks (sign-in required) |
+| `/account` | Name and email from the token, phone, saved addresses (sign-in required) |
+| `/account/orders` | Order history (sign-in required) |
 | `/:categoryName/c{id}` | Category page |
 | `/:productName/p{id}` | Product page |
 
 ## Dependencies
 
-Calls [ProductApi](ProductApi.md), [CategoryApi](CategoryApi.md), [ShoppingCart](ShoppingCart.md) and [OrderApi](OrderApi.md).
-The services call relative URLs (`/api/products`, `/api/categories`, `/api/carts`, `/api/orders`): `ng serve` forwards them with
+Calls [ProductApi](ProductApi.md), [CategoryApi](CategoryApi.md), [ShoppingCart](ShoppingCart.md), [OrderApi](OrderApi.md) and [CustomerApi](CustomerApi.md).
+The services call relative URLs (`/api/products`, `/api/categories`, `/api/carts`, `/api/orders`, `/api/customers`): `ng serve` forwards them with
 [proxy.conf.json](../../src/EShop.ClientApp/proxy.conf.json) (`secure: false`: Node does not trust the Windows
 certificate store), nginx with [nginx.conf](../../src/EShop.ClientApp/nginx.conf).
 See [RelativeApiUrlsBehindProxy](../Decisions/RelativeApiUrlsBehindProxy.md).
@@ -55,10 +57,13 @@ Sign-in with Keycloak through `angular-auth-oidc-client` (see [Authentication](.
   (another environment mounts its own file over it). `withAppInitializerAuthCheck()` finishes a sign-in returning
   with `?code=...` before the app renders.
 - `AuthService` wraps the library for the components: signals `isAuthenticated`, `userName` (`preferred_username`),
-  `isAdmin` (realm role `admin` from the access token), `signIn()`, `signOut()`.
-- The header shows "Sign in", or the user name with "Sign out". Edit and "Add new" buttons on the home and category
-  pages are shown only to admins: convenience only, the APIs refuse writes without the role.
-- `/checkout` and `/orders/:id` use the library's `autoLoginPartialRoutesGuard`: an anonymous visitor is sent to
+  `isAdmin` (realm role `admin` from the access token), `accountUrl` (the Keycloak account console, `<authority>/account`),
+  `signIn()`, `signUp()` (`prompt=create` opens the Keycloak registration form), `signOut()`.
+- The header has one account menu: "Account" with "Sign in" and "Sign up", or the user name with "My account",
+  "My orders" and "Sign out". The orders button next to the cart is shown to everyone: the route guard sends an
+  anonymous visitor to the sign-in. Edit and "Add new" buttons on the home and category pages are shown only to admins:
+  convenience only, the APIs refuse writes without the role.
+- `/checkout`, `/orders/:id` and the `/account` pages use the library's `autoLoginPartialRoutesGuard`: an anonymous visitor is sent to
   Keycloak and brought back to the requested route after the sign-in (checked by hand). Other pages need no sign-in
   (the cart works for anonymous users too, edits open in modals).
 
@@ -93,18 +98,34 @@ In the anonymous mode `CartService` emits once after each change, like the API c
 
 - `/checkout` shows the cart summary (items, shipping 5, total) with the same marks and a reactive address form
   (the lengths of OrderApi). "Place order" is disabled while the form is invalid, an item is marked or a request is pending.
+- The form is prefilled with the first saved address (the default one comes first), only while it is untouched
+  (`form.pristine`). A failed request leaves the form empty: saved addresses are a convenience, not a requirement.
 - One `crypto.randomUUID()` per page visit is the `Idempotency-Key` of every try, so a retry after an error cannot
   place a second order ([IdempotentCheckout](../Decisions/IdempotentCheckout.md)).
 - 409: a message, the cart is reloaded (current stock), and the items named in `productIds` are marked even if the
   reloaded cart looks fine. 400 (empty cart): a message and a reload.
-- Success: the API has emptied the cart; the client opens `/orders/:id`, which loads the order by id (works after a reload).
+- Success: the API has emptied the cart; the client opens `/orders/:id?placed=true`, which loads the order by id
+  (works after a reload).
 
 ## Order page
 
 - `/orders/:id` shows the order with its status. "Cancel order" is shown for `Pending` and `Paid`
   (`cancellableStatuses` in `order.model.ts`, a copy of the server rule for the button only) and asks for confirmation.
 - Success shows the cancelled order from the response; 409 (shipped meanwhile, or cancelled in another tab) shows
-  "The order can no longer be cancelled." and keeps the page. The order list is #44.
+  "The order can no longer be cancelled." and keeps the page.
+- The heading is "Thank you for your order!" with `?placed=true` (set by the checkout), otherwise `Order #N`.
+
+## Account
+
+- `/account` (`AccountComponent`): name and email come from the token through `GET /api/customers/me` and are read-only;
+  a link opens the Keycloak account console for name, email and password. The phone is saved with `PUT`; the pattern is a
+  copy of the server rule for an early hint.
+- `AddressesComponent` on the same page: list (default first), one form for adding and editing, "Make default", delete
+  after a confirmation. The list is reloaded after every change: a new default also clears the flag of another address.
+  409 (limit, or the default changed in another tab) shows the API's `title` and reloads. "Add address" is hidden at
+  10 addresses (`maxAddresses`, a copy of the server limit for the button only).
+- `/account/orders` (`AccountOrdersComponent`): 10 orders per page, newest first, Previous and Next from the response's
+  `page`, `pageSize` and `totalCount`. A row links to `/orders/:id`, where the order can be cancelled.
 
 ## Known issues
 

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, ParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
 import { OrderComponent } from './order.component';
@@ -26,16 +26,21 @@ describe('OrderComponent', () =>
 {
   let fixture: ComponentFixture<OrderComponent>;
   let httpTesting: HttpTestingController;
+  let route: { paramMap: unknown; snapshot: { queryParamMap: ParamMap } };
 
   beforeEach(async () =>
   {
+    route = {
+      paramMap: of(convertToParamMap({ id: '7' })),
+      snapshot: { queryParamMap: convertToParamMap({}) }
+    };
     await TestBed.configureTestingModule({
       imports: [OrderComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: '7' })) } }
+        { provide: ActivatedRoute, useValue: route }
       ]
     }).compileComponents();
 
@@ -59,6 +64,25 @@ describe('OrderComponent', () =>
     expect(cells.map(cell => text(cell).trim())).toEqual(['Chai', '€ 18.00', '2']);
     expect(page).toContain('Total: € 41.00');
     expect(page).toContain('10115 Berlin');
+  });
+
+  it('thanks the buyer when coming from the checkout', () =>
+  {
+    route.snapshot.queryParamMap = convertToParamMap({ placed: 'true' });
+    fixture = TestBed.createComponent(OrderComponent);
+
+    load(order);
+
+    expect(text(fixture.nativeElement.querySelector('h4'))).toContain('Thank you for your order!');
+  });
+
+  it('shows only the order number when opened from the order list', () =>
+  {
+    load(order);
+
+    const heading = text(fixture.nativeElement.querySelector('h4'));
+    expect(heading).toContain('Order #7');
+    expect(heading).not.toContain('Thank you');
   });
 
   it('says the order was not found on 404', () =>

@@ -17,4 +17,12 @@ public static class ClaimsPrincipalExtensions
     /// and a token issued without the scope <c>email</c> has no such claim.
     /// </summary>
     public static string? GetUserEmail(this ClaimsPrincipal user) => user.FindFirstValue("email");
+
+    /// <summary>The first name of the signed-in user (<c>given_name</c>), or null when the token has none.</summary>
+    public static string? GetGivenName(this ClaimsPrincipal user) =>
+        user.FindFirstValue("given_name");
+
+    /// <summary>The last name of the signed-in user (<c>family_name</c>), or null when the token has none.</summary>
+    public static string? GetFamilyName(this ClaimsPrincipal user) =>
+        user.FindFirstValue("family_name");
 }

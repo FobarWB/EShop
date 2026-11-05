@@ -1,0 +1,29 @@
+<div class="container py-4">
+  <h4><b>My account</b></h4>
+  <p><a routerLink="/account/orders">My orders</a></p>
+  @if (errorMessage(); as message) {
+  <div class="alert alert-danger" role="alert">{{ message }}</div>
+  }
+  @if (profile(); as profile) {
+  <section class="mb-4">
+    <h5>Personal details</h5>
+    <p class="account-name mb-1">{{ profile.firstName }} {{ profile.lastName }}</p>
+    <p class="account-email">{{ profile.email }}</p>
+    @if (auth.accountUrl(); as url) {
+    <p><a class="account-console" [href]="url" target="_blank" rel="noopener">Change name, email or password</a></p>
+    }
+  </section>
+  <form class="phone-form mb-4" [formGroup]="form" (ngSubmit)="savePhone()">
+    <label class="form-label" for="phone">Phone</label>
+    <input class="form-control mb-2" id="phone" formControlName="phone" maxlength="24" />
+    @if (form.controls.phone.invalid) {
+    <div class="text-danger small mb-2 phone-error">Use digits, spaces, parentheses and hyphens.</div>
+    }
+    <button type="submit" class="btn btn-dark save-phone" [disabled]="form.invalid || saving()">Save</button>
+    @if (saved()) {
+    <span class="text-success ms-2 phone-saved">Saved</span>
+    }
+  </form>
+  <app-addresses />
+  }
+</div>

@@ -5,12 +5,14 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { provideRouter, Router } from '@angular/router';
 
 import { CheckoutComponent } from './checkout.component';
+import { IAddress } from '../../models/address.model';
 import { ICart } from '../../models/cart.model';
 import { IOrder } from '../../models/order.model';
 import { AuthService } from '../../services/auth.service';
 
 const cartUrl = '/api/carts/me';
 const ordersUrl = '/api/orders';
+const addressesUrl = '/api/customers/me/addresses';
 
 // Chai 18 € × 2 + Aniseed Syrup 10 € × 1 = 46 €; total with 5 € shipping = 51 €.
 const cart: ICart = {
@@ -38,6 +40,11 @@ const address = {
 const order: IOrder = {
   orderId: 7, orderDate: '2026-10-27T12:00:00Z', status: 'Pending', freight: 5, total: 51, items: [],
   ...address, shipRegion: null
+};
+
+const saved: IAddress = {
+  addressId: 1, recipientName: 'Jane Saved', address: '5 Saved St', city: 'Paris', region: 'IDF',
+  postalCode: '75001', country: 'France', isDefault: true
 };
 
 describe('CheckoutComponent', () =>
@@ -97,7 +104,45 @@ describe('CheckoutComponent', () =>
     expect(req.request.body).toEqual({ ...address, shipRegion: null });
     expect(req.request.headers.get('Idempotency-Key')).toBeTruthy();
     req.flush(order, { status: 201, statusText: 'Created' });
-    expect(navigate).toHaveBeenCalledWith(['/orders', 7]);
+    expect(navigate).toHaveBeenCalledWith(['/orders', 7], { queryParams: { placed: true } });
+  });
+
+  it('prefills the form with the first saved address and allows ordering', () =>
+  {
+    loadCart(cart, [saved]);
+
+    expect(input('shipName').value).toBe('Jane Saved');
+    expect(input('shipAddress').value).toBe('5 Saved St');
+    expect(input('shipCity').value).toBe('Paris');
+    expect(input('shipRegion').value).toBe('IDF');
+    expect(input('shipPostalCode').value).toBe('75001');
+    expect(input('shipCountry').value).toBe('France');
+    expect(placeOrderButton().disabled).toBe(false);
+  });
+
+  it('does not overwrite what the user typed before the addresses arrived', () =>
+  {
+    fixture.detectChanges(); // runs ngOnInit
+    httpTesting.expectOne(cartUrl).flush(structuredClone(cart));
+    fixture.detectChanges();
+    fillAddress();
+
+    httpTesting.expectOne(addressesUrl).flush([saved]);
+    fixture.detectChanges();
+
+    expect(input('shipCity').value).toBe('Berlin');
+  });
+
+  it('leaves the form empty when the addresses could not be loaded', () =>
+  {
+    fixture.detectChanges(); // runs ngOnInit
+    httpTesting.expectOne(cartUrl).flush(structuredClone(cart));
+
+    httpTesting.expectOne(addressesUrl).flush('Server error', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(input('shipCity').value).toBe('');
+    expect(errorAlert()).toBeNull();
   });
 
   it('sends one request when the button is clicked twice', () =>
@@ -181,10 +226,11 @@ describe('CheckoutComponent', () =>
     expect(placeOrderButton().disabled).toBe(true);
   });
 
-  function loadCart(value: ICart): void
+  function loadCart(value: ICart, addresses: IAddress[] = []): void
   {
     fixture.detectChanges(); // runs ngOnInit
     httpTesting.expectOne(cartUrl).flush(structuredClone(value));
+    httpTesting.expectOne(addressesUrl).flush(addresses);
     fixture.detectChanges();
   }
 
@@ -192,11 +238,15 @@ describe('CheckoutComponent', () =>
   {
     for (const [name, value] of Object.entries(address))
     {
-      const input = fixture.nativeElement.querySelector(`#${name}`) as HTMLInputElement;
-      input.value = value;
-      input.dispatchEvent(new Event('input'));
+      input(name).value = value;
+      input(name).dispatchEvent(new Event('input'));
     }
     fixture.detectChanges();
+  }
+
+  function input(name: string): HTMLInputElement
+  {
+    return fixture.nativeElement.querySelector(`#${name}`);
   }
 
   function conflict(req: TestRequest, productIds: number[]): void

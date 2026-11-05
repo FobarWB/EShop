@@ -30,6 +30,14 @@ describe('OrdersService', () =>
 
   afterEach(() => httpTesting.verify());
 
+  it('requests a page of the orders', () =>
+  {
+    service.getOrders(2, 10).subscribe();
+
+    const req = httpTesting.expectOne('/api/orders?page=2&pageSize=10');
+    expect(req.request.method).toBe('GET');
+  });
+
   it('places an order with the address and the idempotency key', () =>
   {
     service.placeOrder(address, 'key-1').subscribe();

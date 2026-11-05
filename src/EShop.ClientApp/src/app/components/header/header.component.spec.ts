@@ -11,6 +11,7 @@ class FakeAuthService
   readonly userName = signal<string | undefined>(undefined);
   readonly isAdmin = signal(false);
   readonly signIn = vi.fn();
+  readonly signUp = vi.fn();
   readonly signOut = vi.fn();
 }
 
@@ -38,6 +39,35 @@ describe('HeaderComponent', () =>
 
     expect(button('Sign out', false)).toBeUndefined();
     expect(auth.signIn).toHaveBeenCalledOnce();
+  });
+
+  it('offers sign-up to an anonymous user', () =>
+  {
+    fixture.detectChanges();
+
+    button('Sign up').click();
+
+    expect(auth.signUp).toHaveBeenCalledOnce();
+  });
+
+  it('links to the orders next to the cart, also for an anonymous user', () =>
+  {
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a[aria-label="My orders"]') as HTMLAnchorElement;
+
+    expect(link.getAttribute('href')).toBe('/account/orders');
+  });
+
+  it('links a signed-in user to the account pages and hides sign-up', () =>
+  {
+    auth.isAuthenticated.set(true);
+    fixture.detectChanges();
+
+    const links = Array.from<HTMLAnchorElement>(fixture.nativeElement.querySelectorAll('a.dropdown-item[href^="/account"]'));
+
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['/account', '/account/orders']);
+    expect(button('Sign up', false)).toBeUndefined();
   });
 
   it('shows the user name and signs the user out', () =>
