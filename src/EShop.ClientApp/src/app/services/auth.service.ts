@@ -24,9 +24,21 @@ export class AuthService
   );
   readonly isAdmin = computed(() => this.roles().includes('admin'));
 
+  // Password, email and name are changed in Keycloak's account console: they belong to the identity provider.
+  readonly accountUrl = toSignal(
+    this.oidc.getConfiguration().pipe(map(config => config ? `${config.authority}/account` : null)),
+    { initialValue: null }
+  );
+
   signIn(): void
   {
     this.oidc.authorize();
+  }
+
+  // prompt=create opens the registration form of the identity provider instead of its login page.
+  signUp(): void
+  {
+    this.oidc.authorize(undefined, { customParams: { prompt: 'create' } });
   }
 
   signOut(): void

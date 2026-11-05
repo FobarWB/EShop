@@ -1,0 +1,31 @@
+<div class="container py-4">
+  <h4><b>My orders</b></h4>
+  <p><a routerLink="/account">My account</a></p>
+  @if (errorMessage(); as message) {
+  <div class="alert alert-danger" role="alert">{{ message }}</div>
+  }
+  @if (orders(); as orders) {
+  <table class="table">
+    <thead>
+      <tr><th>Order</th><th>Date</th><th>Status</th><th class="text-end">Items</th><th class="text-end">Total</th></tr>
+    </thead>
+    <tbody>
+      @for (order of orders.items; track order.orderId) {
+      <tr class="order-row">
+        <td><a [routerLink]="['/orders', order.orderId]">#{{ order.orderId }}</a></td>
+        <td>{{ order.orderDate | date: 'mediumDate' }}</td>
+        <td><span class="badge text-bg-secondary">{{ order.status }}</span></td>
+        <td class="text-end">{{ order.itemCount }}</td>
+        <td class="text-end">&euro; {{ order.total | number: '1.2-2' }}</td>
+      </tr>
+      } @empty {
+      <tr><td colspan="5" class="no-orders">You have no orders yet.</td></tr>
+      }
+    </tbody>
+  </table>
+  <button type="button" class="btn btn-outline-dark me-2 previous-page"
+    [disabled]="!hasPrevious() || loading()" (click)="loadPage(orders.page - 1)">Previous</button>
+  <button type="button" class="btn btn-outline-dark next-page"
+    [disabled]="!hasNext() || loading()" (click)="loadPage(orders.page + 1)">Next</button>
+  }
+</div>

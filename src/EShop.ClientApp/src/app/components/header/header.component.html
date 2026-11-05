@@ -51,14 +51,19 @@
                   <span class="ms-2">{{ auth.userName() }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" routerLink="/account">My account</a></li>
+                  <li><a class="dropdown-item" routerLink="/account/orders">My orders</a></li>
                   <li><button class="dropdown-item" type="button" (click)="auth.signOut()">Sign out</button></li>
                 </ul>
               </div>
             } @else {
-              <button class="btn d-flex align-items-center" type="button" (click)="auth.signIn()">
-                <i class="bi bi-person-circle fs-2"></i>
-                <span class="ms-2">Sign in</span>
-              </button>
+              <div class="d-flex align-items-center">
+                <button class="btn d-flex align-items-center" type="button" (click)="auth.signIn()">
+                  <i class="bi bi-person-circle fs-2"></i>
+                  <span class="ms-2">Sign in</span>
+                </button>
+                <button class="btn" type="button" (click)="auth.signUp()">Sign up</button>
+              </div>
             }
           </div>
           <div class="nav-link ms-4">

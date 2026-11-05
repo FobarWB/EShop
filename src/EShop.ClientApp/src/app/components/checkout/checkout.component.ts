@@ -4,9 +4,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
-import { map } from 'rxjs';
+import { catchError, map, of } from 'rxjs';
 import { CartService } from '../../services/cart.service';
+import { CustomersService } from '../../services/customers.service';
 import { OrdersService } from '../../services/orders.service';
+import { IAddress } from '../../models/address.model';
 import { cartItemProblem, ICartItem } from '../../models/cart-item.model';
 import { standardFreight } from '../../models/order.model';
 
@@ -21,6 +23,7 @@ export class CheckoutComponent implements OnInit
 {
   private readonly cartService = inject(CartService);
   private readonly ordersService = inject(OrdersService);
+  private readonly customersService = inject(CustomersService);
   private readonly router = inject(Router);
 
   // One key per checkout attempt: a retry after an error sends it again, and if the first request did place
@@ -68,6 +71,7 @@ export class CheckoutComponent implements OnInit
   ngOnInit(): void
   {
     this.loadCart();
+    this.prefillAddress();
   }
 
   protected problemOf(item: ICartItem): string | null
@@ -93,7 +97,7 @@ export class CheckoutComponent implements OnInit
     const value = this.form.getRawValue();
     this.ordersService.placeOrder({ ...value, shipRegion: value.shipRegion || null }, this.idempotencyKey).subscribe({
       // The API has emptied the cart; the confirmation page loads the order by its id.
-      next: order => this.router.navigate(['/orders', order.orderId]),
+      next: order => this.router.navigate(['/orders', order.orderId], { queryParams: { placed: true } }),
       error: (error: HttpErrorResponse) =>
       {
         this.placing.set(false);
@@ -108,6 +112,28 @@ export class CheckoutComponent implements OnInit
     {
       this.items.set(cart.cartItems);
       this.loaded.set(true);
+    });
+  }
+
+  // The first address is the default one. Saved addresses are a convenience: without them the visitor types the
+  // address, so a failed request is not an error, and what the visitor already typed is not overwritten.
+  private prefillAddress(): void
+  {
+    this.customersService.getAddresses().pipe(
+      catchError(() => of<IAddress[]>([]))
+    ).subscribe(([address]) =>
+    {
+      if (address && this.form.pristine)
+      {
+        this.form.patchValue({
+          shipName: address.recipientName,
+          shipAddress: address.address,
+          shipCity: address.city,
+          shipRegion: address.region ?? '',
+          shipPostalCode: address.postalCode,
+          shipCountry: address.country,
+        });
+      }
     });
   }
 

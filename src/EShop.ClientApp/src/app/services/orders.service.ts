@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { IOrder } from '../models/order.model';
+import { IOrder, IOrderSummary } from '../models/order.model';
+import { IPage } from '../models/page.model';
 import { IShippingAddress } from '../models/shipping-address.model';
 
 @Injectable({
@@ -17,6 +18,12 @@ export class OrdersService
   placeOrder(address: IShippingAddress, idempotencyKey: string): Observable<IOrder>
   {
     return this.http.post<IOrder>(this.apiUrl, address, { headers: { 'Idempotency-Key': idempotencyKey } });
+  }
+
+  // The user's orders, newest first.
+  getOrders(page: number, pageSize: number): Observable<IPage<IOrderSummary>>
+  {
+    return this.http.get<IPage<IOrderSummary>>(this.apiUrl, { params: { page, pageSize } });
   }
 
   getOrder(orderId: number): Observable<IOrder>

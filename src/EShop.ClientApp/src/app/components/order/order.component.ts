@@ -24,6 +24,8 @@ export class OrderComponent implements OnInit
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly cancelling = signal(false);
   protected readonly cancelError = signal<string | null>(null);
+  // Set by the checkout; the order list opens the same page without it.
+  protected readonly justPlaced = this.route.snapshot.queryParamMap.get('placed') === 'true';
   protected readonly canCancel = computed(() =>
   {
     const order = this.order();

@@ -20,3 +20,13 @@ export interface IOrder extends IShippingAddress
     total: number;
     items: IOrderItem[];
 }
+
+// A line of the user's order list (OrderSummaryResponse); the details come from GET /api/orders/{id}.
+export interface IOrderSummary
+{
+    orderId: number;
+    orderDate: string;
+    status: OrderStatus;
+    total: number;
+    itemCount: number;
+}

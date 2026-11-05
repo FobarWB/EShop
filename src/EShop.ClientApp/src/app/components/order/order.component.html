@@ -1,6 +1,6 @@
 <div class="container py-4">
   @if (order(); as order) {
-  <h4><b>Thank you for your order!</b></h4>
+  <h4><b>{{ justPlaced ? 'Thank you for your order!' : 'Order #' + order.orderId }}</b></h4>
   <p class="text-muted order-number">
     Order #{{ order.orderId }}, placed {{ order.orderDate | date: 'medium' }}
     <span class="badge text-bg-secondary order-status">{{ order.status }}</span>
@@ -38,6 +38,7 @@
   @if (cancelError(); as message) {
   <div class="alert alert-warning cancel-error" role="alert">{{ message }}</div>
   }
+  <a class="me-3" routerLink="/account/orders">My orders</a>
   <a routerLink="/">Continue shopping</a>
   } @else if (errorMessage(); as message) {
   <div class="alert alert-warning" role="alert">{{ message }}</div>

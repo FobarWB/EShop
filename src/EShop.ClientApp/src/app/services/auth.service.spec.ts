@@ -21,6 +21,11 @@ class FakeOidcSecurityService
     return of(this.accessTokenPayload);
   }
 
+  getConfiguration()
+  {
+    return of({ authority: 'http://keycloak.test/realms/eshop' });
+  }
+
   signIn(userName: string, roles: string[])
   {
     const result = { isAuthenticated: true, allConfigsAuthenticated: [] };
@@ -79,6 +84,18 @@ describe('AuthService', () =>
     service.signIn();
 
     expect(oidc.authorize).toHaveBeenCalledOnce();
+  });
+
+  it('opens the registration form of the identity provider', () =>
+  {
+    service.signUp();
+
+    expect(oidc.authorize).toHaveBeenCalledExactlyOnceWith(undefined, { customParams: { prompt: 'create' } });
+  });
+
+  it('builds the address of the account console from the authority', () =>
+  {
+    expect(service.accountUrl()).toBe('http://keycloak.test/realms/eshop/account');
   });
 
   it('signs out at the identity provider', () =>
