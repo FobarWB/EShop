@@ -62,6 +62,7 @@ Related: [UseKeycloakForAuthentication](../Decisions/UseKeycloakForAuthenticatio
 - **"Import skipped" after a restart** means the realm still exists: the file is not applied. A realm the import cannot
   create (a password that fails the policy) stops Keycloak with an error naming the message key.
 - **Seconds of delay from the IDE on Windows** were connections, not queries: see `::1` in [Docker](Docker.md).
+- See [DevEnvironment](DevEnvironment.md) for running kcadm safely.
 
 ## Open questions
 
