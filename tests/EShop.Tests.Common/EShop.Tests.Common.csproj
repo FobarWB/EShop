@@ -6,6 +6,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="xunit.v3.extensibility.core" />
     <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="Testcontainers.Keycloak" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\EShop.Data\EShop.Data.csproj" />

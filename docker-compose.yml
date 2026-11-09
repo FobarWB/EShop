@@ -11,7 +11,7 @@ name: eshop
 # Shared settings of the API containers (YAML anchor, merged with <<: below).
 x-api: &api
   profiles: [app]
-  environment:
+  environment: &api-environment
     ASPNETCORE_ENVIRONMENT: Development
     # Host "postgres" is the service name on the compose network. GSSAPI is off: the .NET images have no Kerberos library.
     ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
@@ -91,6 +91,8 @@ services:
       # Administrator of the master realm (the admin console), created on the first start only.
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      # Secret of the client eshop-orderapi: the realm file reads it as ${ORDERAPI_KEYCLOAK_SECRET} on import.
+      ORDERAPI_KEYCLOAK_SECRET: ${ORDERAPI_KEYCLOAK_SECRET:?Set ORDERAPI_KEYCLOAK_SECRET in .env}
     ports:
       # Also on ::1, as for postgres: the APIs started from the IDE read the metadata from localhost:8180.
       - "127.0.0.1:8180:8080"
@@ -183,6 +185,11 @@ services:
 
   orderapi:
     <<: *api
+    environment:
+      # The anchor's environment is replaced, not merged: repeated in full, plus the Keycloak Admin API.
+      <<: *api-environment
+      KeycloakAdmin__BaseUrl: http://keycloak:8080
+      KeycloakAdmin__ClientSecret: ${ORDERAPI_KEYCLOAK_SECRET}
     # The anchor's depends_on is replaced, not merged: repeated in full, plus the broker of the outbox publisher.
     depends_on:
       migrator:
