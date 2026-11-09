@@ -1,9 +1,14 @@
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using EShop.Data;
 using EShop.Messaging;
+using EShop.OrderApi;
+using EShop.OrderApi.Accounts;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
+using EShop.ServiceDefaults.Keycloak;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 
 const string ClientCorsPolicy = "Client";
@@ -23,7 +28,7 @@ builder.Services.AddEShopDbContext(builder.Configuration);
 
 // The checkout and the cancellation write events to the outbox; the publisher sends them to RabbitMQ.
 builder.Services.AddEShopMessaging(builder.Configuration);
-builder.Services.AddOutboxPublisher();
+builder.Services.AddOutboxPublisher(OrderApiOutbox.Producer);
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
@@ -57,9 +62,52 @@ builder.Services.AddHttpLogging(options =>
 
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 
+// The guest checkout asks Keycloak whether an email already has an account (service account eshop-orderapi).
+builder.Services.AddKeycloakAdminClient<IAccountDirectory, KeycloakAccountDirectory>(
+    builder.Configuration
+);
+
+// Behind nginx every request comes from the proxy: the client's address is in X-Forwarded-For. The APIs are reached
+// only through nginx (their ports are not published in compose), so any proxy is trusted; with the default
+// ForwardLimit of 1 the address nginx appended is taken, so a client cannot choose its own by sending the header.
+// A public server revisits this (#59).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// The guest checkout is anonymous and makes Keycloak look up an email: a limit per address against flooding and
+// against guessing which emails have accounts.
+var guestPermits = builder.Configuration.GetValue(
+    GuestCheckoutRateLimit.PermitsSetting,
+    GuestCheckoutRateLimit.DefaultPermits
+);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(
+        GuestCheckoutRateLimit.PolicyName,
+        context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = guestPermits,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }
+            )
+    );
+});
+
 var app = builder.Build();
 
-// First in the pipeline: catches exceptions thrown by everything after it.
+// Before everything else: what follows sees the client's address, not the proxy's.
+app.UseForwardedHeaders();
+
+// First of the rest: catches exceptions thrown by everything after it.
 app.UseExceptionHandler();
 
 app.UseHttpLogging();
@@ -74,6 +122,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 

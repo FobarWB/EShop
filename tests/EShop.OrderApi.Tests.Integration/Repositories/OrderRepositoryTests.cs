@@ -568,6 +568,116 @@ public class OrderRepositoryTests : IAsyncLifetime
         second.Items.ShouldHaveSingleItem().OrderId.ShouldBe(older.OrderId);
     }
 
+    [Fact]
+    public async Task PlaceGuestOrder_SameProductOnTwoLines_SumsTheQuantities()
+    {
+        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
+
+        var result = await PlaceGuestOrderAsync(Email, (chai.ProductId, 1), (chai.ProductId, 2));
+
+        result.Status.ShouldBe(PlaceOrderStatus.Placed);
+        result.Order.ShouldNotBeNull().Items.ShouldHaveSingleItem().Quantity.ShouldBe(3);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .UnitsInStock.ShouldBe((short)7);
+    }
+
+    [Fact]
+    public async Task PlaceGuestOrder_UnknownProduct_ReturnsProductsUnavailableAndStoresNothing()
+    {
+        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
+
+        var result = await PlaceGuestOrderAsync(Email, (chai.ProductId, 1), (999, 1));
+
+        result.Status.ShouldBe(PlaceOrderStatus.ProductsUnavailable);
+        result.ProductIds.ShouldBe([999]);
+        (await _database.LoadOrdersAsync(_cancellationToken)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task PlaceGuestOrder_SameKeyPlacedConcurrently_ReturnsThatOrder()
+    {
+        // The other try of the same guest passes the key check too and commits first: our INSERT hits the guest index.
+        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
+        Order? concurrent = null;
+
+        var result = await PlaceGuestOrderAsync(
+            Email,
+            [(chai.ProductId, 1)],
+            new BeforeSaveChangesInterceptor(async () =>
+                concurrent = await _database.SeedAsync(GuestOrder(Email), _cancellationToken)
+            )
+        );
+
+        result.Status.ShouldBe(PlaceOrderStatus.AlreadyPlaced);
+        result.Order.ShouldNotBeNull().OrderId.ShouldBe(concurrent.ShouldNotBeNull().OrderId);
+        (await _database.LoadOrdersAsync(_cancellationToken)).ShouldHaveSingleItem();
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .UnitsInStock.ShouldBe((short)10);
+    }
+
+    [Fact]
+    public async Task PlaceGuestOrder_KeyOfAnotherGuest_ReturnsIdempotencyKeyReused()
+    {
+        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
+        await _database.SeedAsync(GuestOrder("someone@example.com"), _cancellationToken);
+
+        var result = await PlaceGuestOrderAsync(Email, (chai.ProductId, 1));
+
+        result.Status.ShouldBe(PlaceOrderStatus.IdempotencyKeyReused);
+        (await _database.LoadOrdersAsync(_cancellationToken)).ShouldHaveSingleItem();
+        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RetrieveGuestOrder_SameKeyOtherEmail_ReturnsNull()
+    {
+        await _database.SeedAsync(GuestOrder("someone@example.com"), _cancellationToken);
+
+        var order = await ActAsync(r => r.RetrieveGuestOrderAsync(Email, _key, _cancellationToken));
+
+        order.ShouldBeNull();
+    }
+
+    // A guest order with this test's key, as the API stores it.
+    private Order GuestOrder(string email)
+    {
+        var order = OrderApiDatabase.NewOrder(UserId, _key);
+        order.UserId = null;
+        order.PlacedAsGuest = true;
+        order.CustomerEmail = email;
+        return order;
+    }
+
+    private Task<PlaceOrderResult> PlaceGuestOrderAsync(
+        string email,
+        params (int ProductId, int Quantity)[] items
+    ) => PlaceGuestOrderAsync(email, items, []);
+
+    private Task<PlaceOrderResult> PlaceGuestOrderAsync(
+        string email,
+        (int ProductId, int Quantity)[] items,
+        params IInterceptor[] interceptors
+    ) =>
+        ActAsync(
+            r =>
+                r.PlaceGuestOrderAsync(
+                    email,
+                    _key,
+                    Address,
+                    items
+                        .Select(i => new GuestOrderItem
+                        {
+                            ProductId = i.ProductId,
+                            Quantity = i.Quantity,
+                        })
+                        .ToList(),
+                    _cancellationToken
+                ),
+            interceptors
+        );
+
     private Task<ChangeOrderStatusResult> CancelAsync(
         int orderId,
         params IInterceptor[] interceptors

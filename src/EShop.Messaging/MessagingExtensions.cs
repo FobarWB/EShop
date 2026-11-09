@@ -1,3 +1,4 @@
+using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.Messaging.RabbitMq;
 using Microsoft.Extensions.Configuration;
@@ -18,7 +19,20 @@ public static class MessagingExtensions
         return services;
     }
 
-    // For producers: publishes the events their transactions wrote to the outbox.
-    public static IServiceCollection AddOutboxPublisher(this IServiceCollection services) =>
-        services.AddHostedService<OutboxPublisher>();
+    // For producers: publishes the events their transactions wrote to the outbox, only their own rows.
+    public static IServiceCollection AddOutboxPublisher(
+        this IServiceCollection services,
+        string producer
+    ) => services.AddSingleton(new OutboxProducer(producer)).AddHostedService<OutboxPublisher>();
+
+    // For consumers: a background service that delivers the messages of this queue to THandler.
+    public static IServiceCollection AddMessageConsumer<THandler>(
+        this IServiceCollection services,
+        ConsumerQueue queue
+    )
+        where THandler : class, IMessageHandler =>
+        services
+            .AddScoped<THandler>()
+            .AddSingleton(new ConsumerRegistration<THandler>(queue))
+            .AddHostedService<MessageConsumer<THandler>>();
 }

@@ -143,6 +143,21 @@ namespace EShop.Data
                 // (its leading column), so user_id needs no index of its own.
                 entity.HasIndex(e => new { e.UserId, e.IdempotencyKey }).IsUnique();
 
+                // One order per guest checkout attempt. Partial: only guest orders, so it stays valid after the order
+                // is attached to the new account (user_id set), and the signed-in orders keep their index above.
+                entity
+                    .HasIndex(e => e.IdempotencyKey, "ix_orders_guest_idempotency_key")
+                    .HasDatabaseName("ix_orders_guest_idempotency_key")
+                    .IsUnique()
+                    .HasFilter("placed_as_guest");
+
+                // The guest orders of an email that have no account yet: attached when CustomerApi reports the
+                // account (#45).
+                entity
+                    .HasIndex(e => e.CustomerEmail, "ix_orders_guest_customer_email")
+                    .HasDatabaseName("ix_orders_guest_customer_email")
+                    .HasFilter("placed_as_guest AND user_id IS NULL");
+
                 // The user's order list: WHERE user_id = … ORDER BY order_date DESC.
                 entity.HasIndex(e => new { e.UserId, e.OrderDate });
 
@@ -208,7 +223,10 @@ namespace EShop.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
             modelBuilder.Entity<OutboxMessage>(entity =>
-                entity.HasIndex(m => m.OccurredAt).HasFilter("processed_at IS NULL")
+                // The pending rows of one producer, oldest first: the publisher's query.
+                entity
+                    .HasIndex(m => new { m.Producer, m.OccurredAt })
+                    .HasFilter("processed_at IS NULL")
             );
 
             modelBuilder.Entity<CustomerAddress>(entity =>

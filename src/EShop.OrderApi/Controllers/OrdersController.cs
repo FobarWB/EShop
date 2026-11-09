@@ -1,10 +1,12 @@
 using EShop.Data.Entities;
+using EShop.OrderApi.Accounts;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EShop.OrderApi.Controllers;
 
@@ -17,11 +19,17 @@ public class OrdersController : ControllerBase
     public const string IdempotencyKeyHeader = "Idempotency-Key";
 
     private readonly IOrderRepository _repository;
+    private readonly IAccountDirectory _accounts;
     private readonly ILogger<OrdersController> _logger;
 
-    public OrdersController(IOrderRepository repository, ILogger<OrdersController> logger)
+    public OrdersController(
+        IOrderRepository repository,
+        IAccountDirectory accounts,
+        ILogger<OrdersController> logger
+    )
     {
         _repository = repository;
+        _accounts = accounts;
         _logger = logger;
     }
 
@@ -49,23 +57,53 @@ public class OrdersController : ControllerBase
             request,
             cancellationToken
         );
-        return result switch
+        return PlaceOrderResponse(result);
+    }
+
+    // POST api/orders/guest: a visitor who is not signed in. Items come from the browser's cart; an email that already
+    // has an account is asked to sign in, so an order never lands in an account its buyer cannot open.
+    [HttpPost("guest")]
+    [AllowAnonymous]
+    [EnableRateLimiting(GuestCheckoutRateLimit.PolicyName)]
+    public async Task<IActionResult> PlaceGuestOrder(
+        [FromHeader(Name = IdempotencyKeyHeader), BindRequired] Guid idempotencyKey,
+        [FromBody] GuestOrderRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        // The email itself is not logged: personal data.
+        _logger.LogInformation(
+            "Placing a guest order with idempotency key {IdempotencyKey}",
+            idempotencyKey
+        );
+
+        // Keycloak stores emails in lower case; the order keeps the same form, so the account finds its orders later.
+        var email = request.Email.Trim().ToLowerInvariant();
+
+        // A retry first: after a lost response the account may exist already, and the retry must still get its order.
+        var placed = await _repository.RetrieveGuestOrderAsync(
+            email,
+            idempotencyKey,
+            cancellationToken
+        );
+        if (placed != null)
         {
-            // A retry gets the same answer as the first attempt: 201 with the same order.
-            {
-                Status: PlaceOrderStatus.Placed or PlaceOrderStatus.AlreadyPlaced,
-                Order: { } order,
-            } => CreatedAtAction(nameof(GetOrder), new { id = order.OrderId }, order),
-            { Status: PlaceOrderStatus.CartEmpty } => Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "The cart is empty"
-            ),
-            { Status: PlaceOrderStatus.ProductsUnavailable, ProductIds: { } productIds } =>
-                ProductsProblem("Some products are no longer available", productIds),
-            { Status: PlaceOrderStatus.InsufficientStock, ProductIds: { } productIds } =>
-                ProductsProblem("Not enough units in stock", productIds),
-            _ => throw new InvalidOperationException($"Unexpected order result {result.Status}."),
-        };
+            return CreatedAtAction(nameof(GetOrder), new { id = placed.OrderId }, placed);
+        }
+
+        if (await _accounts.AccountExistsAsync(email, cancellationToken))
+        {
+            return AccountExistsProblem();
+        }
+
+        var result = await _repository.PlaceGuestOrderAsync(
+            email,
+            idempotencyKey,
+            request.Address,
+            request.Items,
+            cancellationToken
+        );
+        return PlaceOrderResponse(result);
     }
 
     // GET api/orders/5
@@ -148,6 +186,43 @@ public class OrdersController : ControllerBase
             ),
             _ => throw new InvalidOperationException($"Unexpected status change result {result}."),
         };
+    }
+
+    private IActionResult PlaceOrderResponse(PlaceOrderResult result) =>
+        result switch
+        {
+            // A retry gets the same answer as the first attempt: 201 with the same order.
+            {
+                Status: PlaceOrderStatus.Placed or PlaceOrderStatus.AlreadyPlaced,
+                Order: { } order,
+            } => CreatedAtAction(nameof(GetOrder), new { id = order.OrderId }, order),
+            { Status: PlaceOrderStatus.CartEmpty } => Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "The cart is empty"
+            ),
+            { Status: PlaceOrderStatus.ProductsUnavailable, ProductIds: { } productIds } =>
+                ProductsProblem("Some products are no longer available", productIds),
+            { Status: PlaceOrderStatus.InsufficientStock, ProductIds: { } productIds } =>
+                ProductsProblem("Not enough units in stock", productIds),
+            { Status: PlaceOrderStatus.IdempotencyKeyReused } => Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The idempotency key belongs to another order"
+            ),
+            _ => throw new InvalidOperationException($"Unexpected order result {result.Status}."),
+        };
+
+    // 409 with a code: the client tells it from a stock conflict (which has productIds) and offers the sign-in.
+    private ObjectResult AccountExistsProblem()
+    {
+        var result = Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "An account with this email already exists. Please sign in."
+        );
+        if (result.Value is ProblemDetails problem)
+        {
+            problem.Extensions["code"] = "account-exists";
+        }
+        return result;
     }
 
     // Another user's order is a 404 too: the response does not reveal that it exists.

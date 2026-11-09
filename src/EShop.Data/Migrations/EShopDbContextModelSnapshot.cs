@@ -485,6 +485,10 @@ namespace EShop.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("order_date");
 
+                    b.Property<bool>("PlacedAsGuest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("placed_as_guest");
+
                     b.Property<DateTime?>("RequiredDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("required_date");
@@ -571,6 +575,15 @@ namespace EShop.Data.Migrations
 
                     b.HasIndex("UserId", "OrderDate")
                         .HasDatabaseName("ix_orders_user_id_order_date");
+
+                    b.HasIndex(new[] { "CustomerEmail" }, "ix_orders_guest_customer_email")
+                        .HasDatabaseName("ix_orders_guest_customer_email")
+                        .HasFilter("placed_as_guest AND user_id IS NULL");
+
+                    b.HasIndex(new[] { "IdempotencyKey" }, "ix_orders_guest_idempotency_key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_guest_idempotency_key")
+                        .HasFilter("placed_as_guest");
 
                     b.ToTable("orders", null, t =>
                         {
@@ -697,6 +710,12 @@ namespace EShop.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("processed_at");
 
+                    b.Property<string>("Producer")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("producer");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -706,8 +725,8 @@ namespace EShop.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_outbox_messages");
 
-                    b.HasIndex("OccurredAt")
-                        .HasDatabaseName("ix_outbox_messages_occurred_at")
+                    b.HasIndex("Producer", "OccurredAt")
+                        .HasDatabaseName("ix_outbox_messages_producer_occurred_at")
                         .HasFilter("processed_at IS NULL");
 
                     b.ToTable("outbox_messages", (string)null);

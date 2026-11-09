@@ -35,6 +35,10 @@ namespace EShop.Data.Entities
         // Client-generated key of the checkout attempt: a retried request returns the same order.
         public Guid? IdempotencyKey { get; set; }
 
+        // Placed by a visitor who was not signed in: UserId stays null until CustomerApi has created the account (#45).
+        // A guest's retry finds the order by its idempotency key among these orders.
+        public bool PlacedAsGuest { get; set; }
+
         // Changed only through TryChangeStatus (Order.Lifecycle.cs), which enforces the allowed transitions.
         public OrderStatus Status { get; private set; } = OrderStatus.Pending;
 

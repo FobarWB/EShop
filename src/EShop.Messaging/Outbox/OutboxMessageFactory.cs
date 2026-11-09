@@ -7,13 +7,20 @@ namespace EShop.Messaging.Outbox;
 // the event describes, so both are saved in one transaction.
 public static class OutboxMessageFactory
 {
-    public static OutboxMessage Create<TEvent>(string type, TEvent @event, DateTime occurredAt)
+    // producer: the writing service, e.g. "orderapi"; its OutboxPublisher (AddOutboxPublisher) publishes the row.
+    public static OutboxMessage Create<TEvent>(
+        string producer,
+        string type,
+        TEvent @event,
+        DateTime occurredAt
+    )
         where TEvent : notnull =>
         new()
         {
             // UUIDv7 starts with a timestamp: new keys go to the end of the primary key index.
             // The id becomes the RabbitMQ MessageId, so consumers can recognize a redelivery.
             Id = Guid.CreateVersion7(),
+            Producer = producer,
             Type = type,
             // Web defaults: camelCase, the same JSON style as the APIs.
             Payload = JsonSerializer.Serialize(@event, JsonSerializerOptions.Web),

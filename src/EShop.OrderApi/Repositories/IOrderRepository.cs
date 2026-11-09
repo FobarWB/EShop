@@ -14,6 +14,22 @@ public interface IOrderRepository
         CancellationToken cancellationToken
     );
 
+    // email: trimmed and in lower case. The items are summed per product; prices and stock come from the products.
+    Task<PlaceOrderResult> PlaceGuestOrderAsync(
+        string email,
+        Guid idempotencyKey,
+        PlaceOrderRequest address,
+        IReadOnlyList<GuestOrderItem> items,
+        CancellationToken cancellationToken
+    );
+
+    // The guest order of an earlier try with this key and email, or null.
+    Task<OrderResponse?> RetrieveGuestOrderAsync(
+        string email,
+        Guid idempotencyKey,
+        CancellationToken cancellationToken
+    );
+
     // null: no such order, or it belongs to another user.
     Task<OrderResponse?> RetrieveOrderAsync(
         string userId,

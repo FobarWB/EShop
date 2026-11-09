@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using EShop.Data.Entities;
+using EShop.OrderApi.Accounts;
 using EShop.OrderApi.Controllers;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;
@@ -41,12 +42,24 @@ public class OrdersControllerTests
         [new OrderItemResponse(ProductId, "Chai", 18m, 2)]
     );
 
+    private static readonly GuestOrderRequest GuestRequest = new()
+    {
+        Email = " Jane@Example.com ",
+        Address = Request,
+        Items = [new GuestOrderItem { ProductId = ProductId, Quantity = 2 }],
+    };
+
     private readonly IOrderRepository _repository = Substitute.For<IOrderRepository>();
+    private readonly IAccountDirectory _accounts = Substitute.For<IAccountDirectory>();
     private readonly OrdersController _controller;
 
     public OrdersControllerTests()
     {
-        _controller = new OrdersController(_repository, NullLogger<OrdersController>.Instance)
+        _controller = new OrdersController(
+            _repository,
+            _accounts,
+            NullLogger<OrdersController>.Instance
+        )
         {
             // The signed-in user: the controller takes the user id from the token's sub claim
             // and the email from its email claim.
@@ -58,6 +71,69 @@ public class OrdersControllerTests
                 },
             },
         };
+    }
+
+    [Fact]
+    public async Task PlaceGuestOrder_RetryOfPlacedOrder_Returns201WithoutAskingKeycloak()
+    {
+        _repository
+            .RetrieveGuestOrderAsync(Email, Key, Arg.Any<CancellationToken>())
+            .Returns(Order);
+
+        var result = await _controller.PlaceGuestOrder(Key, GuestRequest, CancellationToken.None);
+
+        StatusCodeOf(result).ShouldBe(201);
+        await _accounts.DidNotReceiveWithAnyArgs().AccountExistsAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task PlaceGuestOrder_EmailHasAccount_Returns409AndPlacesNothing()
+    {
+        _accounts.AccountExistsAsync(Email, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await _controller.PlaceGuestOrder(Key, GuestRequest, CancellationToken.None);
+
+        result
+            .ShouldBeOfType<ObjectResult>()
+            .Value.ShouldBeOfType<ProblemDetails>()
+            .Extensions["code"]
+            .ShouldBe("account-exists");
+        StatusCodeOf(result).ShouldBe(409);
+        await _repository
+            .DidNotReceiveWithAnyArgs()
+            .PlaceGuestOrderAsync(default!, default, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task PlaceGuestOrder_NewEmail_PlacesTheOrderWithTheNormalizedEmail()
+    {
+        _repository
+            .PlaceGuestOrderAsync(
+                Email,
+                Key,
+                Request,
+                GuestRequest.Items,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new PlaceOrderResult(PlaceOrderStatus.Placed, Order));
+
+        var result = await _controller.PlaceGuestOrder(Key, GuestRequest, CancellationToken.None);
+
+        StatusCodeOf(result).ShouldBe(201);
+        // " Jane@Example.com " is asked and stored as Keycloak keeps it.
+        await _accounts.Received(1).AccountExistsAsync(Email, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlaceGuestOrder_KeyReused_Returns409()
+    {
+        _repository
+            .PlaceGuestOrderAsync(default!, default, default!, default!, default)
+            .ReturnsForAnyArgs(new PlaceOrderResult(PlaceOrderStatus.IdempotencyKeyReused));
+
+        var result = await _controller.PlaceGuestOrder(Key, GuestRequest, CancellationToken.None);
+
+        StatusCodeOf(result).ShouldBe(409);
     }
 
     [Theory]

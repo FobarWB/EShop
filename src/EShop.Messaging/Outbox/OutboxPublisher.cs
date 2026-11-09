@@ -27,16 +27,19 @@ public sealed class OutboxPublisher : BackgroundService
 
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly RabbitMqConnection _rabbitMqConnection;
+    private readonly OutboxProducer _producer;
     private readonly ILogger<OutboxPublisher> _logger;
 
     public OutboxPublisher(
         IServiceScopeFactory serviceScopeFactory,
         RabbitMqConnection rabbitMqConnection,
+        OutboxProducer producer,
         ILogger<OutboxPublisher> logger
     )
     {
         _serviceScopeFactory = serviceScopeFactory;
         _rabbitMqConnection = rabbitMqConnection;
+        _producer = producer;
         _logger = logger;
     }
 
@@ -112,12 +115,13 @@ public sealed class OutboxPublisher : BackgroundService
 
         // FOR UPDATE locks the rows until the commit; SKIP LOCKED lets another instance of the service take
         // the next rows instead of waiting, so no event is published by two instances at once.
+        // Only this producer's rows: another service's publisher would publish them out of their order.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var messages = await db
             .OutboxMessages.FromSql(
                 $"""
                 SELECT * FROM outbox_messages
-                WHERE processed_at IS NULL
+                WHERE processed_at IS NULL AND producer = {_producer.Name}
                 ORDER BY occurred_at
                 LIMIT {BatchSize}
                 FOR UPDATE SKIP LOCKED
