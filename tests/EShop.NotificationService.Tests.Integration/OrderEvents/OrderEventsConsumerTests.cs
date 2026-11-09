@@ -1,19 +1,21 @@
 using System.Text.Json;
 using EShop.Data;
+using EShop.Messaging;
 using EShop.Messaging.RabbitMq;
-using EShop.NotificationService.Messaging;
+using EShop.NotificationService.Email;
+using EShop.NotificationService.OrderEvents;
 using EShop.OrderApi.Contracts;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 
-namespace EShop.NotificationService.Tests.Integration.Messaging;
+namespace EShop.NotificationService.Tests.Integration.OrderEvents;
 
-// The consumer as a running background service on the real topology (the production queue names and delays),
-// with the email sender replaced. Retry delays are not waited for: a test publishes a message as it arrives
-// on its last attempt instead.
+// The shared MessageConsumer with this service's OrderEmailHandler as a running background service on the real
+// topology (the production queue names and delays), with the email sender replaced. Retry delays are not waited for:
+// a test publishes a message as it arrives on its last attempt instead.
 public class OrderEventsConsumerTests : IAsyncLifetime
 {
     private const string Email = "jane@example.com";
@@ -33,7 +35,7 @@ public class OrderEventsConsumerTests : IAsyncLifetime
     private readonly FakeEmailSender _sender = new();
     private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
     private ServiceProvider? _services;
-    private OrderEventsConsumer? _consumer;
+    private IHostedService? _consumer;
 
     public OrderEventsConsumerTests(NotificationServiceDatabase database, RabbitMqFixture broker)
     {
@@ -46,17 +48,17 @@ public class OrderEventsConsumerTests : IAsyncLifetime
         await _database.ResetAsync(_cancellationToken);
         await DeclareAndPurgeQueuesAsync();
 
+        // The registration of Program.cs, with the test database, the test broker and the fake sender.
         _services = new ServiceCollection()
+            .AddLogging()
             .AddDbContext<EShopDbContext>(options =>
                 options.UseNpgsql(_database.ConnectionString).UseSnakeCaseNamingConvention()
             )
+            .AddSingleton(_broker.Connection)
+            .AddSingleton<IEmailSender>(_sender)
+            .AddMessageConsumer<OrderEmailHandler>(OrderEventsQueue.Definition)
             .BuildServiceProvider();
-        _consumer = new OrderEventsConsumer(
-            _broker.Connection,
-            _services.GetRequiredService<IServiceScopeFactory>(),
-            _sender,
-            NullLogger<OrderEventsConsumer>.Instance
-        );
+        _consumer = _services.GetServices<IHostedService>().ShouldHaveSingleItem();
         await _consumer.StartAsync(_cancellationToken);
     }
 
@@ -65,7 +67,6 @@ public class OrderEventsConsumerTests : IAsyncLifetime
         if (_consumer != null)
         {
             await _consumer.StopAsync(CancellationToken.None);
-            _consumer.Dispose();
         }
         if (_services != null)
         {

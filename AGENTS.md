@@ -19,7 +19,7 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `src/EShop.NotificationService/` | Worker: consumes order events from RabbitMQ, sends emails through Mailpit (SMTP localhost:1025); `Dockerfile` of the worker container | — |
-| `src/EShop.Messaging/` | Shared messaging infrastructure: transactional outbox, inbox (idempotent consumers), RabbitMQ connection and topology | — |
+| `src/EShop.Messaging/` | Shared event infrastructure for all services: publishing through the transactional outbox (one producer name per service), consuming with inbox, retries and DLQ (`MessageConsumer` + one `IMessageHandler` per service), RabbitMQ connection and topology | — |
 | `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderCancelled`): the contract its consumers deserialize | — |
 | `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
