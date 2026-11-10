@@ -68,6 +68,15 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "secret": "${ORDERAPI_KEYCLOAK_SECRET}"
+    },
+    {
+      "clientId": "eshop-customerapi",
+      "name": "CustomerApi: creates the accounts of guest orders",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "${CUSTOMERAPI_KEYCLOAK_SECRET}"
     }
   ],
   "users": [
@@ -98,6 +107,12 @@
       "enabled": true,
       "serviceAccountClientId": "eshop-orderapi",
       "clientRoles": { "realm-management": ["view-users"] }
+    },
+    {
+      "username": "service-account-eshop-customerapi",
+      "enabled": true,
+      "serviceAccountClientId": "eshop-customerapi",
+      "clientRoles": { "realm-management": ["view-users", "manage-users"] }
     }
   ]
 }

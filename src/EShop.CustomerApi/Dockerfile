@@ -9,6 +9,9 @@ COPY global.json nuget.config Directory.Build.props Directory.Packages.props ./
 COPY src/EShop.Data.Entities/EShop.Data.Entities.csproj src/EShop.Data.Entities/
 COPY src/EShop.Data/EShop.Data.csproj src/EShop.Data/
 COPY src/EShop.ServiceDefaults/EShop.ServiceDefaults.csproj src/EShop.ServiceDefaults/
+COPY src/EShop.Messaging/EShop.Messaging.csproj src/EShop.Messaging/
+COPY src/EShop.OrderApi.Contracts/EShop.OrderApi.Contracts.csproj src/EShop.OrderApi.Contracts/
+COPY src/EShop.CustomerApi.Contracts/EShop.CustomerApi.Contracts.csproj src/EShop.CustomerApi.Contracts/
 COPY src/EShop.CustomerApi/EShop.CustomerApi.csproj src/EShop.CustomerApi/
 RUN dotnet restore src/EShop.CustomerApi/EShop.CustomerApi.csproj
 
@@ -16,6 +19,9 @@ RUN dotnet restore src/EShop.CustomerApi/EShop.CustomerApi.csproj
 COPY src/EShop.Data.Entities/ src/EShop.Data.Entities/
 COPY src/EShop.Data/ src/EShop.Data/
 COPY src/EShop.ServiceDefaults/ src/EShop.ServiceDefaults/
+COPY src/EShop.Messaging/ src/EShop.Messaging/
+COPY src/EShop.OrderApi.Contracts/ src/EShop.OrderApi.Contracts/
+COPY src/EShop.CustomerApi.Contracts/ src/EShop.CustomerApi.Contracts/
 COPY src/EShop.CustomerApi/ src/EShop.CustomerApi/
 RUN dotnet publish src/EShop.CustomerApi/EShop.CustomerApi.csproj -c Release --no-restore -o /app/publish /p:UseAppHost=false
 

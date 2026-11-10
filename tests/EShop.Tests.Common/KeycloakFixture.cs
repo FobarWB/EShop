@@ -12,14 +12,17 @@ public sealed class KeycloakFixture : IAsyncLifetime
     public const string Realm = "eshop";
     public const string OrderApiClientId = "eshop-orderapi";
     public const string OrderApiClientSecret = "orderapi-test-secret";
+    public const string CustomerApiClientId = "eshop-customerapi";
+    public const string CustomerApiClientSecret = "customerapi-test-secret";
 
-    // The same image as docker-compose.yml; the realm file reads the secret as ${ORDERAPI_KEYCLOAK_SECRET}.
+    // The same image as docker-compose.yml; the realm file reads the secrets as ${..._KEYCLOAK_SECRET}.
     private readonly KeycloakContainer _container = new KeycloakBuilder(
         "quay.io/keycloak/keycloak:26.8"
     )
         .WithResourceMapping(new FileInfo(RealmFile()), "/opt/keycloak/data/import/")
         .WithCommand("--import-realm")
         .WithEnvironment("ORDERAPI_KEYCLOAK_SECRET", OrderApiClientSecret)
+        .WithEnvironment("CUSTOMERAPI_KEYCLOAK_SECRET", CustomerApiClientSecret)
         .Build();
 
     public string BaseUrl => _container.GetBaseAddress();

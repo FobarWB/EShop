@@ -1,6 +1,11 @@
+using EShop.CustomerApi;
+using EShop.CustomerApi.Accounts;
+using EShop.CustomerApi.GuestOrders;
 using EShop.CustomerApi.Repositories;
 using EShop.Data;
+using EShop.Messaging;
 using EShop.ServiceDefaults;
+using EShop.ServiceDefaults.Keycloak;
 using Microsoft.AspNetCore.HttpLogging;
 using Scalar.AspNetCore;
 
@@ -24,6 +29,20 @@ builder.Services.AddEShopDbContext(builder.Configuration);
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
+
+// Guest orders (#45): the consumer creates the account in Keycloak and reports it through the outbox.
+builder.Services.AddEShopMessaging(builder.Configuration);
+builder.Services.AddOutboxPublisher(CustomerApiOutbox.Producer);
+builder.Services.AddMessageConsumer<GuestOrderPlacedHandler>(GuestOrdersQueue.Definition);
+builder
+    .Services.AddOptions<GuestAccountsOptions>()
+    .Bind(builder.Configuration.GetSection(GuestAccountsOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddKeycloakAdminClient<IAccountProvisioner, KeycloakAccountProvisioner>(
+    builder.Configuration,
+    KeycloakAccountProvisioner.SettingsSection
+);
 
 builder.Services.AddControllers();
 
