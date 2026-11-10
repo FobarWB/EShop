@@ -53,9 +53,11 @@ public sealed class KeycloakAccountProvisioner : IAccountProvisioner
             + $"?client_id={Uri.EscapeDataString(_guestAccounts.ClientId)}"
             + $"&redirect_uri={Uri.EscapeDataString(_guestAccounts.RedirectUri)}"
             + $"&lifespan={(int)_guestAccounts.LinkLifespan.TotalSeconds}";
+        // VERIFY_EMAIL too: the link itself proves the mailbox. With UPDATE_PASSWORD alone the email stays unverified,
+        // and the realm's verifyEmail sends a second email at the first sign-in (seen in the compose check of #45).
         using var response = await _httpClient.PutAsJsonAsync(
             url,
-            new[] { "UPDATE_PASSWORD" },
+            new[] { "VERIFY_EMAIL", "UPDATE_PASSWORD" },
             cancellationToken
         );
         response.EnsureSuccessStatusCode();
