@@ -34,6 +34,28 @@ public class OrderEmailsTests
     }
 
     [Fact]
+    public void TryCompose_GuestOrderPlaced_PointsToTheSetPasswordEmail()
+    {
+        var body = Serialize(Placed(placedAsGuest: true));
+
+        OrderEmails.TryCompose(OrderEventTypes.OrderPlaced, body, out var email);
+
+        var composed = email.ShouldNotBeNull();
+        composed.Body.ShouldContain($"We created an account for {Email}.");
+        composed.Body.ShouldContain("\"Update Your Account\"");
+    }
+
+    [Fact]
+    public void TryCompose_SignedInOrderPlaced_SaysNothingAboutAnAccount()
+    {
+        var body = Serialize(Placed(placedAsGuest: false));
+
+        OrderEmails.TryCompose(OrderEventTypes.OrderPlaced, body, out var email);
+
+        email.ShouldNotBeNull().Body.ShouldNotContain("account");
+    }
+
+    [Fact]
     public void TryCompose_OrderCancelled_NamesOrderAndTime()
     {
         var body = Serialize(
@@ -83,6 +105,17 @@ public class OrderEmailsTests
             )
         );
     }
+
+    private static OrderPlaced Placed(bool placedAsGuest) =>
+        new(
+            11085,
+            Email,
+            "Jane Doe",
+            41m,
+            DateTime.UtcNow,
+            [new OrderPlacedItem("Chai", 2, 18m)],
+            placedAsGuest
+        );
 
     private static byte[] Serialize<T>(T @event) =>
         JsonSerializer.SerializeToUtf8Bytes(@event, JsonSerializerOptions.Web);

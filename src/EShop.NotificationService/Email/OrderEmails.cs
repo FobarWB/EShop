@@ -49,8 +49,18 @@ public static class OrderEmails
                 CultureInfo.InvariantCulture,
                 $"Total (shipping included): {order.Total:0.00}"
             )
-            .AppendLine()
-            .Append("EShop");
+            .AppendLine();
+        if (order.PlacedAsGuest)
+        {
+            // Keycloak sends the link itself (CustomerApi asks for it): this email only says which one to open.
+            body.AppendLine(CultureInfo.InvariantCulture, $"We created an account for {to}.")
+                .AppendLine(
+                    "To see this order in your account, set your password with the link in our"
+                )
+                .AppendLine("separate email \"Update Your Account\".")
+                .AppendLine();
+        }
+        body.Append("EShop");
 
         return new OrderEmail(to, $"Order #{order.OrderId} placed", body.ToString());
     }
