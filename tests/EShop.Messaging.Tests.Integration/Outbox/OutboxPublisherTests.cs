@@ -14,6 +14,9 @@ namespace EShop.Messaging.Tests.Integration.Outbox;
 // The publisher as a running background service: rows in the test database, messages in the test broker.
 public class OutboxPublisherTests : IAsyncLifetime
 {
+    // The producer whose publisher runs in these tests.
+    private const string Producer = "testapi";
+
     private readonly MessagingDatabase _database;
     private readonly RabbitMqFixture _broker;
     private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
@@ -85,6 +88,25 @@ public class OutboxPublisherTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Run_OtherProducersRows_AreNotPublished()
+    {
+        // Another service's row, older than ours: its own publisher sends it, in its own order.
+        var other = await SeedAsync(DateTime.UtcNow.AddMinutes(-1), 1, producer: "otherapi");
+        var ours = await SeedAsync(DateTime.UtcNow, 2);
+
+        await RunPublisherUntilProcessedAsync(ours.Id);
+
+        (await NextMessageAsync())
+            .ShouldNotBeNull()
+            .BasicProperties.MessageId.ShouldBe(ours.Id.ToString());
+        (await _broker.MessageCountAsync(_probeQueue, _cancellationToken)).ShouldBe(0u);
+        await using var db = _database.CreateContext();
+        (
+            await db.OutboxMessages.SingleAsync(m => m.Id == other.Id, _cancellationToken)
+        ).ProcessedAt.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Run_ProcessedMessage_IsNotPublishedAgain()
     {
         var processed = await SeedAsync(DateTime.UtcNow.AddMinutes(-1), 1, processed: true);
@@ -102,12 +124,14 @@ public class OutboxPublisherTests : IAsyncLifetime
     private Task<OutboxMessage> SeedAsync(
         DateTime occurredAt,
         int number,
-        bool processed = false
+        bool processed = false,
+        string producer = Producer
     ) =>
         _database.SeedAsync(
             new OutboxMessage
             {
                 Id = Guid.CreateVersion7(),
+                Producer = producer,
                 Type = _type,
                 Payload = $$"""{"number": {{number}}}""",
                 OccurredAt = occurredAt,
@@ -122,6 +146,7 @@ public class OutboxPublisherTests : IAsyncLifetime
         var publisher = new OutboxPublisher(
             _services.ShouldNotBeNull().GetRequiredService<IServiceScopeFactory>(),
             _broker.Connection,
+            new OutboxProducer(Producer),
             NullLogger<OutboxPublisher>.Instance
         );
         await publisher.StartAsync(_cancellationToken);

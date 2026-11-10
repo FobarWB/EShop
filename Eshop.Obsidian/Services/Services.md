@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-03
+verified: 2026-11-10
 ---
 
 # Services
@@ -14,15 +14,18 @@ Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 - [CategoryApi](CategoryApi.md): categories CRUD.
 - [ShoppingCart](ShoppingCart.md): carts and cart items per user.
 - [OrderApi](OrderApi.md): checkout (cart → order) and the user's orders.
-- [CustomerApi](CustomerApi.md): the signed-in user's phone and saved shipping addresses.
+- [CustomerApi](CustomerApi.md): the signed-in user's phone and saved shipping addresses; the accounts of guest orders.
 - [NotificationService](NotificationService.md): worker that emails the buyer on the order events from RabbitMQ.
 - [ClientApp](ClientApp.md): Angular SPA that calls the five APIs.
 
 ## Messaging
 
-OrderApi publishes `order.placed` and `order.cancelled` to the topic exchange `eshop.events` through a transactional
-outbox; NotificationService consumes them from its own queue with an inbox, delayed retries and a dead letter queue.
-Shared code in `EShop.Messaging`, contracts in `EShop.OrderApi.Contracts`. See
+OrderApi publishes `order.placed`, `order.cancelled` and `order.guest-placed`, CustomerApi `customer.guest-account-ready`,
+each through its own transactional outbox (`outbox_messages.producer`) to the topic exchange `eshop.events`.
+Three consumers, each with its own queue, inbox, delayed retries and dead letter queue: NotificationService (order
+emails), CustomerApi (guest accounts in Keycloak) and OrderApi (attaching guest orders), see
+[GuestCheckout](../Decisions/GuestCheckout.md). The mechanics are shared: `MessageConsumer` + one `IMessageHandler` per
+service in `EShop.Messaging`; contracts in `EShop.OrderApi.Contracts` and `EShop.CustomerApi.Contracts`. See
 [TransactionalOutbox](../Decisions/TransactionalOutbox.md), [DelayedRetryWithTtlQueues](../Decisions/DelayedRetryWithTtlQueues.md)
 and [RabbitMq](../Learning/RabbitMq.md).
 

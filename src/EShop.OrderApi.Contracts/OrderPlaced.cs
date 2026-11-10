@@ -8,7 +8,9 @@ public sealed record OrderPlaced(
     string ShipName,
     decimal Total,
     DateTime PlacedAt,
-    IReadOnlyList<OrderPlacedItem> Items
+    IReadOnlyList<OrderPlacedItem> Items,
+    // Added in #45; old messages have no such field and read as false.
+    bool PlacedAsGuest = false
 );
 
 public sealed record OrderPlacedItem(string ProductName, int Quantity, decimal UnitPrice);

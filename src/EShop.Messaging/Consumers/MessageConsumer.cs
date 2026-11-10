@@ -2,21 +2,22 @@ using System.Text.Json;
 using EShop.Data;
 using EShop.Data.Entities;
 using EShop.Messaging.RabbitMq;
-using EShop.NotificationService.Email;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace EShop.NotificationService.Messaging;
+namespace EShop.Messaging.Consumers;
 
-// Consumes the order events: one email per event, each event once (inbox), retried with delays, then the DLQ.
-// The queues are declared by TopologyInitializer, which runs before this service starts.
-public sealed class OrderEventsConsumer : BackgroundService
+// The shared mechanics of a consumer: one queue, each message once (inbox), retried with delays, then the DLQ.
+// What happens with a message is the handler's job (THandler, one per service); the handler's database changes and
+// the inbox row are stored in one transaction. Moved from NotificationService's OrderEventsConsumer in #45.
+public sealed class MessageConsumer<THandler> : BackgroundService
+    where THandler : IMessageHandler
 {
-    // The key of this consumer in inbox_messages.
-    private const string ConsumerName = "notifications";
-
     // The number of the retry a message is on; absent on the first delivery.
     private const string RetryAttemptHeader = "x-retry-attempt";
 
@@ -25,70 +26,94 @@ public sealed class OrderEventsConsumer : BackgroundService
 
     private const string InboxPrimaryKey = "pk_inbox_messages";
 
+    // How long to wait before connecting again when the broker is unavailable at start.
+    private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(5);
+
     // Confirms for the copies published to the retry queues: the original is acked only after the broker
-    // has stored its copy, so a failed email is never lost between the two.
+    // has stored its copy, so a failed message is never lost between the two.
     private static readonly CreateChannelOptions ConfirmedChannel = new(
         publisherConfirmationsEnabled: true,
         publisherConfirmationTrackingEnabled: true
     );
 
+    private readonly ConsumerQueue _queue;
     private readonly RabbitMqConnection _connection;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEmailSender _emailSender;
-    private readonly ILogger<OrderEventsConsumer> _logger;
+    private readonly ILogger<MessageConsumer<THandler>> _logger;
 
-    public OrderEventsConsumer(
+    public MessageConsumer(
+        ConsumerRegistration<THandler> registration,
         RabbitMqConnection connection,
         IServiceScopeFactory scopeFactory,
-        IEmailSender emailSender,
-        ILogger<OrderEventsConsumer> logger
+        ILogger<MessageConsumer<THandler>> logger
     )
     {
+        _queue = registration.Queue;
         _connection = connection;
         _scopeFactory = scopeFactory;
-        _emailSender = emailSender;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var channel = await _connection.CreateChannelAsync(stoppingToken, ConfirmedChannel);
-        try
+        while (!stoppingToken.IsCancellationRequested)
         {
-            await channel.BasicQosAsync(
-                prefetchSize: 0,
-                prefetchCount: Prefetch,
-                global: false,
-                stoppingToken
-            );
-
-            // Handlers run one after another on this channel, so acks and publishes never overlap.
-            var consumer = new AsyncEventingBasicConsumer(channel);
-            consumer.ReceivedAsync += (_, ea) => HandleAsync(channel, ea, stoppingToken);
-
-            // autoAck false: a message stays in the queue (unacked) until HandleAsync acks or rejects it;
-            // if this process dies first, RabbitMQ delivers it again (redelivered = true).
-            await channel.BasicConsumeAsync(
-                OrderEventsQueue.Name,
-                autoAck: false,
-                consumer,
-                stoppingToken
-            );
-            _logger.LogInformation("Consuming {Queue}", OrderEventsQueue.Name);
-
-            // The messages arrive in HandleAsync; this only keeps the service alive until shutdown.
-            // A broker restart is handled by the client: automatic recovery reopens the channel and the consumer.
-            await Task.Delay(Timeout.Infinite, stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
-        finally
-        {
-            // stoppingToken is already cancelled here: close without it. Unacked messages go back to the queue.
-            if (channel.IsOpen)
+            IChannel? channel = null;
+            try
             {
-                await channel.CloseAsync(cancellationToken: CancellationToken.None);
+                channel = await _connection.CreateChannelAsync(stoppingToken, ConfirmedChannel);
+
+                // Declared here, not before the host starts: an API keeps serving requests while the broker is
+                // down, and this loop connects as soon as it is back. Once consuming, the client's automatic
+                // recovery handles broker restarts. The exchange first: binding to a missing one fails.
+                await Topology.DeclareEventsExchangeAsync(channel, stoppingToken);
+                await Topology.DeclareConsumerQueueAsync(
+                    channel,
+                    _queue.Name,
+                    _queue.RoutingKeys,
+                    _queue.RetryDelays,
+                    stoppingToken
+                );
+                await channel.BasicQosAsync(
+                    prefetchSize: 0,
+                    prefetchCount: Prefetch,
+                    global: false,
+                    stoppingToken
+                );
+
+                // Handlers run one after another on this channel, so acks and publishes never overlap.
+                var consumer = new AsyncEventingBasicConsumer(channel);
+                var consuming = channel;
+                consumer.ReceivedAsync += (_, ea) => HandleAsync(consuming, ea, stoppingToken);
+
+                // autoAck false: a message stays in the queue (unacked) until HandleAsync acks or rejects it;
+                // if this process dies first, RabbitMQ delivers it again (redelivered = true).
+                await channel.BasicConsumeAsync(
+                    _queue.Name,
+                    autoAck: false,
+                    consumer,
+                    stoppingToken
+                );
+                _logger.LogInformation("Consuming {Queue}", _queue.Name);
+
+                // The messages arrive in HandleAsync; this only keeps the consumer alive until shutdown.
+                await Task.Delay(Timeout.Infinite, stoppingToken);
             }
-            await channel.DisposeAsync();
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Consuming {Queue} could not start; retrying in {Delay}",
+                    _queue.Name,
+                    ReconnectDelay
+                );
+                await DelayUnlessStoppingAsync(ReconnectDelay, stoppingToken);
+            }
+            finally
+            {
+                await CloseAsync(channel);
+            }
         }
     }
 
@@ -104,13 +129,14 @@ public sealed class OrderEventsConsumer : BackgroundService
 
         try
         {
+            // One scope per message: the handler and this DbContext are the same scoped instances.
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<EShopDbContext>();
 
             // 1. Seen before (a redelivery, or the outbox published twice): done, only ack.
             if (
                 await db.InboxMessages.AnyAsync(
-                    m => m.Consumer == ConsumerName && m.MessageId == messageId,
+                    m => m.Consumer == _queue.Consumer && m.MessageId == messageId,
                     ct
                 )
             )
@@ -124,39 +150,33 @@ public sealed class OrderEventsConsumer : BackgroundService
                 return;
             }
 
-            // 2. Unknown type or a body that does not match the contract: retrying cannot fix it.
-            OrderEmail? email;
+            // 2. One transaction for the handler's changes and the inbox row: both are stored, or neither.
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            HandleResult result;
             try
             {
-                if (!OrderEmails.TryCompose(properties.Type, ea.Body, out email))
-                {
-                    await DeadLetterAsync(
-                        channel,
-                        ea,
-                        $"its type '{properties.Type}' is unknown",
-                        ct
-                    );
-                    return;
-                }
+                result = await scope
+                    .ServiceProvider.GetRequiredService<THandler>()
+                    .HandleAsync(new ReceivedMessage(messageId, properties.Type, ea.Body), ct);
             }
             catch (JsonException ex)
             {
-                await DeadLetterAsync(channel, ea, $"its body is invalid: {ex.Message}", ct);
+                // A body that does not match the contract: retrying cannot fix it.
+                result = HandleResult.Reject($"its body is invalid: {ex.Message}");
+            }
+
+            if (result.RejectReason is { } reason)
+            {
+                // The transaction is disposed without a commit: the handler's changes are rolled back.
+                await DeadLetterAsync(channel, ea, reason, ct);
                 return;
             }
 
-            // 3. The email first, the inbox row after: SMTP cannot be rolled back. A crash between the two
-            //    sends the email again on redelivery; the other order would lose it. A duplicate beats a loss.
-            if (email != null)
-            {
-                await _emailSender.SendAsync(email.To, email.Subject, email.Body, ct);
-            }
-
-            // 4. Remember it, then ack.
+            // 3. Remember it with the handler's changes, then ack.
             db.InboxMessages.Add(
                 new InboxMessage
                 {
-                    Consumer = ConsumerName,
+                    Consumer = _queue.Consumer,
                     MessageId = messageId,
                     ProcessedAt = DateTime.UtcNow,
                 }
@@ -164,6 +184,7 @@ public sealed class OrderEventsConsumer : BackgroundService
             try
             {
                 await db.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
             }
             catch (DbUpdateException ex)
                 when (ex.InnerException
@@ -174,15 +195,16 @@ public sealed class OrderEventsConsumer : BackgroundService
                         }
                 )
             {
-                // Another delivery of the same message was processed at the same time: already recorded.
+                // A parallel delivery of the same message committed first: its changes are stored, ours are not.
+                await transaction.RollbackAsync(ct);
             }
             await channel.BasicAckAsync(ea.DeliveryTag, multiple: false, ct);
 
             _logger.LogInformation(
-                "Message {MessageId} ({Type}) processed, email {Email}",
+                "Message {MessageId} ({Type}) processed by {Consumer}",
                 messageId,
                 properties.Type,
-                email == null ? "not needed" : "sent"
+                _queue.Consumer
             );
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -195,7 +217,7 @@ public sealed class OrderEventsConsumer : BackgroundService
         }
     }
 
-    // A failure that may pass (SMTP or the database down): retry after a delay, give up after the last one.
+    // A failure that may pass (a service or the database down): retry after a delay, give up after the last one.
     private async Task RetryOrDeadLetterAsync(
         IChannel channel,
         BasicDeliverEventArgs ea,
@@ -207,7 +229,7 @@ public sealed class OrderEventsConsumer : BackgroundService
     {
         try
         {
-            var delays = OrderEventsQueue.RetryDelays;
+            var delays = _queue.RetryDelays;
             if (attempt >= delays.Count)
             {
                 _logger.LogError(
@@ -233,7 +255,7 @@ public sealed class OrderEventsConsumer : BackgroundService
             // the wait queue dead-letters the copy back to the work queue.
             await channel.BasicPublishAsync(
                 exchange: "",
-                routingKey: Topology.RetryQueue(OrderEventsQueue.Name, next),
+                routingKey: Topology.RetryQueue(_queue.Name, next),
                 mandatory: false,
                 properties,
                 ea.Body,
@@ -288,4 +310,34 @@ public sealed class OrderEventsConsumer : BackgroundService
                 _ => 0,
             }
             : 0;
+
+    private static async Task DelayUnlessStoppingAsync(TimeSpan delay, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(delay, ct);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    // stoppingToken may be cancelled already: close without it. Unacked messages go back to the queue.
+    private static async Task CloseAsync(IChannel? channel)
+    {
+        if (channel == null)
+        {
+            return;
+        }
+        try
+        {
+            if (channel.IsOpen)
+            {
+                await channel.CloseAsync(cancellationToken: CancellationToken.None);
+            }
+        }
+        catch (Exception) when (!channel.IsOpen)
+        {
+            // The broker closed it meanwhile: nothing left to close.
+        }
+        await channel.DisposeAsync();
+    }
 }

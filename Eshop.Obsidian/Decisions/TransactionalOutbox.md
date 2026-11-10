@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-02
+verified: 2026-11-10
 issue: 50
 ---
 
@@ -34,6 +34,10 @@ Checkout must not wait for, or fail because of, the broker.
   order 11084 placed with the broker stopped, `attempts = 1`, published after the restart).
 - Events reach the broker up to ~2 s after the commit; consumers must expect duplicates.
 - `outbox_messages` and `inbox_messages` grow: no cleanup job yet.
+- One table for all producers (shared database): the column `producer` keeps each `OutboxPublisher` to its own rows,
+  so their events stay in order. Two publishers sharing the rows through `SKIP LOCKED` would publish none twice, but
+  one could send a later event of an order before the other sent the earlier one (#45). With a database per service
+  (#51) the column is not needed.
 - Compared: Microsoft's eShop (`IntegrationEventLogEF`) publishes right after the commit and marks failures, with no
   background retry; MassTransit's bus outbox uses the same table + polling delivery service + inbox design, inside the
   library. Ours is the explicit version of the latter (see [UseRabbitMqClient](UseRabbitMqClient.md)).

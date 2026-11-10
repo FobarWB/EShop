@@ -4,8 +4,8 @@ namespace EShop.OrderApi.Dtos;
 
 public static class OrderMappings
 {
-    // Orders placed through the API always have an order date and a full address (PlaceOrderRequest requires it),
-    // and the repository returns only those orders (user_id is set): the "!" below cannot meet a null.
+    // Orders placed through the API (signed in or as a guest) always have an order date and a full address
+    // (PlaceOrderRequest requires it), and the repository returns only those orders: the "!" below cannot meet a null.
     public static IQueryable<OrderResponse> ToResponse(this IQueryable<Order> query) =>
         query.Select(o => new OrderResponse(
             o.OrderId,

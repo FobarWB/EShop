@@ -1,4 +1,5 @@
 using EShop.Data;
+using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -33,14 +34,19 @@ public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
         // Tests never reach Keycloak: the test scheme becomes the default one instead of JwtBearer.
         builder.ConfigureTestServices(services =>
         {
-            // The outbox publisher would reach the developer's RabbitMQ (user-secrets hold its password) and publish
-            // test events there. API tests check the outbox rows; publishing is tested against its own broker.
-            var publisher = services.SingleOrDefault(d =>
-                d.ImplementationType == typeof(OutboxPublisher)
-            );
-            if (publisher != null)
+            // The outbox publisher and the message consumers would reach the developer's RabbitMQ (user-secrets hold
+            // its password): publish test events there and take real messages from its queues. API tests check the
+            // outbox rows and call handlers directly; publishing and consuming are tested against their own broker.
+            var brokerServices = services
+                .Where(d =>
+                    d.ImplementationType == typeof(OutboxPublisher)
+                    || d.ImplementationType is { IsGenericType: true } type
+                        && type.GetGenericTypeDefinition() == typeof(MessageConsumer<>)
+                )
+                .ToList();
+            foreach (var descriptor in brokerServices)
             {
-                services.Remove(publisher);
+                services.Remove(descriptor);
             }
 
             services

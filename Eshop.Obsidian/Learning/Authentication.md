@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-03
+verified: 2026-11-10
 issue: 44
 ---
 
@@ -51,6 +51,25 @@ Related: [UseKeycloakForAuthentication](../Decisions/UseKeycloakForAuthenticatio
   (user and roles from the `X-Test-User` / `X-Test-Roles` headers, see [Testing](Testing.md)).
 - A token for manual API calls (development only):
   `curl -d "grant_type=password&client_id=eshop-dev&username=customer&password=customer1234" http://localhost:8180/realms/eshop/protocol/openid-connect/token`.
+- **Service accounts (#45).** An API that calls Keycloak's Admin API signs in as itself: a confidential client with
+  `serviceAccountsEnabled` and the **client credentials** grant (client id + secret, no user). Its rights are
+  `realm-management` client roles of its service-account user: `eshop-orderapi` only `view-users` (does an email have
+  an account?), `eshop-customerapi` `view-users` and `manage-users` (create guests). A test checks the least privilege:
+  OrderApi's token gets 403 for `POST users`.
+- **Roles are not enough since Keycloak 26.8.2**: the Admin API also checks the token's audience and the client scope
+  `kc-admin-api` (a security fix). Keycloak creates the scope in every realm on upgrade, but assigns it only to its own
+  `admin-cli` and `security-admin-console`; our clients list it in `defaultClientScopes` in the realm file (an explicit
+  list replaces the client's defaults, so the standard scopes are listed too: without `roles` the token has no roles,
+  without `basic` no `sub`). Without it the token is issued, and the Admin API answers 401; the debug log says
+  `Failed to verify identity token: Expected audience not available in the token`.
+- `EShop.ServiceDefaults/Keycloak`: `AddKeycloakAdminClient<TClient, TImpl>(configuration, section)` registers a typed
+  `HttpClient` whose handler adds the service-account token; one token is cached until 30 s before it expires. Each API
+  has its own section and secret (`KeycloakAdmin:OrderApi`, `KeycloakAdmin:CustomerApi`): the APIs share one
+  user-secrets store. Keycloak unavailable → 503 ProblemDetails.
+- Secrets in the realm file are placeholders, `"secret": "${ORDERAPI_KEYCLOAK_SECRET}"`: Keycloak resolves them from its
+  environment on import (checked with a throwaway container), so the values stay in `.env`.
+- Keycloak 26 checks the user profile at every sign-in: required attributes that are empty (first and last name of a
+  user created without them) bring up an "Update Account Information" form once.
 
 ## Debugging lessons
 
@@ -62,6 +81,7 @@ Related: [UseKeycloakForAuthentication](../Decisions/UseKeycloakForAuthenticatio
 - **"Import skipped" after a restart** means the realm still exists: the file is not applied. A realm the import cannot
   create (a password that fails the policy) stops Keycloak with an error naming the message key.
 - **Seconds of delay from the IDE on Windows** were connections, not queries: see `::1` in [Docker](Docker.md).
+- See [DevEnvironment](DevEnvironment.md) for running kcadm safely.
 
 ## Open questions
 

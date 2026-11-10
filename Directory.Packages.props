@@ -35,5 +35,7 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <!-- A throwaway RabbitMQ container per test project: the tests never touch the developer's broker. -->
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.16.0" />
+    <!-- A throwaway Keycloak with our realm file: tests of the Admin API never touch the developer's realm. -->
+    <PackageVersion Include="Testcontainers.Keycloak" Version="4.16.0" />
   </ItemGroup>
 </Project>

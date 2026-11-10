@@ -38,6 +38,18 @@ describe('OrdersService', () =>
     expect(req.request.method).toBe('GET');
   });
 
+  it('places a guest order with email, address, items and the idempotency key', () =>
+  {
+    const request = { email: 'jane@example.com', address, items: [{ productId: 7, quantity: 2 }] };
+
+    service.placeGuestOrder(request, 'key-2').subscribe();
+
+    const req = httpTesting.expectOne('/api/orders/guest');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(request);
+    expect(req.request.headers.get('Idempotency-Key')).toBe('key-2');
+  });
+
   it('places an order with the address and the idempotency key', () =>
   {
     service.placeOrder(address, 'key-1').subscribe();

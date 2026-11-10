@@ -5,4 +5,5 @@ public static class OrderEventTypes
 {
     public const string OrderPlaced = "order.placed";
     public const string OrderCancelled = "order.cancelled";
+    public const string GuestOrderPlaced = "order.guest-placed";
 }

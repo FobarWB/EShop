@@ -15,6 +15,9 @@ public enum PlaceOrderStatus
 
     // ProductIds: the cart quantity is above the units in stock.
     InsufficientStock,
+
+    // A guest's key that another guest order (another email) already has: a client error, nothing is stored.
+    IdempotencyKeyReused,
 }
 
 public sealed record PlaceOrderResult(

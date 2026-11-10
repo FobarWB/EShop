@@ -7,6 +7,7 @@ import { CartComponent } from './components/cart/cart.component';
 import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 import { CheckoutComponent } from './components/checkout/checkout.component';
 import { OrderComponent } from './components/order/order.component';
+import { OrderPlacedComponent } from './components/order-placed/order-placed.component';
 import { AccountComponent } from './components/account/account.component';
 import { AccountOrdersComponent } from './components/account/orders/orders.component';
 
@@ -23,13 +24,18 @@ export const routes: Routes = [
         path: 'cart',
         component: CartComponent
     },
-    // Orders belong to a signed-in user: the guard sends an anonymous visitor to Keycloak
-    // and the library brings them back to this route after the sign-in.
+    // Open to everyone: a visitor who is not signed in orders as a guest with an email (#45).
     {
         path: 'checkout',
-        component: CheckoutComponent,
-        canActivate: [autoLoginPartialRoutesGuard]
+        component: CheckoutComponent
     },
+    // The confirmation of a guest order, from the navigation state: a guest cannot open /orders/:id.
+    {
+        path: 'order-placed',
+        component: OrderPlacedComponent
+    },
+    // Orders belong to a signed-in user: the guard sends an anonymous visitor to Keycloak
+    // and the library brings them back to this route after the sign-in.
     {
         path: 'orders/:id',
         component: OrderComponent,

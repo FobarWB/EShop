@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-02
+verified: 2026-11-10
 issue: 50
 ---
 
@@ -15,27 +15,32 @@ Worker without HTTP endpoints: consumes the order events of [OrderApi](OrderApi.
 ## Messages
 
 Queue `notifications.order-events`, bound to the topic exchange `eshop.events` with the routing keys `order.placed`
-and `order.cancelled` (`Messaging/OrderEventsQueue.cs`). Contracts: `OrderPlaced`, `OrderCancelled` from
+and `order.cancelled` (`OrderEvents/OrderEventsQueue.cs`; not to `order.*`, so `order.guest-placed` does not come
+here). Contracts: `OrderPlaced`, `OrderCancelled` from
 [EShop.OrderApi.Contracts](../../src/EShop.OrderApi.Contracts/), see
 [MessageContractsOwnedByProducer](../Decisions/MessageContractsOwnedByProducer.md).
 
 | Event | Email |
 | --- | --- |
-| `order.placed` | "Order #N placed": the recipient name, the items (name × quantity, line total), the total with shipping |
+| `order.placed` | "Order #N placed": the recipient name, the items (name × quantity, line total), the total with shipping; for a guest order (`PlacedAsGuest`) also that an account was created and which email sets its password (#45) |
 | `order.cancelled` | "Order #N cancelled" with the time of the cancellation (UTC) |
 
 An event without `email` (the buyer has no address) sends nothing and is still recorded as processed.
 
 ## Processing
 
-`OrderEventsConsumer` (`BackgroundService`), one channel with publisher confirms, `BasicQos` prefetch 10,
-`autoAck: false`. For each message (`HandleAsync`):
+Since #45 the mechanics are the shared `MessageConsumer<OrderEmailHandler>` of `EShop.Messaging` (moved from this
+service's `OrderEventsConsumer`; the same consumer runs in OrderApi and CustomerApi). This service writes only
+`OrderEvents/OrderEmailHandler` (compose and send the email) and registers it with `AddMessageConsumer`.
+One channel with publisher confirms, `BasicQos` prefetch 10, `autoAck: false`. For each message:
 
 1. No valid `MessageId`: reject without requeue → dead letter queue.
 2. `(consumer 'notifications', MessageId)` in `inbox_messages`: a redelivery or a second publish; ack, nothing else.
-3. Unknown `Type` or a body that does not match the contract: dead letter queue at once (a retry cannot fix it).
-4. Send the email (`IEmailSender`, MailKit).
-5. Insert the inbox row, then ack. A unique violation on `pk_inbox_messages` means a parallel delivery recorded it.
+3. In a transaction: the handler. Unknown `Type` (`Reject`) or a body that does not match the contract
+   (`JsonException`): dead letter queue at once (a retry cannot fix it).
+4. The handler sends the email (`IEmailSender`, MailKit).
+5. Insert the inbox row (with the handler's changes; this handler has none), commit, then ack. A unique violation on
+   `pk_inbox_messages` means a parallel delivery recorded it: rollback, ack.
 6. Any exception in 2–5 (SMTP or the database down): retry or give up, see
    [DelayedRetryWithTtlQueues](../Decisions/DelayedRetryWithTtlQueues.md):
    attempt < 3 → a copy with `x-retry-attempt = attempt + 1` into `notifications.order-events.retry.{n}`
@@ -45,8 +50,8 @@ An event without `email` (the buyer has no address) sends nothing and is still r
 The email is sent before the inbox row is written: SMTP cannot be rolled back, and the other order would lose the email
 when the process dies in between. A duplicate beats a loss ([TransactionalOutbox](../Decisions/TransactionalOutbox.md)).
 
-`TopologyInitializer` (`IHostedService`) declares the exchange and the five queues at start, before the consumer runs:
-the host waits for `StartAsync` of a hosted service, not for `ExecuteAsync` of a background service.
+The consumer declares the exchange and the five queues itself, in a loop that connects again every 5 s while RabbitMQ
+is unavailable (until #45 a `TopologyInitializer` did it at start and stopped the process without a broker).
 
 ## Data
 
@@ -60,13 +65,16 @@ runs as `Production`; SQL commands are logged at `Warning` only.
 
 ## Dependencies
 
-RabbitMQ (connection and topology from [EShop.Messaging](../../src/EShop.Messaging/)), PostgreSQL (inbox), Mailpit.
+RabbitMQ (connection, topology and the consumer from [EShop.Messaging](../../src/EShop.Messaging/)), PostgreSQL
+(inbox), Mailpit.
 In compose it waits for the migrator, a healthy RabbitMQ and a healthy Mailpit.
 
 ## Tests
 
-- [Unit](../../tests/EShop.NotificationService.Tests.Unit/): `OrderEmails` (subjects, texts, no address, unknown type, invalid JSON).
-- [Integration](../../tests/EShop.NotificationService.Tests.Integration/): the consumer against a RabbitMQ container
+- [Unit](../../tests/EShop.NotificationService.Tests.Unit/): `OrderEmails` (subjects, texts, the guest paragraph only
+  for guest orders, no address, unknown type, invalid JSON).
+- [Integration](../../tests/EShop.NotificationService.Tests.Integration/): `MessageConsumer<OrderEmailHandler>`, registered
+  as in `Program.cs`, against a RabbitMQ container
   (Testcontainers) and the database `eshop_test_notificationservice`, with a fake `IEmailSender`: email and inbox row,
   a duplicate `MessageId` sends one email, a failing sender puts a copy into `retry.1` with attempt 1, the last attempt
   goes to the DLQ, unknown type and missing `MessageId` go to the DLQ without an email.
@@ -76,5 +84,3 @@ In compose it waits for the migrator, a healthy RabbitMQ and a healthy Mailpit.
 - A crash between sending the email and writing the inbox row sends the email again on redelivery.
 - No health check: there is no endpoint; a crashed process is restarted by `restart: unless-stopped`.
 - Messages in the DLQ wait for a person: moving them back needs the shovel plugin (not enabled) or a small tool.
-- If RabbitMQ is down at start, `TopologyInitializer` fails and the process exits; compose waits for a healthy broker,
-  a local `dotnet run` has to be restarted.

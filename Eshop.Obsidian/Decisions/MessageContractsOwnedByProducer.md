@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-02
+verified: 2026-11-10
 issue: 50
 ---
 
@@ -20,6 +20,8 @@ depends on every event, and no one owns them).
 - Each producer owns a contracts project: `EShop.OrderApi.Contracts` with `OrderPlaced`, `OrderCancelled` and
   `OrderEventTypes` (the type strings, which are also the routing keys). Plain positional `sealed record`s, no dependencies.
 - Consumers reference the producer's contracts project (NotificationService now; in #51 ProductApi gets its own).
+- Since #45 a second producer: `EShop.CustomerApi.Contracts` with `GuestAccountReady` and `CustomerEventTypes`.
+  OrderApi and CustomerApi reference each other's contracts project, never each other's service project.
 - Events carry the data their consumers need (event-carried state transfer): the email is built from `OrderPlaced`
   alone, without calling OrderApi back.
 - Fields are only added (nullable), never renamed, removed or retyped.

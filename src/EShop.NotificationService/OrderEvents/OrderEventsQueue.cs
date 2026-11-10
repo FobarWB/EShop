@@ -1,6 +1,7 @@
+using EShop.Messaging.Consumers;
 using EShop.OrderApi.Contracts;
 
-namespace EShop.NotificationService.Messaging;
+namespace EShop.NotificationService.OrderEvents;
 
 // The queue of this service: the order events it needs and how it retries a failed email.
 public static class OrderEventsQueue
@@ -20,4 +21,12 @@ public static class OrderEventsQueue
         TimeSpan.FromSeconds(30),
         TimeSpan.FromMinutes(2),
     ];
+
+    // "notifications": this consumer's key in inbox_messages.
+    public static readonly ConsumerQueue Definition = new(
+        Name,
+        "notifications",
+        RoutingKeys,
+        RetryDelays
+    );
 }

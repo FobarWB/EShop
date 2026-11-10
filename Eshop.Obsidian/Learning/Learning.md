@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-02
+verified: 2026-11-09
 ---
 
 # Learning
@@ -19,6 +19,8 @@ using `_templates/Topic.md`, and linked here.
 - [EfCore](EfCore.md): `Update()` and overposting, change tracking, projections, paging, interceptors (#33).
 - [RabbitMq](RabbitMq.md): exchanges, queues, bindings, acks, TTL and dead-lettering, durability, lab lessons;
   connection and channels, publisher confirms, consumers, automatic recovery, outbox and inbox in practice (#50).
+- [DevEnvironment](DevEnvironment.md): Windows and PowerShell pitfalls, checking secrets and Keycloak changes,
+  GitHub Project field ids (#45).
 
 ## Planned topics
 
