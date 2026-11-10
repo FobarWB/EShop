@@ -1,13 +1,14 @@
 ---
 type: service
-verified: 2026-11-03
+verified: 2026-11-10
 issue: 44
 ---
 
 # CustomerApi
 
 REST API for the signed-in user's shop data: phone and saved shipping addresses. Email and name belong to Keycloak
-(see [AccountLifecycleInKeycloak](../Decisions/AccountLifecycleInKeycloak.md)).
+(see [AccountLifecycleInKeycloak](../Decisions/AccountLifecycleInKeycloak.md)). Since #45 it also creates the Keycloak
+accounts of guest orders, as a consumer of RabbitMQ (see [Guest accounts](#guest-accounts)).
 
 - Project: [EShop.CustomerApi](../../src/EShop.CustomerApi/)
 - Local URL: https://localhost:5006 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
@@ -48,10 +49,31 @@ The Northwind `customers` table (5-character ids, required `company_name`) is no
 - `ix_customer_addresses_user_id` serves the address list. Both indexes have explicit names: `HasIndex` without a name
   returns the same index for the same column, and the snake case convention would name the second one `…_user_id1`.
 
+## Guest accounts
+
+See [GuestCheckout](../Decisions/GuestCheckout.md). `GuestOrderPlacedHandler` (folder `GuestOrders/`) on the queue
+`customers.guest-orders` (consumer `customers`, `order.guest-placed` from [OrderApi](OrderApi.md), retries 5 s / 30 s /
+2 min, then the DLQ), through the shared `MessageConsumer` of `EShop.Messaging`:
+
+1. `KeycloakAccountProvisioner.FindOrCreateAsync` (Admin API as `eshop-customerapi`: `view-users`, `manage-users`):
+   `GET users?email=…&exact=true`; none → `POST users` (`username` = `email`, `enabled`, `emailVerified: false`, no
+   password), the id from `Location`; 409 (a parallel delivery created it) → search again.
+2. `NeedsPassword`: the user has no credential of type `password`. Not "just created": a retry after a failed email
+   sends it again.
+3. `SendSetPasswordEmailAsync`: `PUT users/{id}/execute-actions-email` with `VERIFY_EMAIL` and `UPDATE_PASSWORD`,
+   `client_id` and `redirect_uri` from `GuestAccounts:*` (`eshop-client`, `http://localhost:8080/`), lifespan 24 h.
+4. `customer.guest-account-ready` (`GuestAccountReady(Email, UserId)`, `EShop.CustomerApi.Contracts`) into the outbox
+   (producer `customerapi`), saved by the consumer with the inbox row; this service's `OutboxPublisher` sends it.
+
+Keycloak cannot join the transaction: a crash after the email and before the commit sends the email again.
+
 ## Dependencies
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`); JWT validation, `User.GetUserId()`, `GetUserEmail()`,
-`GetGivenName()`, `GetFamilyName()` and error handling from `EShop.ServiceDefaults`. Called by [ClientApp](ClientApp.md).
+`GetGivenName()`, `GetFamilyName()`, error handling and the Keycloak Admin API client (section
+`KeycloakAdmin:CustomerApi`, secret in user-secrets and `CUSTOMERAPI_KEYCLOAK_SECRET`) from `EShop.ServiceDefaults`;
+outbox, consumer and RabbitMQ from `EShop.Messaging` (in compose it waits for a healthy RabbitMQ); contracts of
+`EShop.OrderApi.Contracts` and `EShop.CustomerApi.Contracts`. Called by [ClientApp](ClientApp.md).
 
 ## Tests
 
@@ -59,6 +81,9 @@ Shared DbContext (`EShopDbContext` in `EShop.Data`); JWT validation, `User.GetUs
 (repository and API, database `eshop_test_customerapi`) tests. Races are played with `BeforeSaveChangesInterceptor`:
 a concurrent first profile insert, and a concurrent new default address between this request's UPDATE and its save
 (the user has no default before, so the UPDATE locks no row and the concurrent insert does not wait for it).
+Guest accounts: `KeycloakAccountProvisioner` against a Keycloak container that imports the realm file (new email,
+the same email again, concurrently, a user with a password, and `eshop-orderapi` getting 403 for a new user);
+`GuestOrderPlacedHandler` with a fake provisioner. The set-password email needs SMTP and was checked by hand on compose.
 
 ## Known issues
 

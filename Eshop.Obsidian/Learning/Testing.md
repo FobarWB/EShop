@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-02
+verified: 2026-11-10
 issue: 9
 ---
 
@@ -71,6 +71,23 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
   test events to the local broker.
 - Each new test was seen failing: retry DLX pointed at the events exchange, publisher without `Persistent`, newest first,
   consumer without the inbox check, one retry too many, unknown type treated as known.
+
+## Keycloak and guest checkout tests (#45)
+
+- **Keycloak from Testcontainers**: `KeycloakFixture` starts `quay.io/keycloak/keycloak:26.8` (the compose image) per
+  test project and imports **the repository's realm file** with test secrets. So the tests check the file too: a
+  client, a service account or a role missing there fails them. About 30 s per run, so only the projects that call
+  Keycloak have the fixture (OrderApi, CustomerApi).
+- **Real HTTP for the Keycloak clients, fakes elsewhere**: `KeycloakAccountDirectory` and `KeycloakAccountProvisioner`
+  run against the container through the same registration as `Program.cs`; API and handler tests use fakes of the
+  interfaces (`FakeAccountDirectory`, a fake provisioner). Keycloak's emails need SMTP: checked by hand on compose
+  (Mailpit), where the check found that `UPDATE_PASSWORD` alone left the email unverified.
+- **The consumer's transaction is tested once**, in `EShop.Messaging.Tests.Integration` with a test handler (tracked
+  change, `ExecuteUpdate` then an exception, rejection); the services' handler tests call the handler and save as the
+  consumer would.
+- **Mutation checks by test class**: a whole test project starts its containers again for every broken change; running
+  only the affected project (or class) keeps a round of breakages at a few minutes. Watch the parser: a breakage that
+  does not compile shows no test count at all and must not be read as "passed".
 
 ## Open questions
 

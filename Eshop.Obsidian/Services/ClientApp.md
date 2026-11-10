@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-05
+verified: 2026-11-10
 ---
 
 # ClientApp
@@ -17,7 +17,8 @@ Angular 22 single-page application: catalog, product pages, the shopping cart, t
 | `/` | Home |
 | `/privacy` | Privacy |
 | `/cart` | Shopping cart |
-| `/checkout` | Checkout (sign-in required) |
+| `/checkout` | Checkout: a signed-in user, or a guest with an email (#45) |
+| `/order-placed` | The confirmation of a guest order, from the navigation state |
 | `/orders/:id` | One order: status and cancel; `?placed=true` after the checkout shows the thanks (sign-in required) |
 | `/account` | Name and email from the token, phone, saved addresses (sign-in required) |
 | `/account/orders` | Order history (sign-in required) |
@@ -63,9 +64,10 @@ Sign-in with Keycloak through `angular-auth-oidc-client` (see [Authentication](.
   "My orders" and "Sign out". The orders button next to the cart is shown to everyone: the route guard sends an
   anonymous visitor to the sign-in. Edit and "Add new" buttons on the home and category pages are shown only to admins:
   convenience only, the APIs refuse writes without the role.
-- `/checkout`, `/orders/:id` and the `/account` pages use the library's `autoLoginPartialRoutesGuard`: an anonymous visitor is sent to
+- `/orders/:id` and the `/account` pages use the library's `autoLoginPartialRoutesGuard`: an anonymous visitor is sent to
   Keycloak and brought back to the requested route after the sign-in (checked by hand). Other pages need no sign-in
-  (the cart works for anonymous users too, edits open in modals).
+  (the cart works for anonymous users too, edits open in modals). `/checkout` had the guard until #45; now a visitor
+  who is not signed in orders as a guest.
 
 ## Lists
 
@@ -113,6 +115,25 @@ In the anonymous mode `CartService` emits once after each change, like the API c
   reloaded cart looks fine. 400 (empty cart): a message and a reload.
 - Success: the API has emptied the cart; the client opens `/orders/:id?placed=true`, which loads the order by id
   (works after a reload).
+
+### As a guest (#45)
+
+See [GuestCheckout](../Decisions/GuestCheckout.md). Without a sign-in (`AuthService.isAuthenticated()` false) the page
+asks for an email (required, valid, at most 254) and offers "Already have an account? Sign in"; saved addresses are not
+requested (a guest has none, the request would get 401). For a signed-in user the email control is disabled, so it does
+not count for the form's validity. "Place order" sends `OrdersService.placeGuestOrder({ email, address, items })` to
+`POST /api/orders/guest`; `items` are `productId` and `quantity` of the browser cart's lines.
+
+| Answer | The guest sees |
+| --- | --- |
+| 201 | the browser cart is cleared (and the counter), `/order-placed` with `{ order, email }` in the navigation state |
+| 409 `code: account-exists` | "An account with this email already exists. Please sign in, or use "Forgot password"…" and a Sign in button; the cart stays and moves to the server after the sign-in (#24); Keycloak returns to the home page |
+| 409 with `productIds` | as for a signed-in user: the items are marked, the cart is reloaded |
+| 429 / 503 | "Too many attempts…" / "Ordering without an account is temporarily unavailable…" |
+
+`OrderPlacedComponent` shows the order and "We sent two emails to …" from the state (`Router.currentNavigation()`,
+read while the navigation runs): a guest cannot load `/orders/:id`. After a reload the state is gone and it shows only
+"Your order has been placed"; the order is personal data and is not kept in the browser's storage.
 
 ## Order page
 

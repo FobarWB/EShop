@@ -13,15 +13,16 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.ProductApi/` | Products REST API | https://localhost:5002 |
 | `src/EShop.CategoryApi/` | Categories REST API | https://localhost:5003 |
 | `src/EShop.ShoppingCart/` | Shopping cart REST API | https://localhost:5004 |
-| `src/EShop.OrderApi/` | Orders REST API: checkout from the cart | https://localhost:5005 |
-| `src/EShop.CustomerApi/` | Customer REST API: the signed-in user's phone and saved shipping addresses | https://localhost:5006 |
+| `src/EShop.OrderApi/` | Orders REST API: checkout from the cart, guest checkout with an email; consumes `customer.guest-account-ready` | https://localhost:5005 |
+| `src/EShop.CustomerApi/` | Customer REST API: the signed-in user's phone and saved shipping addresses; creates the Keycloak accounts of guest orders (consumes `order.guest-placed`) | https://localhost:5006 |
 | `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `src/EShop.NotificationService/` | Worker: consumes order events from RabbitMQ, sends emails through Mailpit (SMTP localhost:1025); `Dockerfile` of the worker container | — |
 | `src/EShop.Messaging/` | Shared event infrastructure for all services: publishing through the transactional outbox (one producer name per service), consuming with inbox, retries and DLQ (`MessageConsumer` + one `IMessageHandler` per service), RabbitMQ connection and topology | — |
-| `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderCancelled`): the contract its consumers deserialize | — |
-| `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`) | — |
+| `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderCancelled`, `GuestOrderPlaced`): the contract its consumers deserialize | — |
+| `src/EShop.CustomerApi.Contracts/` | Events published by CustomerApi (`GuestAccountReady`) | — |
+| `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`), Keycloak Admin API client `AddKeycloakAdminClient()` (service account, one settings section per API) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
 | `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the five APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
 | `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin1234` and `customer`/`customer1234` (local only, never on a server) | — |
@@ -40,7 +41,9 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 - CORS origins come from `Cors:AllowedOrigins` in each API's `appsettings.json` (`http://localhost:4200`);
   our client is same-origin through the proxies and does not need it.
 - Authentication: Keycloak issues the tokens, the APIs validate them (`Authentication:Authority`). Product and category
-  reads are public, writes need the realm role `admin`; every cart, order and customer endpoint needs a signed-in user (`/api/carts/me`, `/api/orders`, `/api/customers/me`).
+  reads are public, writes need the realm role `admin`; every cart, order and customer endpoint needs a signed-in user (`/api/carts/me`, `/api/orders`, `/api/customers/me`),
+  except the guest checkout `POST /api/orders/guest` (anonymous, rate-limited).
+  OrderApi and CustomerApi also call Keycloak's Admin API as service accounts (`eshop-orderapi`, `eshop-customerapi`).
   The client reads `authority` and `clientId` from `src/EShop.ClientApp/public/config.json` at start.
 - In containers the APIs read the Keycloak metadata from `keycloak:8080` (`Authentication__MetadataAddress`);
   the token issuer stays `http://localhost:8180`.
@@ -67,7 +70,9 @@ GitHub is the source of truth for progress; do not copy task status into files.
   (not on `PATH`) still work against the container.
 - The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
   (`UserSecretsId` `eshop`, shared by the five APIs and NotificationService); it is never committed.
-  The same user-secrets hold `RabbitMq:Password` (the value of `RABBITMQ_PASSWORD` in `.env`) for OrderApi and NotificationService.
+  The same user-secrets hold `RabbitMq:Password` (the value of `RABBITMQ_PASSWORD` in `.env`) for OrderApi, CustomerApi and NotificationService,
+  and the Keycloak client secrets `KeycloakAdmin:OrderApi:ClientSecret` and `KeycloakAdmin:CustomerApi:ClientSecret`
+  (the values of `ORDERAPI_KEYCLOAK_SECRET` and `CUSTOMERAPI_KEYCLOAK_SECRET` in `.env`; Keycloak reads them on realm import).
 - Windows PowerShell may block `.ps1` scripts (execution policy): use `npm.cmd` or
   `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 

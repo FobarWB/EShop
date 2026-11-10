@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-03
+verified: 2026-11-10
 issue: 44
 ---
 
@@ -33,7 +33,8 @@ not coded:
 The password is not on the registration form: with `verifyEmail` Keycloak 26 asks for it after the link in the email
 is opened (`UPDATE_PASSWORD`; the option "Always set password on register form" of the "Password Validation" step
 is off and deprecated). Only someone who reads the mailbox can set the password. Guest checkout (#45) reuses this:
-a user created without a password sets it through the link.
+a user created without a password sets it through Keycloak's execute-actions email with `VERIFY_EMAIL` and
+`UPDATE_PASSWORD` (see [GuestCheckout](GuestCheckout.md)).
 
 Unconfirmed users cannot sign in at all (the issue asked for "sign in, but no orders"). Every token therefore carries
 `email_verified: true`, so the APIs do not check it.

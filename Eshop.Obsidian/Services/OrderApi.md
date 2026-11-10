@@ -1,13 +1,13 @@
 ---
 type: service
-verified: 2026-11-02
+verified: 2026-11-10
 issue: 50
 ---
 
 # OrderApi
 
-REST API for orders: turns the signed-in user's cart into an order, lists the user's orders, cancels them, and lets
-admins move orders through their lifecycle.
+REST API for orders: turns the signed-in user's cart into an order, takes guest orders with an email (#45), lists the
+user's orders, cancels them, and lets admins move orders through their lifecycle.
 
 - Project: [EShop.OrderApi](../../src/EShop.OrderApi/)
 - Local URL: https://localhost:5005 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
@@ -15,12 +15,13 @@ admins move orders through their lifecycle.
 
 ## Endpoints (`api/orders`)
 
-Every endpoint needs a signed-in user and works on that user's orders: the id is the token's `sub`, never a request
-value. 401 without a token. Errors are ProblemDetails.
+Every endpoint except `POST /guest` needs a signed-in user and works on that user's orders: the id is the token's
+`sub`, never a request value. 401 without a token. Errors are ProblemDetails.
 
 | Method | Route | Action |
 | --- | --- | --- |
 | POST | `/` | Place an order from the user's cart: header `Idempotency-Key: <uuid>` (required), body `PlaceOrderRequest` (shipping address); 201 with `Location` and the order |
+| POST | `/guest` | Anonymous, see [Guest checkout](#guest-checkout): `Idempotency-Key`, body `GuestOrderRequest`; 201, 409 `code: account-exists`, 409 with `productIds`, 400, 429, 503 |
 | GET | `/?page=1&pageSize=20` | The user's orders, newest first: `PagedResponse<OrderSummaryResponse>` |
 | GET | `/{id}` | Get one of the user's orders; 404 for a missing order and for another user's order (the response does not reveal that it exists) |
 | POST | `/{id}/cancel` | Cancel the user's `Pending` or `Paid` order and return its stock; 200 with the order, 404, 409 when it can no longer be cancelled |
@@ -55,6 +56,32 @@ Orders are documents: no PUT of the order or DELETE. Status changes follow
 6. Add the `OrderPlaced` event (id, email, recipient, total, items) to `outbox_messages`; second `SaveChanges`; commit.
    The order and its event are stored together or not at all ([TransactionalOutbox](../Decisions/TransactionalOutbox.md)).
 
+## Guest checkout
+
+See [GuestCheckout](../Decisions/GuestCheckout.md). `OrdersController.PlaceGuestOrder`:
+
+1. The email is trimmed and lower-cased (as Keycloak stores it; the account later finds its orders by it). Not logged.
+2. An earlier try with this key and email (`RetrieveGuestOrderAsync`): 201 with that order, before anything else, so a
+   retry after a lost response still gets its order once the account exists.
+3. `IAccountDirectory.AccountExistsAsync` (Keycloak Admin API, `GET users?email=…&exact=true` as `eshop-orderapi`):
+   an account → 409 `code: account-exists`. Keycloak down → `IdentityProviderUnavailableException` → 503.
+4. `OrderRepository.PlaceGuestOrderAsync`: the request's lines summed per product, the products loaded tracked; an
+   unknown product → 409 with `productIds`. Then the same `CreateOrderAsync` as the signed-in checkout (checks, prices,
+   stock, journal with `ChangedBy = guest`), with `user_id` null and `placed_as_guest`; the outbox gets `order.placed`
+   (`PlacedAsGuest: true`) and `order.guest-placed`.
+
+The endpoint has the rate limit `guest-checkout`: 5 requests per minute and client address (`GuestCheckout:PermitsPerMinute`),
+429 above it. Behind nginx the address comes from `X-Forwarded-For` (`UseForwardedHeaders`, every proxy trusted: the
+API ports are not published in compose; revisit for a public server, #59).
+
+## Consumed events
+
+`GuestAccountReadyHandler` on the queue `orders.guest-accounts` (consumer `orders`, `customer.guest-account-ready` from
+[CustomerApi](CustomerApi.md), retries 5 s / 30 s / 2 min, then the DLQ), through the shared `MessageConsumer` of
+`EShop.Messaging`: one `UPDATE orders SET user_id = … WHERE placed_as_guest AND user_id IS NULL AND customer_email = …`
+inside the consumer's transaction with the inbox row. Orders of the email that have an owner are not touched; a
+redelivery updates 0 rows.
+
 ## Status changes
 
 `OrderRepository.ChangeStatusAsync(orderId, ownerId, next, changedBy)` serves both endpoints (`ownerId` null for an admin):
@@ -88,8 +115,11 @@ confirms, up to ~2 s after the commit, in the order they occurred. Contracts in
 
 | Type | Contract | When |
 | --- | --- | --- |
-| `order.placed` | `OrderPlaced(OrderId, Email, ShipName, Total, PlacedAt, Items[ProductName, Quantity, UnitPrice])` | checkout |
+| `order.placed` | `OrderPlaced(OrderId, Email, ShipName, Total, PlacedAt, Items[ProductName, Quantity, UnitPrice], PlacedAsGuest)` | checkout (`PlacedAsGuest` since #45, false in older messages) |
 | `order.cancelled` | `OrderCancelled(OrderId, Email, CancelledAt)` | cancel by the buyer or an admin |
+| `order.guest-placed` | `GuestOrderPlaced(OrderId, Email, PlacedAt)` | guest checkout: CustomerApi creates the account |
+
+The outbox rows have the producer `orderapi` (`OrderApiOutbox.Producer`): this service's publisher sends only these.
 
 With RabbitMQ down the API keeps working: the publisher logs a warning every 2 s, the rows wait, and the client's
 automatic recovery reconnects when the broker is back. Consumer: [NotificationService](NotificationService.md).
@@ -111,6 +141,11 @@ Writes `orders`, `order_details`, `order_status_changes`, `outbox_messages`, `pr
 - `orders.status` (`varchar(20)`, CHECK `ck_orders_status`) and `orders.xmin` as the concurrency token.
 - `order_date`, `required_date` and `shipped_date` are `timestamptz`: Npgsql reads and writes `DateTime` of kind `Utc`.
 - `order_status_changes`: the journal, see [OrderLifecycle](../Decisions/OrderLifecycle.md).
+- `orders.placed_as_guest` (#45, migration `AddGuestOrders`): a guest order; `user_id` is null until the account is
+  attached. `ix_orders_guest_idempotency_key` (unique, `WHERE placed_as_guest`) makes a guest's retry return its order,
+  also after `user_id` was set; `ix_orders_guest_customer_email` (`WHERE placed_as_guest AND user_id IS NULL`) serves
+  the attach.
+- `outbox_messages.producer` (migration `AddOutboxProducer`; existing rows got `orderapi`, the column has no default).
 - Migration `AddOrderLifecycle`: the Northwind rows got `Delivered`, orders placed through the API before it `Pending`;
   `product_name` was copied from `products`.
 - `customer_id` (Northwind `char(5)`) stays null for new orders.
@@ -120,8 +155,9 @@ Writes `orders`, `order_details`, `order_status_changes`, `outbox_messages`, `pr
 Shared DbContext (`EShopDbContext` in `EShop.Data`); reads the cart of [ShoppingCart](ShoppingCart.md) and the products
 of [ProductApi](ProductApi.md) directly. With a database per service ([#51](https://github.com/FobarWB/EShop/issues/51))
 the checkout would get the cart by request and change the stock through events.
-JWT validation, `User.GetUserId()`, `User.GetUserEmail()` and error handling (`ConcurrencyConflictHandler`) from
-`EShop.ServiceDefaults`; outbox and RabbitMQ from `EShop.Messaging` (`RabbitMq:Password` from user-secrets, in compose
+JWT validation, `User.GetUserId()`, `User.GetUserEmail()`, error handling (`ConcurrencyConflictHandler`) and the
+Keycloak Admin API client (`AddKeycloakAdminClient`, section `KeycloakAdmin:OrderApi`, secret in user-secrets and
+`ORDERAPI_KEYCLOAK_SECRET`) from `EShop.ServiceDefaults`; contracts of `EShop.CustomerApi.Contracts`; outbox and RabbitMQ from `EShop.Messaging` (`RabbitMq:Password` from user-secrets, in compose
 `RabbitMq__Host=rabbitmq` and the password from `.env`; the container waits for a healthy RabbitMQ).
 Called by [ClientApp](ClientApp.md).
 
@@ -135,8 +171,11 @@ a second cancel commits inside the first one's `SaveChanges`: the first throws, 
 `OrderLifecycleTests` checks all 25 pairs of statuses.
 Outbox: checkout and cancel store exactly one event with the right payload (also an admin's cancel: the buyer's email),
 a retry with the same key and every failed or concurrent checkout store none, other status changes store none.
-The API tests remove `OutboxPublisher` from the services (`EShopApiFactory`): it would publish test events to the
-developer's broker. The publisher itself is tested in [EShop.Messaging.Tests.Integration](../../tests/EShop.Messaging.Tests.Integration/).
+The API tests remove `OutboxPublisher` and the message consumers from the services (`EShopApiFactory`): they would
+publish test events to the developer's broker and take its messages.
+Guest checkout (#45): API, repository and controller tests with `FakeAccountDirectory` (existing emails, Keycloak
+down); the rate limit with its own factory (2 per minute); `KeycloakAccountDirectory` against a Keycloak container
+(`KeycloakFixture`) that imports the repository's realm file; `GuestAccountReadyHandler` on the test database. The publisher itself is tested in [EShop.Messaging.Tests.Integration](../../tests/EShop.Messaging.Tests.Integration/).
 
 ## Known issues
 

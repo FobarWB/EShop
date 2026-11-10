@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-02
+verified: 2026-11-10
 issue: 50
 ---
 
@@ -115,6 +115,29 @@ Outbox and polling publisher in OrderApi, consumer with inbox, retries 5 s / 30 
 the broker stopped is published later; a redelivered `MessageId` is acknowledged as a duplicate; a message without
 `MessageId` goes to the DLQ; with Mailpit stopped a message went retry.1 → retry.2 → retry.3 → DLQ (5 s and 30 s
 apart, plus ~4 s per failed SMTP attempt). Tested against a RabbitMQ container (Testcontainers), see [Testing](Testing.md).
+
+## Applied in #45
+
+Guest checkout ([GuestCheckout](../Decisions/GuestCheckout.md)) as a choreography of three services, without a
+coordinator: OrderApi → `order.guest-placed` → CustomerApi (Keycloak user, set-password email) →
+`customer.guest-account-ready` → OrderApi (attach the order). Lessons:
+
+- **One consumer, many handlers.** The mechanics (inbox, ack, retries, DLQ) moved from NotificationService into
+  `MessageConsumer<THandler>` of `EShop.Messaging`; a service writes only an `IMessageHandler`. The consumer runs the
+  handler and the inbox row in **one database transaction**, so a handler's `ExecuteUpdate` (OrderApi's attach) or
+  outbox row (CustomerApi's next event) is stored exactly once per message, or not at all.
+- **Side effects outside the database stay at least once.** Keycloak calls and emails cannot join the transaction:
+  a crash before the commit repeats them. Keycloak's find-or-create is idempotent; a second email is accepted.
+- **Two publishers on one outbox table break the order.** With `FOR UPDATE SKIP LOCKED` no row is published twice,
+  but two services' publishers take different batches, and a later event can overtake an earlier one. Each publisher
+  now takes only its own rows (`outbox_messages.producer`).
+- **Declare in the consumer, not before the host starts.** NotificationService's `TopologyInitializer` stopped the
+  process without a broker; an API must keep serving HTTP. The consumer declares its queues in a loop that connects
+  again every 5 s.
+- **Bind exact routing keys.** NotificationService binds `order.placed` and `order.cancelled`, not `order.*`: a new
+  event type (`order.guest-placed`) would otherwise land in its queue and go to the DLQ as unknown.
+- Checked on compose: a guest order went through all three queues in about a second (three outbox rows published,
+  one inbox row per consumer, all DLQs empty).
 
 ## Open questions
 

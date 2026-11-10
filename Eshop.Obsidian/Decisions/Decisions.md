@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-05
+verified: 2026-11-10
 ---
 
 # Decisions
@@ -34,3 +34,5 @@ Architecture decision records: the context, the decision and its consequences. N
   password policy are realm settings; the password is set after the email is confirmed.
 - [AnonymousCartMerge](AnonymousCartMerge.md): the anonymous cart moves to the server in one transaction, capped by
   the stock, when the signed-in client first reads the cart.
+- [GuestCheckout](GuestCheckout.md): guest orders with an email; the account is created through RabbitMQ, a registered
+  email is asked to sign in.
