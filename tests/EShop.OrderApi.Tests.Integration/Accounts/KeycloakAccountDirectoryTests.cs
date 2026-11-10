@@ -11,6 +11,8 @@ namespace EShop.OrderApi.Tests.Integration.Accounts;
 // The real Admin API of a Keycloak that imported our realm file, through the same registration as Program.cs.
 public class KeycloakAccountDirectoryTests
 {
+    private const string Section = KeycloakAccountDirectory.SettingsSection;
+
     private readonly KeycloakFixture _keycloak;
     private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
@@ -84,15 +86,18 @@ public class KeycloakAccountDirectoryTests
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    ["KeycloakAdmin:BaseUrl"] = _keycloak.BaseUrl,
-                    ["KeycloakAdmin:Realm"] = KeycloakFixture.Realm,
-                    ["KeycloakAdmin:ClientId"] = KeycloakFixture.OrderApiClientId,
-                    ["KeycloakAdmin:ClientSecret"] = clientSecret,
+                    [$"{Section}:BaseUrl"] = _keycloak.BaseUrl,
+                    [$"{Section}:Realm"] = KeycloakFixture.Realm,
+                    [$"{Section}:ClientId"] = KeycloakFixture.OrderApiClientId,
+                    [$"{Section}:ClientSecret"] = clientSecret,
                 }
             )
             .Build();
         var services = new ServiceCollection();
-        services.AddKeycloakAdminClient<IAccountDirectory, KeycloakAccountDirectory>(configuration);
+        services.AddKeycloakAdminClient<IAccountDirectory, KeycloakAccountDirectory>(
+            configuration,
+            Section
+        );
         if (tokenRequests != null)
         {
             services

@@ -8,19 +8,21 @@ namespace EShop.ServiceDefaults.Keycloak;
 public static class KeycloakAdminExtensions
 {
     /// <summary>
-    /// A typed client for the Keycloak Admin API (<c>KeycloakAdmin:*</c>) that sends the service-account token,
-    /// and 503 ProblemDetails when Keycloak is unavailable. A missing setting stops the API at start.
+    /// A typed client for the Keycloak Admin API that sends the service-account token of the client configured in
+    /// <paramref name="sectionName"/> (e.g. <c>KeycloakAdmin:OrderApi</c>), and 503 ProblemDetails when Keycloak is
+    /// unavailable. A missing setting stops the API at start.
     /// </summary>
     public static IHttpClientBuilder AddKeycloakAdminClient<TClient, TImplementation>(
         this IServiceCollection services,
-        IConfiguration configuration
+        IConfiguration configuration,
+        string sectionName
     )
         where TClient : class
         where TImplementation : class, TClient
     {
         services
             .AddOptions<KeycloakAdminOptions>()
-            .Bind(configuration.GetSection(KeycloakAdminOptions.SectionName))
+            .Bind(configuration.GetSection(sectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);

@@ -20,8 +20,11 @@ public class OrderApiFactory(OrderApiDatabase database) : EShopApiFactory<Progra
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
-        // ValidateOnStart needs a secret; the other KeycloakAdmin settings come from appsettings.json.
-        builder.UseSetting("KeycloakAdmin:ClientSecret", "test-secret");
+        // ValidateOnStart needs a secret; the other Keycloak settings come from appsettings.json.
+        builder.UseSetting(
+            $"{KeycloakAccountDirectory.SettingsSection}:ClientSecret",
+            "test-secret"
+        );
         builder.UseSetting(GuestCheckoutRateLimit.PermitsSetting, GuestPermitsPerMinute.ToString());
         builder.ConfigureTestServices(services =>
             services.AddSingleton<IAccountDirectory>(Accounts)

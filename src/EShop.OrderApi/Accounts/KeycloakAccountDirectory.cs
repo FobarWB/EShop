@@ -7,6 +7,9 @@ namespace EShop.OrderApi.Accounts;
 
 public sealed class KeycloakAccountDirectory : IAccountDirectory
 {
+    // OrderApi's Keycloak client (eshop-orderapi, view-users only); the secret is KeycloakAdmin:OrderApi:ClientSecret.
+    public const string SettingsSection = "KeycloakAdmin:OrderApi";
+
     private readonly HttpClient _httpClient;
     private readonly string _realm;
 

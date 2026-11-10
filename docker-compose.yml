@@ -93,6 +93,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
       # Secret of the client eshop-orderapi: the realm file reads it as ${ORDERAPI_KEYCLOAK_SECRET} on import.
       ORDERAPI_KEYCLOAK_SECRET: ${ORDERAPI_KEYCLOAK_SECRET:?Set ORDERAPI_KEYCLOAK_SECRET in .env}
+      CUSTOMERAPI_KEYCLOAK_SECRET: ${CUSTOMERAPI_KEYCLOAK_SECRET:?Set CUSTOMERAPI_KEYCLOAK_SECRET in .env}
     ports:
       # Also on ::1, as for postgres: the APIs started from the IDE read the metadata from localhost:8180.
       - "127.0.0.1:8180:8080"
@@ -188,8 +189,8 @@ services:
     environment:
       # The anchor's environment is replaced, not merged: repeated in full, plus the Keycloak Admin API.
       <<: *api-environment
-      KeycloakAdmin__BaseUrl: http://keycloak:8080
-      KeycloakAdmin__ClientSecret: ${ORDERAPI_KEYCLOAK_SECRET}
+      KeycloakAdmin__OrderApi__BaseUrl: http://keycloak:8080
+      KeycloakAdmin__OrderApi__ClientSecret: ${ORDERAPI_KEYCLOAK_SECRET}
     # The anchor's depends_on is replaced, not merged: repeated in full, plus the broker of the outbox publisher.
     depends_on:
       migrator:
@@ -205,6 +206,19 @@ services:
 
   customerapi:
     <<: *api
+    environment:
+      # The anchor's environment is replaced, not merged: repeated in full, plus the Keycloak Admin API.
+      <<: *api-environment
+      KeycloakAdmin__CustomerApi__BaseUrl: http://keycloak:8080
+      KeycloakAdmin__CustomerApi__ClientSecret: ${CUSTOMERAPI_KEYCLOAK_SECRET}
+    # Repeated in full as for orderapi, plus the broker of the guest-order consumer and the outbox publisher.
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     image: ghcr.io/fobarwb/eshop-customerapi:${ESHOP_TAG:-local}
     build:
       context: .

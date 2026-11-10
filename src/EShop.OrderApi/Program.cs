@@ -64,7 +64,8 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 
 // The guest checkout asks Keycloak whether an email already has an account (service account eshop-orderapi).
 builder.Services.AddKeycloakAdminClient<IAccountDirectory, KeycloakAccountDirectory>(
-    builder.Configuration
+    builder.Configuration,
+    KeycloakAccountDirectory.SettingsSection
 );
 
 // Behind nginx every request comes from the proxy: the client's address is in X-Forwarded-For. The APIs are reached
