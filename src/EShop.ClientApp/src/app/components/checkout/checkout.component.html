@@ -2,11 +2,27 @@
   <h4><b>Checkout</b></h4>
   @if (errorMessage(); as message) {
   <div class="alert alert-danger" role="alert">
-    {{ message }} <a routerLink="/cart">Back to cart</a>
+    {{ message }}
+    @if (accountExists()) {
+    <button type="button" class="btn btn-dark btn-sm ms-2 sign-in" (click)="auth.signIn()">Sign in</button>
+    } @else {
+    <a routerLink="/cart">Back to cart</a>
+    }
   </div>
   }
   <div class="row">
     <form class="col-md-7" [formGroup]="form" (ngSubmit)="placeOrder()">
+      @if (isGuest()) {
+      <p class="guest-sign-in">
+        Already have an account?
+        <button type="button" class="btn btn-link p-0 align-baseline" (click)="auth.signIn()">Sign in</button>
+      </p>
+      <div class="mb-3">
+        <label class="form-label" for="email">Email</label>
+        <input class="form-control" id="email" type="email" formControlName="email" maxlength="254" autocomplete="email" />
+        <div class="form-text">We create an account for this email and send you a link to set its password.</div>
+      </div>
+      }
       <h5>Shipping address</h5>
       @for (field of fields; track field.name) {
       <div class="mb-3">

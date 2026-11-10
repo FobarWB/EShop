@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { IGuestOrderRequest } from '../models/guest-order-request.model';
 import { IOrder, IOrderSummary } from '../models/order.model';
 import { IPage } from '../models/page.model';
 import { IShippingAddress } from '../models/shipping-address.model';
@@ -18,6 +19,12 @@ export class OrdersService
   placeOrder(address: IShippingAddress, idempotencyKey: string): Observable<IOrder>
   {
     return this.http.post<IOrder>(this.apiUrl, address, { headers: { 'Idempotency-Key': idempotencyKey } });
+  }
+
+  // Without sign-in: the items come from the browser's cart; the key makes a retry return the same order.
+  placeGuestOrder(request: IGuestOrderRequest, idempotencyKey: string): Observable<IOrder>
+  {
+    return this.http.post<IOrder>(`${this.apiUrl}/guest`, request, { headers: { 'Idempotency-Key': idempotencyKey } });
   }
 
   // The user's orders, newest first.
