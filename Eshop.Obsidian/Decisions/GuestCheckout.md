@@ -29,7 +29,9 @@ data. Keycloak cannot join a database transaction. The issue asked not to reveal
 - Retries: a guest's `Idempotency-Key` is unique among guest orders (`ix_orders_guest_idempotency_key … WHERE
   placed_as_guest`), checked with the email, and still found after the order was attached.
 - One Keycloak client per API, with its own settings section and secret (`KeycloakAdmin:OrderApi`,
-  `KeycloakAdmin:CustomerApi`): the APIs share one user-secrets store.
+  `KeycloakAdmin:CustomerApi`): the APIs share one user-secrets store. Both clients have the client scope
+  `kc-admin-api` as a default scope: since Keycloak 26.8.2 the Admin API accepts only tokens with its audience and that
+  scope, and answers 401 otherwise (upgrading guide, "Admin REST API now enforces an audience check").
 
 ## Consequences
 

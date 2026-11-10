@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-09
+verified: 2026-11-10
 issue: 45
 ---
 
@@ -24,6 +24,14 @@ For people and agents alike: a command that "succeeded" is checked by reading th
   and print only the result and the lengths:
   `e=$(grep '^NAME=' .env | cut -d= -f2- | tr -d '\r'); u=$(dotnet user-secrets list --project src/EShop.ProductApi | tr -d '\r' | sed -n 's/^Section:Key = //p'); echo "${#e} ${#u}"; [ "$u" = "$e" ] && echo MATCH`
 - **`csharpier format <directory>` also reformats the `.csproj` files in it.** Pass the edited `.cs` files.
+- **A floating image tag is an untested dependency.** `quay.io/keycloak/keycloak:26.8` was 26.8.1 in the local cache
+  and 26.8.2 on the CI runner, which pulls fresh: the tests passed locally and failed in CI (#45, a breaking security
+  fix of the Admin API). Keycloak is pinned to an exact version now, so an upgrade is a visible change in a PR.
+  To compare without pulling: `docker image inspect <image> --format '{{index .RepoDigests 0}}'` against
+  `docker buildx imagetools inspect <image>`; a specific build can be pulled by digest without moving the local tag.
+- **A 401 that "should not happen": switch on the server's debug log for authentication** in a throwaway container,
+  e.g. `KC_LOG_LEVEL=info,org.keycloak.services.managers:debug,org.keycloak.services.resources.admin:debug`, and repeat
+  the one request; the reason is in the log, not in the response.
 
 ## Applied in this project
 

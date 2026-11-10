@@ -56,6 +56,12 @@ Related: [UseKeycloakForAuthentication](../Decisions/UseKeycloakForAuthenticatio
   `realm-management` client roles of its service-account user: `eshop-orderapi` only `view-users` (does an email have
   an account?), `eshop-customerapi` `view-users` and `manage-users` (create guests). A test checks the least privilege:
   OrderApi's token gets 403 for `POST users`.
+- **Roles are not enough since Keycloak 26.8.2**: the Admin API also checks the token's audience and the client scope
+  `kc-admin-api` (a security fix). Keycloak creates the scope in every realm on upgrade, but assigns it only to its own
+  `admin-cli` and `security-admin-console`; our clients list it in `defaultClientScopes` in the realm file (an explicit
+  list replaces the client's defaults, so the standard scopes are listed too: without `roles` the token has no roles,
+  without `basic` no `sub`). Without it the token is issued, and the Admin API answers 401; the debug log says
+  `Failed to verify identity token: Expected audience not available in the token`.
 - `EShop.ServiceDefaults/Keycloak`: `AddKeycloakAdminClient<TClient, TImpl>(configuration, section)` registers a typed
   `HttpClient` whose handler adds the service-account token; one token is cached until 30 s before it expires. Each API
   has its own section and secret (`KeycloakAdmin:OrderApi`, `KeycloakAdmin:CustomerApi`): the APIs share one

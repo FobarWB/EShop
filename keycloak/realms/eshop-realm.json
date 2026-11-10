@@ -67,7 +67,8 @@
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "secret": "${ORDERAPI_KEYCLOAK_SECRET}"
+      "secret": "${ORDERAPI_KEYCLOAK_SECRET}",
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email", "kc-admin-api"]
     },
     {
       "clientId": "eshop-customerapi",
@@ -76,7 +77,8 @@
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "secret": "${CUSTOMERAPI_KEYCLOAK_SECRET}"
+      "secret": "${CUSTOMERAPI_KEYCLOAK_SECRET}",
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "basic", "email", "kc-admin-api"]
     }
   ],
   "users": [

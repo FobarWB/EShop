@@ -74,7 +74,7 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
 
 ## Keycloak and guest checkout tests (#45)
 
-- **Keycloak from Testcontainers**: `KeycloakFixture` starts `quay.io/keycloak/keycloak:26.8` (the compose image) per
+- **Keycloak from Testcontainers**: `KeycloakFixture` starts `quay.io/keycloak/keycloak:26.8.2` (the compose image, an exact version) per
   test project and imports **the repository's realm file** with test secrets. So the tests check the file too: a
   client, a service account or a role missing there fails them. About 30 s per run, so only the projects that call
   Keycloak have the fixture (OrderApi, CustomerApi).

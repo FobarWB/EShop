@@ -75,7 +75,7 @@ services:
 
   # Identity provider (OpenID Connect): issues the tokens the APIs validate.
   keycloak:
-    image: quay.io/keycloak/keycloak:26.8
+    image: quay.io/keycloak/keycloak:26.8.2
     # Development mode; --import-realm creates the realms from /opt/keycloak/data/import if they do not exist yet.
     command: ["start-dev", "--import-realm"]
     environment:

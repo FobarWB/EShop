@@ -17,7 +17,7 @@ public sealed class KeycloakFixture : IAsyncLifetime
 
     // The same image as docker-compose.yml; the realm file reads the secrets as ${..._KEYCLOAK_SECRET}.
     private readonly KeycloakContainer _container = new KeycloakBuilder(
-        "quay.io/keycloak/keycloak:26.8"
+        "quay.io/keycloak/keycloak:26.8.2"
     )
         .WithResourceMapping(new FileInfo(RealmFile()), "/opt/keycloak/data/import/")
         .WithCommand("--import-realm")
