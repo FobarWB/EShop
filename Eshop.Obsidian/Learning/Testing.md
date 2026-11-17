@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-10
+verified: 2026-11-17
 issue: 9
 ---
 
@@ -33,29 +33,29 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
 ## Applied in this project
 
 - `tests/EShop.<Service>.Tests.Unit` and `tests/EShop.<Service>.Tests.Integration`; shared helpers in
-  `tests/EShop.Tests.Common`: `TestDatabase` (connection string, `_test` guard, migrations, reset, seeding)
+  `tests/EShop.Tests.Common`: `TestDatabase` (PostgreSQL container or override, `_test` guard, migrations, reset, seeding)
   and `EShopApiFactory` (in-memory API that is checked to use the test database).
 - An API test changes a service of the in-memory API with `factory.WithWebHostBuilder(... ConfigureTestServices ...)`,
   e.g. `services.ConfigureDbContext<EShopDbContext>(o => o.AddInterceptors(...))` for the race tests.
 - API tests sign in without Keycloak: `EShopApiFactory` makes `TestAuthHandler` the default scheme; a test client
   becomes a user with `client.AsUser(id, roles)` or `client.AsAdmin()` (headers `X-Test-User` / `X-Test-Roles`),
   a client without them stays anonymous (#41).
-- Lifetimes: database fixture once per test project (assembly fixture, runs `MigrateAsync`), API factory once
-  per test class (class fixture), `TRUNCATE` of all tables before each test. Test projects run in parallel on
-  separate databases; tests inside a project run sequentially.
+- Lifetimes: database fixture once per test project (assembly fixture: starts the container, runs `MigrateAsync`),
+  API factory once per test class (class fixture), `TRUNCATE` of all tables before each test. Test projects run in
+  parallel on separate containers; tests inside a project run sequentially.
 - xUnit v3 and Vitest run on their current platforms: Microsoft.Testing.Platform (`global.json`) and
   `@angular/build:unit-test`. Coverage: `Microsoft.Testing.Extensions.CodeCoverage` + ReportGenerator (`tests/coverage.ps1`).
 - Known bugs are tests with the correct expectation, skipped with the issue number; the fix enables them
   (done in #26, which also enabled the #24 test for the anonymous cart).
-- CI (`.github/workflows/ci.yml`, #10) runs `dotnet test` against a throwaway `postgres:18` service container and
-  `ng test` on every pull request and push to `master`. Coverage goes to the job summary and the `backend-test-results` artifact.
+- CI (`.github/workflows/ci.yml`, #10) runs `dotnet test` and `ng test` on every pull request and push to `master`;
+  the tests start their containers on the runner's Docker (no service containers since #49). Coverage goes to the
+  job summary and the `backend-test-results` artifact.
 
 ## Messaging tests (#50)
 
 - **RabbitMQ from Testcontainers**: `RabbitMqFixture` (in `EShop.Tests.Common`) starts a `rabbitmq:4` container per test
   project (assembly fixture) and removes it afterwards. The tests never touch the developer's broker; Docker is needed
-  locally and is available on the GitHub runners. PostgreSQL stays the configured test server
-  ([TestAgainstRealPostgreSql](../Decisions/TestAgainstRealPostgreSql.md)); moving it to Testcontainers is #49.
+  locally and is available on the GitHub runners. PostgreSQL followed in #49 (below).
 - **Background services are started for real** (`StartAsync`/`StopAsync`) with a scope factory on the test database,
   and the test waits for the effect (`Eventually.HoldsAsync`, `RabbitMqFixture.WaitForMessageAsync`) instead of sleeping.
 - **Behavior, not declarations**: the broker ignores misspelled arguments, so topology tests check where a message ends
@@ -71,6 +71,23 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
   test events to the local broker.
 - Each new test was seen failing: retry DLX pointed at the events exchange, publisher without `Persistent`, newest first,
   consumer without the inbox check, one retry too many, unknown type treated as known.
+
+## PostgreSQL from Testcontainers (#49)
+
+- **A container per test project, not per run**: Microsoft.Testing.Platform runs every test project as its own
+  process, in parallel, so they have no shared place for one container. Sharing would need the experimental
+  `WithReuse(true)`, which keeps the container after the run (Ryuk does not remove it): not throwaway any more.
+  Seven `postgres:18` containers in parallel are cheap, and each test project already has its own server for the
+  coming database per service.
+- **The fixtures did not change**: `TestDatabase` starts the container in `InitializeAsync` (its port is random and
+  known only after the start, which cannot happen in a constructor), then adds the project suffix to `eshop_test` as
+  before. Database names, the `_test` guard, `EShopApiFactory` and the tests stay the same.
+- **Override by environment variable only**: `ConnectionStrings__EShopTests` points the tests at another server.
+  User-secrets are no longer read: a secret left over from before #49 would have silently kept the tests on the
+  developer's server. Checked by hand: with the variable the tests created `eshop_override_test_categoryapi` on compose.
+- **The cost is start-up**: CategoryApi took about 30 s in the full parallel run on its container and 5 s alone through
+  the override; the difference is the container start and migrations on an empty database, mostly under the load of
+  the other projects. For a quick loop on one project (e.g. mutation checks), the override on compose is faster.
 
 ## Keycloak and guest checkout tests (#45)
 
@@ -88,7 +105,3 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
 - **Mutation checks by test class**: a whole test project starts its containers again for every broken change; running
   only the affected project (or class) keeps a round of breakages at a few minutes. Watch the parser: a breakage that
   does not compile shows no test count at all and must not be read as "passed".
-
-## Open questions
-
-- Move the test databases to Testcontainers in the Docker phase (one throwaway PostgreSQL container per run).

@@ -20,23 +20,9 @@ jobs:
   backend:
     runs-on: ubuntu-latest
 
-    # Throwaway PostgreSQL for the integration tests; the tests create and migrate their own databases.
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: eshop
-          POSTGRES_PASSWORD: eshop
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U eshop"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
+    # The integration tests start their own PostgreSQL, RabbitMQ and Keycloak containers (Testcontainers)
+    # on the runner's Docker: no service containers or connection strings here.
     env:
-      ConnectionStrings__EShopTests: Host=localhost;Port=5432;Database=eshop_test;Username=eshop;Password=eshop
       DOTNET_NOLOGO: true
 
     steps:

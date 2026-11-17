@@ -7,6 +7,7 @@
     <PackageReference Include="xunit.v3.extensibility.core" />
     <PackageReference Include="Testcontainers.RabbitMq" />
     <PackageReference Include="Testcontainers.Keycloak" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\EShop.Data\EShop.Data.csproj" />

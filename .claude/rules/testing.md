@@ -24,7 +24,7 @@ Architecture and reasons: `Eshop.Obsidian/Learning/Testing.md`.
 - Assert status codes and stored data, not response texts.
 - Integration tests: seed, act and assert on separate DbContexts (`SeedAsync`, `FindAsync`, `CreateContext()`),
   seed only what the test needs. The fixture empties the database before each test.
-- Each integration project has its own database (`<EShopTests database>_<suffix>`) and runs its tests sequentially.
+- Each integration project has its own PostgreSQL container and database (`eshop_test_<suffix>`) and runs its tests sequentially.
 - Pass `TestContext.Current.CancellationToken` to async calls.
 - Shared helpers live in `tests/EShop.Tests.Common` (a library, not a test project).
 

@@ -37,5 +37,7 @@
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.16.0" />
     <!-- A throwaway Keycloak with our realm file: tests of the Admin API never touch the developer's realm. -->
     <PackageVersion Include="Testcontainers.Keycloak" Version="4.16.0" />
+    <!-- A throwaway PostgreSQL per test project: no test database or user-secret on the developer's machine. -->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
   </ItemGroup>
 </Project>
