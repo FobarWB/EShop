@@ -78,8 +78,9 @@ GitHub is the source of truth for progress; do not copy task status into files.
 
 ## Commands
 
-The APIs and the integration tests need the database: start Docker Desktop and `docker compose up -d` first
-(the containers do not start on their own). Unit tests and Angular tests do not need it.
+The APIs need the database: start Docker Desktop and `docker compose up -d` first
+(the containers do not start on their own). Integration tests need only a running Docker Desktop: they start
+their own containers. Unit tests and Angular tests need neither.
 
 ```powershell
 docker compose up -d                                # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose stop when done
@@ -92,7 +93,7 @@ dotnet run --project src/EShop.ProductApi           # same for CategoryApi, Shop
 dotnet run --project src/EShop.NotificationService  # worker: order events → emails in Mailpit (http://localhost:8025)
                                                     # API reference (Development): https://localhost:<port>/scalar
 cd src/EShop.ClientApp; npm ci; npm start           # Angular dev server on :4200
-dotnet test                                         # all .NET tests; integration tests need the test database (below)
+dotnet test                                         # all .NET tests; integration tests need Docker (Test databases, below)
 powershell -ExecutionPolicy Bypass -File tests/coverage.ps1   # tests + coverage report in TestResults/coverage-report
 cd src/EShop.ClientApp; npm test                    # Angular unit tests (Vitest)
 csharpier format <file>                             # format edited C# files
@@ -146,14 +147,21 @@ PowerShell 5.1, which would change the encoding of non-ASCII Northwind names.
 
 ### Test databases
 
-Integration tests create and migrate their own databases, named `<EShopTests database>_<project>`
-(e.g. `eshop_test_shoppingcart`), and empty them before each test; the role `eshop` has `CREATEDB` (`db/init/`).
+Each integration test project starts its own throwaway `postgres:18` container (Testcontainers, `TestDatabase`),
+creates and migrates its database there, `eshop_test_<project>` (e.g. `eshop_test_shoppingcart`), and empties it
+before each test. The container is removed after the run; no test database or user-secret is needed, locally or in CI.
+
+Fallback for a machine without Docker, or a quick loop on one project: the environment variable
+`ConnectionStrings__EShopTests` points the tests at another server instead (on compose the role `eshop` has `CREATEDB`, `db/init/`).
+Only the environment variable is read, not user-secrets, so a forgotten setting cannot silently replace the container:
 
 ```powershell
-dotnet user-secrets set "ConnectionStrings:EShopTests" 'Host=localhost;Port=5432;Database=eshop_test;Username=eshop;Password=<password>' --project src/EShop.ProductApi
+$env:ConnectionStrings__EShopTests = 'Host=localhost;Port=5432;Database=eshop_test;Username=eshop;Password=<password>'
+dotnet test --project tests/EShop.CategoryApi.Tests.Integration
+Remove-Item Env:ConnectionStrings__EShopTests
 ```
 
-The database name must end with `_test`; the tests refuse any other database. CI can set `ConnectionStrings__EShopTests` instead.
+The database name must end with `_test`; the tests refuse any other database.
 
 ## Approval rules
 
