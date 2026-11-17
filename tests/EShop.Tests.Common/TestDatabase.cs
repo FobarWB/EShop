@@ -2,19 +2,21 @@ using EShop.Data;
 using EShop.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Configuration;
 using Npgsql;
+using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace EShop.Tests.Common;
 
 /// <summary>
-/// The PostgreSQL database of one test project: created and migrated once per test run,
-/// emptied before each test. Each test project has its own database, so projects can run in parallel.
+/// The PostgreSQL database of one test project: created and migrated once per test run, emptied before each test.
+/// By default it lives on a throwaway PostgreSQL container of the project (Testcontainers), removed afterwards;
+/// the environment variable ConnectionStrings__EShopTests points the tests at another server instead.
 /// </summary>
 public abstract class TestDatabase : IAsyncLifetime
 {
-    public const string ConnectionStringName = "EShopTests";
+    // Only an environment variable, not user-secrets: a forgotten secret must not silently replace the container.
+    public const string OverrideVariable = "ConnectionStrings__EShopTests";
 
     // Empties every table except the migrations history. CASCADE follows foreign keys,
     // RESTART IDENTITY resets the id sequences.
@@ -29,25 +31,40 @@ public abstract class TestDatabase : IAsyncLifetime
         END $$;
         """;
 
-    private readonly DbContextOptions<EShopDbContext> _options;
+    private readonly string _suffix;
+    private PostgreSqlContainer? _container;
+    private string? _databaseName;
+    private string? _connectionString;
+    private DbContextOptions<EShopDbContext>? _options;
 
-    /// <param name="suffix">Appended to the configured database name, e.g. eshop_test_shoppingcart.</param>
+    /// <param name="suffix">Appended to the server's database name, e.g. eshop_test_shoppingcart.</param>
     protected TestDatabase(string suffix)
     {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets("eshop")
-            .AddEnvironmentVariables()
-            .Build();
+        _suffix = suffix;
+    }
 
-        var connectionString =
-            configuration.GetConnectionString(ConnectionStringName)
-            ?? throw new InvalidOperationException(
-                $"Connection string '{ConnectionStringName}' is not configured. Set it with "
-                    + "dotnet user-secrets set \"ConnectionStrings:EShopTests\" \"<value>\" --project src/EShop.ProductApi"
-            );
+    public string DatabaseName => _databaseName ?? throw NotInitialized();
+
+    public string ConnectionString => _connectionString ?? throw NotInitialized();
+
+    // Interceptors let a test act in the middle of SaveChanges (see BeforeSaveChangesInterceptor).
+    public EShopDbContext CreateContext(params IInterceptor[] interceptors) =>
+        new(
+            new DbContextOptionsBuilder<EShopDbContext>(_options ?? throw NotInitialized())
+                .AddInterceptors(interceptors)
+                .Options
+        );
+
+    // Starts the container (unless overridden), creates the project's database and applies the migrations.
+    public async ValueTask InitializeAsync()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var serverConnectionString =
+            Environment.GetEnvironmentVariable(OverrideVariable)
+            ?? await StartContainerAsync(cancellationToken);
 
         // The tests delete all data: refuse to run against anything but a test database.
-        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        var builder = new NpgsqlConnectionStringBuilder(serverConnectionString);
         if (
             builder.Database is null
             || !builder.Database.EndsWith("_test", StringComparison.Ordinal)
@@ -57,35 +74,18 @@ public abstract class TestDatabase : IAsyncLifetime
                 $"Database '{builder.Database}' is not a test database: its name must end with '_test'."
             );
         }
-        builder.Database = $"{builder.Database}_{suffix}";
+        builder.Database = $"{builder.Database}_{_suffix}";
 
-        DatabaseName = builder.Database;
-        ConnectionString = builder.ConnectionString;
-
+        _databaseName = builder.Database;
+        _connectionString = builder.ConnectionString;
         // Same provider settings as AddEShopDbContext.
         _options = new DbContextOptionsBuilder<EShopDbContext>()
-            .UseNpgsql(ConnectionString)
+            .UseNpgsql(_connectionString)
             .UseSnakeCaseNamingConvention()
             .Options;
-    }
 
-    public string DatabaseName { get; }
-
-    public string ConnectionString { get; }
-
-    // Interceptors let a test act in the middle of SaveChanges (see BeforeSaveChangesInterceptor).
-    public EShopDbContext CreateContext(params IInterceptor[] interceptors) =>
-        new(
-            new DbContextOptionsBuilder<EShopDbContext>(_options)
-                .AddInterceptors(interceptors)
-                .Options
-        );
-
-    // Creates the database on the first run (the role needs CREATEDB) and applies pending migrations.
-    public async ValueTask InitializeAsync()
-    {
         await using var db = CreateContext();
-        await db.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        await db.Database.MigrateAsync(cancellationToken);
     }
 
     public async Task ResetAsync(CancellationToken cancellationToken)
@@ -120,5 +120,22 @@ public abstract class TestDatabase : IAsyncLifetime
         return await db.FindAsync<T>([id], cancellationToken);
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync()
+    {
+        if (_container != null)
+        {
+            await _container.DisposeAsync();
+        }
+    }
+
+    // The same major version as docker-compose.yml; its superuser may create the project's database.
+    private async Task<string> StartContainerAsync(CancellationToken cancellationToken)
+    {
+        _container = new PostgreSqlBuilder("postgres:18").WithDatabase("eshop_test").Build();
+        await _container.StartAsync(cancellationToken);
+        return _container.GetConnectionString();
+    }
+
+    private static InvalidOperationException NotInitialized() =>
+        new("The test database has not been initialized.");
 }
