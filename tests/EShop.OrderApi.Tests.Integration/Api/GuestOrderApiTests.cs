@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using EShop.Data.Entities;
+using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
 using EShop.OrderApi.Controllers;
 using EShop.Tests.Common;

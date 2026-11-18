@@ -4,6 +4,7 @@ using EShop.CustomerApi.Contracts;
 using EShop.CustomerApi.GuestOrders;
 using EShop.Data.Entities;
 using EShop.Messaging.Consumers;
+using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;

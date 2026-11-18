@@ -1,4 +1,5 @@
 using EShop.Data.Entities;
+using EShop.Messaging.Outbox;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 

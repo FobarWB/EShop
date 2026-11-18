@@ -38,6 +38,9 @@ Checkout must not wait for, or fail because of, the broker.
   so their events stay in order. Two publishers sharing the rows through `SKIP LOCKED` would publish none twice, but
   one could send a later event of an order before the other sent the earlier one (#45). With a database per service
   (#51) the column is not needed.
+- Since #74 the outbox and inbox belong to `EShop.Messaging` (`modelBuilder.AddOutbox()` / `AddInbox()`), and
+  `OutboxPublisher<TContext>` and `MessageConsumer<THandler, TContext>` work on the service's own DbContext; the
+  publisher reads the table name from the model, so a service schema (#77) needs no change here.
 - Compared: Microsoft's eShop (`IntegrationEventLogEF`) publishes right after the commit and marks failures, with no
   background retry; MassTransit's bus outbox uses the same table + polling delivery service + inbox design, inside the
   library. Ours is the explicit version of the latter (see [UseRabbitMqClient](UseRabbitMqClient.md)).

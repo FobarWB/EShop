@@ -1,8 +1,8 @@
 name: CI
 
 on:
+  # Every pull request, also into an integration branch such as feature/51-database-per-service.
   pull_request:
-    branches: [master]
   push:
     branches: [master]
   workflow_dispatch:

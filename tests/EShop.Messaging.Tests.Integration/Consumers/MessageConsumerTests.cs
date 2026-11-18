@@ -51,7 +51,7 @@ public class MessageConsumerTests : IAsyncLifetime
                 options.UseNpgsql(_database.ConnectionString).UseSnakeCaseNamingConvention()
             )
             .AddSingleton(_broker.Connection)
-            .AddMessageConsumer<TestHandler>(Definition)
+            .AddMessageConsumer<TestHandler, EShopDbContext>(Definition)
             .BuildServiceProvider();
         _consumer = _services.GetServices<IHostedService>().ShouldHaveSingleItem();
         await _consumer.StartAsync(_cancellationToken);

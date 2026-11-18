@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using EShop.Data.Entities;
+using EShop.Messaging;
+using EShop.Messaging.Consumers;
+using EShop.Messaging.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -222,12 +225,7 @@ namespace EShop.Data
                     .HasForeignKey(d => d.OrderId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
-            modelBuilder.Entity<OutboxMessage>(entity =>
-                // The pending rows of one producer, oldest first: the publisher's query.
-                entity
-                    .HasIndex(m => new { m.Producer, m.OccurredAt })
-                    .HasFilter("processed_at IS NULL")
-            );
+            modelBuilder.AddOutbox().AddInbox();
 
             modelBuilder.Entity<CustomerAddress>(entity =>
             {

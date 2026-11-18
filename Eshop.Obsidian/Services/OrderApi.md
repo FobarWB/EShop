@@ -108,7 +108,7 @@ redelivery updates 0 rows.
 ## Events
 
 Published to the topic exchange `eshop.events` by `OutboxPublisher` (a `BackgroundService` from `EShop.Messaging`,
-registered with `AddOutboxPublisher()`): routing key = `Type`, `MessageId` = outbox row id, persistent, publisher
+registered with `AddOutboxPublisher<EShopDbContext>()`): routing key = `Type`, `MessageId` = outbox row id, persistent, publisher
 confirms, up to ~2 s after the commit, in the order they occurred. Contracts in
 [EShop.OrderApi.Contracts](../../src/EShop.OrderApi.Contracts/), see
 [MessageContractsOwnedByProducer](../Decisions/MessageContractsOwnedByProducer.md).

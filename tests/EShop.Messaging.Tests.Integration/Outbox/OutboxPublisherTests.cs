@@ -1,6 +1,5 @@
 using System.Text.Json;
 using EShop.Data;
-using EShop.Data.Entities;
 using EShop.Messaging.Outbox;
 using EShop.Messaging.RabbitMq;
 using EShop.Tests.Common;
@@ -143,11 +142,11 @@ public class OutboxPublisherTests : IAsyncLifetime
     // Starts the publisher, waits until the rows are marked processed, stops it.
     private async Task RunPublisherUntilProcessedAsync(params Guid[] ids)
     {
-        var publisher = new OutboxPublisher(
+        var publisher = new OutboxPublisher<EShopDbContext>(
             _services.ShouldNotBeNull().GetRequiredService<IServiceScopeFactory>(),
             _broker.Connection,
             new OutboxProducer(Producer),
-            NullLogger<OutboxPublisher>.Instance
+            NullLogger<OutboxPublisher<EShopDbContext>>.Instance
         );
         await publisher.StartAsync(_cancellationToken);
         try

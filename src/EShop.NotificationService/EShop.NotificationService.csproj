@@ -9,6 +9,8 @@
     <PackageReference Include="MailKit" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The inbox lives in the shared EShopDbContext, until the service has its own DbContext (#77). -->
+    <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
     <ProjectReference Include="..\EShop.Messaging\EShop.Messaging.csproj" />
     <ProjectReference Include="..\EShop.OrderApi.Contracts\EShop.OrderApi.Contracts.csproj" />
   </ItemGroup>

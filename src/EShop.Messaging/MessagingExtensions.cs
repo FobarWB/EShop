@@ -1,6 +1,7 @@
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.Messaging.RabbitMq;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,20 +20,26 @@ public static class MessagingExtensions
         return services;
     }
 
-    // For producers: publishes the events their transactions wrote to the outbox, only their own rows.
-    public static IServiceCollection AddOutboxPublisher(
+    // For producers: publishes the events their transactions wrote to the outbox of TContext, only their own rows.
+    public static IServiceCollection AddOutboxPublisher<TContext>(
         this IServiceCollection services,
         string producer
-    ) => services.AddSingleton(new OutboxProducer(producer)).AddHostedService<OutboxPublisher>();
+    )
+        where TContext : DbContext =>
+        services
+            .AddSingleton(new OutboxProducer(producer))
+            .AddHostedService<OutboxPublisher<TContext>>();
 
-    // For consumers: a background service that delivers the messages of this queue to THandler.
-    public static IServiceCollection AddMessageConsumer<THandler>(
+    // For consumers: a background service that delivers the messages of this queue to THandler,
+    // with the inbox in TContext.
+    public static IServiceCollection AddMessageConsumer<THandler, TContext>(
         this IServiceCollection services,
         ConsumerQueue queue
     )
-        where THandler : class, IMessageHandler =>
+        where THandler : class, IMessageHandler
+        where TContext : DbContext =>
         services
             .AddScoped<THandler>()
             .AddSingleton(new ConsumerRegistration<THandler>(queue))
-            .AddHostedService<MessageConsumer<THandler>>();
+            .AddHostedService<MessageConsumer<THandler, TContext>>();
 }

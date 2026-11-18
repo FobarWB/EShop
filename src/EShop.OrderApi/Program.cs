@@ -29,10 +29,12 @@ builder.Services.AddEShopDbContext(builder.Configuration);
 
 // The checkout and the cancellation write events to the outbox; the publisher sends them to RabbitMQ.
 builder.Services.AddEShopMessaging(builder.Configuration);
-builder.Services.AddOutboxPublisher(OrderApiOutbox.Producer);
+builder.Services.AddOutboxPublisher<EShopDbContext>(OrderApiOutbox.Producer);
 
 // Guest orders (#45): attaches them to the account CustomerApi created.
-builder.Services.AddMessageConsumer<GuestAccountReadyHandler>(GuestAccountsQueue.Definition);
+builder.Services.AddMessageConsumer<GuestAccountReadyHandler, EShopDbContext>(
+    GuestAccountsQueue.Definition
+);
 
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);

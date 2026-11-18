@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-10
+verified: 2026-11-18
 ---
 
 # Decisions
@@ -10,7 +10,8 @@ verified: 2026-11-10
 Architecture decision records: the context, the decision and its consequences. New records use `_templates/Decision.md`.
 
 - [UsePostgreSql](UsePostgreSql.md): replace SQL Server with PostgreSQL.
-- [SeparateProductAndCategoryApis](SeparateProductAndCategoryApis.md): keep ProductApi and CategoryApi separate for now.
+- [SeparateProductAndCategoryApis](SeparateProductAndCategoryApis.md): keep ProductApi and CategoryApi separate; since #51
+  they share one catalog database.
 - [TestAgainstRealPostgreSql](TestAgainstRealPostgreSql.md): integration tests use real PostgreSQL, one database per test project.
 - [RelativeApiUrlsBehindProxy](RelativeApiUrlsBehindProxy.md): the client calls `/api/...`; the dev server or nginx forwards to the APIs.
 - [UseKeycloakForAuthentication](UseKeycloakForAuthentication.md): Keycloak (OIDC) issues the tokens, the APIs only validate them.
@@ -36,3 +37,5 @@ Architecture decision records: the context, the decision and its consequences. N
   the stock, when the signed-in client first reads the cart.
 - [GuestCheckout](GuestCheckout.md): guest orders with an email; the account is created through RabbitMQ, a registered
   email is asked to sign in.
+- [DatabasePerService](DatabasePerService.md): a database per bounded context, product replicas fed by events,
+  checkout as a saga over RabbitMQ (#51).

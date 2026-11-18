@@ -12,6 +12,6 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.AddSingleton<IEmailSender, MailKitEmailSender>();
 
 // Declares its queues itself and connects as soon as RabbitMQ is available.
-builder.Services.AddMessageConsumer<OrderEmailHandler>(OrderEventsQueue.Definition);
+builder.Services.AddMessageConsumer<OrderEmailHandler, EShopDbContext>(OrderEventsQueue.Definition);
 
 builder.Build().Run();
