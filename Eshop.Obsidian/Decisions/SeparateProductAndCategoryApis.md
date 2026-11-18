@@ -1,11 +1,11 @@
 ---
 type: decision
 status: accepted
-verified: 2026-10-15
+verified: 2026-11-18
 issue: 16
 ---
 
-# Keep ProductApi and CategoryApi separate for now
+# Keep ProductApi and CategoryApi separate
 
 ## Context
 
@@ -20,4 +20,10 @@ together with the database-per-service split.
 ## Consequences
 
 - Renaming keeps two projects: `EShop.ProductApi` and `EShop.CategoryApi`.
-- The question of a Catalog service stays open until the messaging phase.
+- Revisited in #51 (below).
+
+## Revisited in #51
+
+The database per service split kept them separate: the client uses them independently (the home and category pages
+call only `/api/categories`, products are loaded on their own, ProductApi does not join categories). Their tables stay
+together in one catalog database shared by both APIs, see [DatabasePerService](DatabasePerService.md).
