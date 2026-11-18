@@ -7,7 +7,7 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
   <ItemGroup>
-    <!-- OutboxMessage is stored by the shared EShopDbContext in the same transaction as the change it describes. -->
-    <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
+    <!-- The outbox and inbox entities live in each service's DbContext; Npgsql for PostgresException. -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 </Project>

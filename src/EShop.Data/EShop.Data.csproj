@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EShop.Data.Entities\EShop.Data.Entities.csproj" />
+    <!-- The outbox and inbox tables of the shared database, until each service has its own DbContext (#77). -->
+    <ProjectReference Include="..\EShop.Messaging\EShop.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

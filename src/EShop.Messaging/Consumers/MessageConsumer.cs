@@ -1,6 +1,4 @@
 using System.Text.Json;
-using EShop.Data;
-using EShop.Data.Entities;
 using EShop.Messaging.RabbitMq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,8 +13,9 @@ namespace EShop.Messaging.Consumers;
 // The shared mechanics of a consumer: one queue, each message once (inbox), retried with delays, then the DLQ.
 // What happens with a message is the handler's job (THandler, one per service); the handler's database changes and
 // the inbox row are stored in one transaction. Moved from NotificationService's OrderEventsConsumer in #45.
-public sealed class MessageConsumer<THandler> : BackgroundService
+public sealed class MessageConsumer<THandler, TContext> : BackgroundService
     where THandler : IMessageHandler
+    where TContext : DbContext
 {
     // The number of the retry a message is on; absent on the first delivery.
     private const string RetryAttemptHeader = "x-retry-attempt";
@@ -39,13 +38,13 @@ public sealed class MessageConsumer<THandler> : BackgroundService
     private readonly ConsumerQueue _queue;
     private readonly RabbitMqConnection _connection;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<MessageConsumer<THandler>> _logger;
+    private readonly ILogger<MessageConsumer<THandler, TContext>> _logger;
 
     public MessageConsumer(
         ConsumerRegistration<THandler> registration,
         RabbitMqConnection connection,
         IServiceScopeFactory scopeFactory,
-        ILogger<MessageConsumer<THandler>> logger
+        ILogger<MessageConsumer<THandler, TContext>> logger
     )
     {
         _queue = registration.Queue;
@@ -131,14 +130,13 @@ public sealed class MessageConsumer<THandler> : BackgroundService
         {
             // One scope per message: the handler and this DbContext are the same scoped instances.
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<EShopDbContext>();
+            // The service's DbContext: the handler takes the same scoped instance, so both share the transaction.
+            var db = scope.ServiceProvider.GetRequiredService<TContext>();
 
             // 1. Seen before (a redelivery, or the outbox published twice): done, only ack.
             if (
-                await db.InboxMessages.AnyAsync(
-                    m => m.Consumer == _queue.Consumer && m.MessageId == messageId,
-                    ct
-                )
+                await db.Set<InboxMessage>()
+                    .AnyAsync(m => m.Consumer == _queue.Consumer && m.MessageId == messageId, ct)
             )
             {
                 _logger.LogInformation(
@@ -173,14 +171,15 @@ public sealed class MessageConsumer<THandler> : BackgroundService
             }
 
             // 3. Remember it with the handler's changes, then ack.
-            db.InboxMessages.Add(
-                new InboxMessage
-                {
-                    Consumer = _queue.Consumer,
-                    MessageId = messageId,
-                    ProcessedAt = DateTime.UtcNow,
-                }
-            );
+            db.Set<InboxMessage>()
+                .Add(
+                    new InboxMessage
+                    {
+                        Consumer = _queue.Consumer,
+                        MessageId = messageId,
+                        ProcessedAt = DateTime.UtcNow,
+                    }
+                );
             try
             {
                 await db.SaveChangesAsync(ct);

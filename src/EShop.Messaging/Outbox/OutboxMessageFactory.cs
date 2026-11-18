@@ -1,5 +1,4 @@
 using System.Text.Json;
-using EShop.Data.Entities;
 
 namespace EShop.Messaging.Outbox;
 

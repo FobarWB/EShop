@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
-namespace EShop.Data.Entities;
+namespace EShop.Messaging.Consumers;
 
 // The messages a consumer has processed: RabbitMQ delivers at least once (and the outbox may publish twice),
 // so a consumer looks up the MessageId here first and skips a redelivery (idempotent consumer).

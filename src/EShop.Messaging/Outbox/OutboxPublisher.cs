@@ -1,9 +1,9 @@
 using System.Runtime.ExceptionServices;
 using System.Text;
-using EShop.Data;
-using EShop.Data.Entities;
 using EShop.Messaging.RabbitMq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,7 +14,8 @@ namespace EShop.Messaging.Outbox;
 // Polls outbox_messages and publishes the pending events to RabbitMQ (polling publisher / message relay).
 // At least once: a crash between the broker's confirm and the commit publishes the event again,
 // so consumers recognize a redelivery by its MessageId.
-public sealed class OutboxPublisher : BackgroundService
+public sealed class OutboxPublisher<TContext> : BackgroundService
+    where TContext : DbContext
 {
     private const int BatchSize = 20;
     private static readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(2);
@@ -28,13 +29,13 @@ public sealed class OutboxPublisher : BackgroundService
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly RabbitMqConnection _rabbitMqConnection;
     private readonly OutboxProducer _producer;
-    private readonly ILogger<OutboxPublisher> _logger;
+    private readonly ILogger<OutboxPublisher<TContext>> _logger;
 
     public OutboxPublisher(
         IServiceScopeFactory serviceScopeFactory,
         RabbitMqConnection rabbitMqConnection,
         OutboxProducer producer,
-        ILogger<OutboxPublisher> logger
+        ILogger<OutboxPublisher<TContext>> logger
     )
     {
         _serviceScopeFactory = serviceScopeFactory;
@@ -111,22 +112,23 @@ public sealed class OutboxPublisher : BackgroundService
     {
         // A scope per pass: the DbContext is scoped (one per request in the API), this service lives forever.
         await using var scope = _serviceScopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<EShopDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<TContext>();
 
         // FOR UPDATE locks the rows until the commit; SKIP LOCKED lets another instance of the service take
         // the next rows instead of waiting, so no event is published by two instances at once.
         // Only this producer's rows: another service's publisher would publish them out of their order.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var messages = await db
-            .OutboxMessages.FromSql(
-                $"""
-                SELECT * FROM outbox_messages
-                WHERE processed_at IS NULL AND producer = {_producer.Name}
-                ORDER BY occurred_at
-                LIMIT {BatchSize}
-                FOR UPDATE SKIP LOCKED
-                """
-            )
+        // {0} and {1} become parameters; the table name is no input (see OutboxTable). The columns follow the
+        // snake_case naming every service's DbContext uses.
+        var sql = $$"""
+            SELECT * FROM {{OutboxTable(db)}}
+            WHERE processed_at IS NULL AND producer = {0}
+            ORDER BY occurred_at
+            LIMIT {1}
+            FOR UPDATE SKIP LOCKED
+            """;
+        var messages = await db.Set<OutboxMessage>()
+            .FromSqlRaw(sql, _producer.Name, BatchSize)
             .ToListAsync(ct);
 
         var published = 0;
@@ -159,6 +161,21 @@ public sealed class OutboxPublisher : BackgroundService
             ExceptionDispatchInfo.Throw(failure);
         }
         return published;
+    }
+
+    // outbox_messages, or "ordering".outbox_messages once the service has its own schema (#77): read from the model
+    // of the service's DbContext and quoted by the provider.
+    private static string OutboxTable(DbContext db)
+    {
+        var entityType =
+            db.Model.FindEntityType(typeof(OutboxMessage))
+            ?? throw new InvalidOperationException(
+                $"{db.GetType().Name} has no outbox: call modelBuilder.AddOutbox() in its OnModelCreating."
+            );
+        // Not null: AddOutbox maps the entity to a table.
+        var table = entityType.GetTableName()!;
+        return db.GetService<ISqlGenerationHelper>()
+            .DelimitIdentifier(table, entityType.GetSchema());
     }
 
     private static async Task PublishAsync(

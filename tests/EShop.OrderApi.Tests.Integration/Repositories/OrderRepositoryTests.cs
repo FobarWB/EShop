@@ -1,5 +1,6 @@
 using System.Text.Json;
 using EShop.Data.Entities;
+using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;

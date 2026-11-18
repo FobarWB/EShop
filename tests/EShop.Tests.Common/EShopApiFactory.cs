@@ -39,9 +39,11 @@ public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
             // outbox rows and call handlers directly; publishing and consuming are tested against their own broker.
             var brokerServices = services
                 .Where(d =>
-                    d.ImplementationType == typeof(OutboxPublisher)
-                    || d.ImplementationType is { IsGenericType: true } type
-                        && type.GetGenericTypeDefinition() == typeof(MessageConsumer<>)
+                    d.ImplementationType is { IsGenericType: true } type
+                    && (
+                        type.GetGenericTypeDefinition() == typeof(OutboxPublisher<>)
+                        || type.GetGenericTypeDefinition() == typeof(MessageConsumer<,>)
+                    )
                 )
                 .ToList();
             foreach (var descriptor in brokerServices)

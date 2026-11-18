@@ -32,8 +32,10 @@ builder.Services.AddEShopProblemDetails();
 
 // Guest orders (#45): the consumer creates the account in Keycloak and reports it through the outbox.
 builder.Services.AddEShopMessaging(builder.Configuration);
-builder.Services.AddOutboxPublisher(CustomerApiOutbox.Producer);
-builder.Services.AddMessageConsumer<GuestOrderPlacedHandler>(GuestOrdersQueue.Definition);
+builder.Services.AddOutboxPublisher<EShopDbContext>(CustomerApiOutbox.Producer);
+builder.Services.AddMessageConsumer<GuestOrderPlacedHandler, EShopDbContext>(
+    GuestOrdersQueue.Definition
+);
 builder
     .Services.AddOptions<GuestAccountsOptions>()
     .Bind(builder.Configuration.GetSection(GuestAccountsOptions.SectionName))

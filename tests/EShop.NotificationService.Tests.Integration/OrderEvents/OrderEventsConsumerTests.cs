@@ -56,7 +56,7 @@ public class OrderEventsConsumerTests : IAsyncLifetime
             )
             .AddSingleton(_broker.Connection)
             .AddSingleton<IEmailSender>(_sender)
-            .AddMessageConsumer<OrderEmailHandler>(OrderEventsQueue.Definition)
+            .AddMessageConsumer<OrderEmailHandler, EShopDbContext>(OrderEventsQueue.Definition)
             .BuildServiceProvider();
         _consumer = _services.GetServices<IHostedService>().ShouldHaveSingleItem();
         await _consumer.StartAsync(_cancellationToken);
