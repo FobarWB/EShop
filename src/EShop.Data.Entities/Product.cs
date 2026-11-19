@@ -40,6 +40,11 @@ namespace EShop.Data.Entities
         [Timestamp]
         public uint Version { get; set; }
 
+        // The number of the last change, sent with the product events (#75): consumers keep a copy only if it is newer.
+        // Not xmin: that one changes with every UPDATE of the row (also a checkout's stock change, which publishes
+        // nothing) and wraps around at 2^32.
+        public long Revision { get; set; }
+
         [ForeignKey("CategoryId")]
         [InverseProperty("Products")]
         public virtual Category? Category { get; set; }

@@ -95,4 +95,15 @@ public class ProductApiController : ControllerBase
             _ => throw new UnreachableException(),
         };
     }
+
+    // POST api/products/events/republish: ProductChanged for every product, e.g. the initial data of a new replica.
+    // Safe to repeat: a consumer ignores a revision it already has.
+    [HttpPost("events/republish")]
+    [ProducesResponseType(202)]
+    public async Task<IActionResult> RepublishEvents(CancellationToken cancellationToken)
+    {
+        var count = await _repository.RepublishAllAsync(cancellationToken);
+        // Accepted, not done: the events are in the outbox, the publisher sends them within seconds.
+        return Accepted(new { products = count });
+    }
 }

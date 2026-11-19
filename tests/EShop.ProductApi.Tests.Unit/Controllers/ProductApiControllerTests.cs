@@ -99,6 +99,16 @@ public class ProductApiControllerTests
         StatusCodeOf(result).ShouldBe(expected);
     }
 
+    [Fact]
+    public async Task RepublishEvents_Returns202()
+    {
+        _repository.RepublishAllAsync(Arg.Any<CancellationToken>()).Returns(77);
+
+        var result = await _controller.RepublishEvents(_cancellationToken);
+
+        StatusCodeOf(result).ShouldBe(202);
+    }
+
     private static ProductRequest Request() => new() { ProductName = "Chai" };
 
     private static ProductResponse Response(int id) =>

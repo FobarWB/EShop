@@ -426,27 +426,6 @@ namespace EShop.Data.Migrations
                     b.ToTable("employees", (string)null);
                 });
 
-            modelBuilder.Entity("EShop.Data.Entities.InboxMessage", b =>
-                {
-                    b.Property<string>("Consumer")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("consumer");
-
-                    b.Property<Guid>("MessageId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("message_id");
-
-                    b.Property<DateTime>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed_at");
-
-                    b.HasKey("Consumer", "MessageId")
-                        .HasName("pk_inbox_messages");
-
-                    b.ToTable("inbox_messages", (string)null);
-                });
-
             modelBuilder.Entity("EShop.Data.Entities.Order", b =>
                 {
                     b.Property<int>("OrderId")
@@ -682,56 +661,6 @@ namespace EShop.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("EShop.Data.Entities.OutboxMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempts");
-
-                    b.Property<string>("LastError")
-                        .HasColumnType("text")
-                        .HasColumnName("last_error");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("payload");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed_at");
-
-                    b.Property<string>("Producer")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("producer");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("type");
-
-                    b.HasKey("Id")
-                        .HasName("pk_outbox_messages");
-
-                    b.HasIndex("Producer", "OccurredAt")
-                        .HasDatabaseName("ix_outbox_messages_producer_occurred_at")
-                        .HasFilter("processed_at IS NULL");
-
-                    b.ToTable("outbox_messages", (string)null);
-                });
-
             modelBuilder.Entity("EShop.Data.Entities.Product", b =>
                 {
                     b.Property<int>("ProductId")
@@ -765,6 +694,10 @@ namespace EShop.Data.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0)
                         .HasColumnName("reorder_level");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision");
 
                     b.Property<int?>("SupplierId")
                         .HasColumnType("integer")
@@ -954,6 +887,77 @@ namespace EShop.Data.Migrations
                         .HasDatabaseName("ix_territories_region_id");
 
                     b.ToTable("territories", (string)null);
+                });
+
+            modelBuilder.Entity("EShop.Messaging.Consumers.InboxMessage", b =>
+                {
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("consumer");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<DateTime>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.HasKey("Consumer", "MessageId")
+                        .HasName("pk_inbox_messages");
+
+                    b.ToTable("inbox_messages", (string)null);
+                });
+
+            modelBuilder.Entity("EShop.Messaging.Outbox.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<string>("Producer")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("producer");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_outbox_messages");
+
+                    b.HasIndex("Producer", "OccurredAt")
+                        .HasDatabaseName("ix_outbox_messages_producer_occurred_at")
+                        .HasFilter("processed_at IS NULL");
+
+                    b.ToTable("outbox_messages", (string)null);
                 });
 
             modelBuilder.Entity("EmployeeTerritory", b =>

@@ -165,6 +165,14 @@ services:
 
   productapi:
     <<: *api
+    # The anchor's depends_on is replaced, not merged: repeated in full, plus the broker of the outbox publisher.
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     image: ghcr.io/fobarwb/eshop-productapi:${ESHOP_TAG:-local}
     build:
       context: .
