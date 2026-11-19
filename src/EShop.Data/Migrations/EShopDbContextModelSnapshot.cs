@@ -97,6 +97,49 @@ namespace EShop.Data.Migrations
                     b.ToTable("cart_items", (string)null);
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.CartProduct", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("deleted");
+
+                    b.Property<bool>("Discontinued")
+                        .HasColumnType("boolean")
+                        .HasColumnName("discontinued");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("product_name");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<short>("UnitsInStock")
+                        .HasColumnType("smallint")
+                        .HasColumnName("units_in_stock");
+
+                    b.HasKey("ProductId")
+                        .HasName("pk_cart_products");
+
+                    b.ToTable("cart_products", (string)null);
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.Category", b =>
                 {
                     b.Property<int>("CategoryId")

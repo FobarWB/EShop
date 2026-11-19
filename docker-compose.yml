@@ -187,6 +187,14 @@ services:
 
   shoppingcart:
     <<: *api
+    # Repeated in full as for productapi, plus the broker of the product-event consumer.
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     image: ghcr.io/fobarwb/eshop-shoppingcart:${ESHOP_TAG:-local}
     build:
       context: .
