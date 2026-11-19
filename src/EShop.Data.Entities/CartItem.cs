@@ -16,7 +16,6 @@ namespace EShop.Data.Entities
     [ForeignKey("CartId")]
     public virtual Cart? Cart { get; set; } // Communication/linking with the shopping cart
 
-    [ForeignKey("ProductId")]
-    public virtual Product? Product { get; set; } 
+    // No navigation to the product: the cart has its own copy, cart_products (#75), joined by product_id.
     }
 }

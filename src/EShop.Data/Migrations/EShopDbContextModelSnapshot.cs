@@ -1047,16 +1047,7 @@ namespace EShop.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_cart_items_carts_cart_id");
 
-                    b.HasOne("EShop.Data.Entities.Product", "Product")
-                        .WithMany("CartItems")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_cart_items_products_product_id");
-
                     b.Navigation("Cart");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.CustomerAddress", b =>
@@ -1113,15 +1104,7 @@ namespace EShop.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_order_details_orders_order_id");
 
-                    b.HasOne("EShop.Data.Entities.Product", "Product")
-                        .WithMany("OrderDetails")
-                        .HasForeignKey("ProductId")
-                        .IsRequired()
-                        .HasConstraintName("fk_order_details_products_product_id");
-
                     b.Navigation("Order");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.OrderStatusChange", b =>
@@ -1211,13 +1194,6 @@ namespace EShop.Data.Migrations
                     b.Navigation("OrderDetails");
 
                     b.Navigation("StatusChanges");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.Product", b =>
-                {
-                    b.Navigation("CartItems");
-
-                    b.Navigation("OrderDetails");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Region", b =>

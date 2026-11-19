@@ -45,7 +45,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task AddItem_FirstItem_Returns200AndCreatesCart()
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
 
         var response = await AddItemAsync(productId, quantity: 2);
 
@@ -68,7 +68,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task AddItem_NotEnoughStock_Returns409Problem()
     {
-        var productId = await _database.SeedProductAsync(1, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(1, _cancellationToken);
 
         var response = await AddItemAsync(productId, quantity: 2);
 
@@ -104,7 +104,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task MergeCart_ValidItems_Returns204AndStoresItems()
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
 
         var response = await MergeAsync(new { productId, quantity = 2 });
 
@@ -139,14 +139,14 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task GetCart_Existing_Returns200WithItems()
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 2);
 
         var cart = await _client.GetFromJsonAsync<CartResponse>("api/carts/me", _cancellationToken);
 
         var item = cart.ShouldNotBeNull().CartItems.ShouldHaveSingleItem();
         item.ProductId.ShouldBe(productId);
-        item.ProductName.ShouldBe("Test product"); // TestDatabase.SeedProductAsync
+        item.ProductName.ShouldBe("Test product"); // ShoppingCartDatabase.SeedCartProductAsync
         item.Quantity.ShouldBe(2);
     }
 
@@ -161,7 +161,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task UpdateQuantity_WithinStock_Returns204AndUpdates()
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
         var response = await UpdateQuantityAsync(productId, 4);
@@ -177,7 +177,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     public async Task UpdateQuantity_BareNumber_Returns400AndKeepsQuantity()
     {
         // The body is an object { "quantity": 4 }; the former bare number is rejected.
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
         var response = await _client.PutAsJsonAsync(
@@ -196,7 +196,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task UpdateQuantity_AboveStock_Returns400()
     {
-        var productId = await _database.SeedProductAsync(2, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(2, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
         var response = await UpdateQuantityAsync(productId, 3);
@@ -207,7 +207,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task RemoveItem_Returns204AndRemovesIt()
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
         var response = await _client.DeleteAsync(
@@ -224,7 +224,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task ClearCart_Returns200AndEmptiesCart()
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
         var response = await _client.DeleteAsync("api/carts/me/items", _cancellationToken);
@@ -238,7 +238,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [Fact]
     public async Task DeleteCart_Existing_Returns200AndDeletesIt()
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
         var response = await _client.DeleteAsync("api/carts/me", _cancellationToken);
@@ -260,7 +260,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     [InlineData(-5)]
     public async Task UpdateQuantity_NotPositive_Returns400AndKeepsQuantity(int newQuantity)
     {
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 1);
 
         var response = await UpdateQuantityAsync(productId, newQuantity);
@@ -343,7 +343,7 @@ public class ShoppingCartApiTests : IClassFixture<ShoppingCartApiFactory>, IAsyn
     public async Task GetCart_AnotherUser_SeesOnlyOwnCart()
     {
         // The user id comes from the token: user-2 cannot reach the cart of user-1 by any URL.
-        var productId = await _database.SeedProductAsync(10, _cancellationToken);
+        var productId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await AddItemAsync(productId, quantity: 2);
         using var otherUser = _factory.CreateClient().AsUser("user-2");
 

@@ -89,7 +89,6 @@ public class ProductApiControllerTests
     [Theory]
     [InlineData(DeleteResult.Deleted, 204)]
     [InlineData(DeleteResult.NotFound, 404)]
-    [InlineData(DeleteResult.InUse, 409)]
     public async Task Delete_MapsRepositoryResultToStatusCode(DeleteResult deleted, int expected)
     {
         _repository.DeleteAsync(ProductId, Arg.Any<CancellationToken>()).Returns(deleted);

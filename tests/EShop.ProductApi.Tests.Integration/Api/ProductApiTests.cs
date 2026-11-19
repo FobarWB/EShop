@@ -370,8 +370,9 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Delete_ProductInCart_Returns409AndKeepsProduct()
+    public async Task Delete_ProductInCart_Returns204AndKeepsTheCartItem()
     {
+        // No check of carts (#75): the cart drops the item when ProductDeleted reaches it.
         var chai = await SeedProductAsync("Chai");
         await _database.SeedAsync(
             new Cart
@@ -387,14 +388,16 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldBeNull();
+        await using var db = _database.CreateContext();
+        (await db.CartItems.SingleAsync(_cancellationToken)).ProductId.ShouldBe(chai.ProductId);
     }
 
     [Fact]
-    public async Task Delete_ProductInOrder_Returns409AndKeepsProduct()
+    public async Task Delete_ProductInOrder_Returns204AndKeepsTheOrderDetail()
     {
+        // The order keeps its copy of name and price (#75).
         var chai = await SeedProductAsync("Chai");
         await _database.SeedAsync(
             new Order
@@ -418,36 +421,9 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
-    }
-
-    [Fact]
-    public async Task Delete_ProductAddedToCartAfterCheck_Returns409AndKeepsProduct()
-    {
-        // The race from #32: another request puts the product into a cart after the in-use check;
-        // PostgreSQL rejects the DELETE (23503) and the exception handler turns it into 409.
-        var chai = await SeedProductAsync("Chai");
-        using var admin = CreateAdminWithConcurrentWrite(() =>
-            _database.SeedAsync(
-                new Cart
-                {
-                    UserId = "user-1",
-                    CartItems = [new CartItem { ProductId = chai.ProductId, Quantity = 1 }],
-                },
-                _cancellationToken
-            )
-        );
-
-        var response = await admin.DeleteAsync(
-            $"api/products/{chai.ProductId}",
-            _cancellationToken
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var db = _database.CreateContext();
+        (await db.OrderDetails.SingleAsync(_cancellationToken)).ProductName.ShouldBe("Chai");
     }
 
     [Fact]
@@ -581,24 +557,6 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         var deleted = Deserialize<ProductDeleted>(message);
         deleted.ProductId.ShouldBe(chai.ProductId);
         deleted.Revision.ShouldBe(5);
-    }
-
-    [Fact]
-    public async Task Delete_ProductInUse_StoresNoEvent()
-    {
-        var chai = await SeedProductAsync("Chai");
-        await _database.SeedAsync(
-            new Cart
-            {
-                UserId = "user-1",
-                CartItems = [new CartItem { ProductId = chai.ProductId, Quantity = 1 }],
-            },
-            _cancellationToken
-        );
-
-        await _admin.DeleteAsync($"api/products/{chai.ProductId}", _cancellationToken);
-
-        (await OutboxAsync()).ShouldBeEmpty();
     }
 
     [Fact]

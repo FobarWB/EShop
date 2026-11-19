@@ -11,12 +11,6 @@ namespace EShop.Data.Entities
     [Index("SupplierId")]
     public partial class Product
     {
-        public Product()
-        {
-            CartItems = new HashSet<CartItem>();
-            OrderDetails = new HashSet<OrderDetail>();
-        }
-
         [Key]
         public int ProductId { get; set; }
 
@@ -53,8 +47,7 @@ namespace EShop.Data.Entities
         [InverseProperty("Products")]
         public virtual Supplier? Supplier { get; set; }
 
-        [InverseProperty("Product")]
-        public virtual ICollection<OrderDetail> OrderDetails { get; set; }
-        public virtual ICollection<CartItem> CartItems { get; set; }
+        // No CartItems or OrderDetails (#75): carts and orders keep their own copies and reference the product by id
+        // only, without a foreign key, so the catalog can move to its own database (#78).
     }
 }

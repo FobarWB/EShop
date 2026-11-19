@@ -93,16 +93,8 @@ public class ProductRepository : IProductRepository
             return DeleteResult.NotFound;
         }
 
-        // cart_items and order_details reference products without cascade: PostgreSQL would reject
-        // the DELETE (23503), so check first and let the controller return 409.
-        var inUse =
-            await _db.CartItems.AnyAsync(i => i.ProductId == id, cancellationToken)
-            || await _db.OrderDetails.AnyAsync(d => d.ProductId == id, cancellationToken);
-        if (inUse)
-        {
-            return DeleteResult.InUse;
-        }
-
+        // No check of carts and orders (#75): orders keep a copy of name and price, carts drop the product on
+        // ProductDeleted.
         ProductEvents.AddDeleted(_db, p, DateTime.UtcNow);
         _db.Products.Remove(p);
         await _db.SaveChangesAsync(cancellationToken);

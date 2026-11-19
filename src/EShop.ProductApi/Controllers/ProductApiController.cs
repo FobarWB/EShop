@@ -75,7 +75,7 @@ public class ProductApiController : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
-    // DELETE api/products/1
+    // DELETE api/products/1: also a product in carts and orders (#75). 409 only for a concurrent change (xmin).
     [HttpDelete("{id}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
@@ -87,11 +87,6 @@ public class ProductApiController : ControllerBase
         {
             DeleteResult.Deleted => NoContent(),
             DeleteResult.NotFound => NotFound(),
-            DeleteResult.InUse => Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Product is in use",
-                detail: $"Product {id} is referenced by cart items or order details."
-            ),
             _ => throw new UnreachableException(),
         };
     }

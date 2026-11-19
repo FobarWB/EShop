@@ -182,6 +182,46 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PlaceOrder_ProductDeletedWhileInCart_ReturnsProductIdsAndChangesNothing()
+    {
+        // No foreign key since #75: the product is gone, and ProductDeleted has not emptied the cart yet.
+        var chai = await _database.SeedAsync(
+            new Product
+            {
+                ProductName = "Chai",
+                UnitPrice = 18m,
+                UnitsInStock = 10,
+            },
+            _cancellationToken
+        );
+        const int DeletedProductId = 999;
+        var cart = await _database.SeedCartAsync(UserId, chai.ProductId, 1, _cancellationToken);
+        await _database.SeedAsync(
+            new CartItem
+            {
+                CartId = cart.CartId,
+                ProductId = DeletedProductId,
+                Quantity = 1,
+            },
+            _cancellationToken
+        );
+
+        var result = await PlaceOrderAsync();
+
+        result.Status.ShouldBe(PlaceOrderStatus.ProductsUnavailable);
+        result.ProductIds.ShouldBe([DeletedProductId]);
+        // Not ShouldBeUnchangedAsync: this cart has two items, and both stay.
+        (await _database.LoadOrdersAsync(_cancellationToken)).ShouldBeEmpty();
+        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .UnitsInStock.ShouldBe((short)10);
+        (await _database.LoadCartAsync(UserId, _cancellationToken))
+            .ShouldNotBeNull()
+            .CartItems.Count.ShouldBe(2);
+    }
+
+    [Fact]
     public async Task PlaceOrder_NoCart_ReturnsCartEmpty()
     {
         var result = await PlaceOrderAsync();

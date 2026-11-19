@@ -59,11 +59,8 @@ namespace EShop.Data
                     .HasForeignKey(d => d.CartId)
                     .OnDelete(DeleteBehavior.Cascade); // Deleting Cart deletes CartItems
 
-                entity
-                    .HasOne(d => d.Product)
-                    .WithMany(p => p.CartItems)
-                    .HasForeignKey(d => d.ProductId)
-                    .OnDelete(DeleteBehavior.Restrict); // Deleting a product does not delete CartItems
+                // No foreign key to products (#75). The index stays: ProductDeleted removes a product from all carts.
+                entity.HasIndex(e => e.ProductId);
             });
 
             // The id comes from ProductApi's events, not from a sequence of this table.
@@ -195,12 +192,6 @@ namespace EShop.Data
                     .WithMany(p => p.OrderDetails)
                     .HasForeignKey(d => d.OrderId)
                     .OnDelete(DeleteBehavior.ClientSetNull);
-
-                entity
-                    .HasOne(d => d.Product)
-                    .WithMany(p => p.OrderDetails)
-                    .HasForeignKey(d => d.ProductId)
-                    .OnDelete(DeleteBehavior.ClientSetNull);
             });
 
             modelBuilder.Entity<OrderStatusChange>(entity =>
@@ -270,11 +261,6 @@ namespace EShop.Data
                     .HasOne(d => d.Supplier)
                     .WithMany(p => p.Products)
                     .HasForeignKey(d => d.SupplierId);
-
-                entity
-                    .HasMany(e => e.CartItems)
-                    .WithOne(ci => ci.Product)
-                    .HasForeignKey(ci => ci.ProductId);
             });
 
             modelBuilder.Entity<Region>(entity =>

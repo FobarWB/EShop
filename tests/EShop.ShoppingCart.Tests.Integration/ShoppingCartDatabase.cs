@@ -10,8 +10,35 @@ namespace EShop.ShoppingCart.Tests.Integration;
 
 public sealed class ShoppingCartDatabase : TestDatabase
 {
+    private int _lastProductId;
+
     public ShoppingCartDatabase()
         : base("shoppingcart") { }
+
+    // The cart's copy of a product, as ProductApi's events would store it (#75). The ids come from the events, not
+    // from a sequence: a counter keeps them unique within the run.
+    public async Task<int> SeedCartProductAsync(
+        short unitsInStock,
+        CancellationToken cancellationToken,
+        string name = "Test product",
+        int? categoryId = null,
+        decimal? unitPrice = null
+    )
+    {
+        var product = await SeedAsync(
+            new CartProduct
+            {
+                ProductId = Interlocked.Increment(ref _lastProductId),
+                ProductName = name,
+                CategoryId = categoryId,
+                UnitPrice = unitPrice,
+                UnitsInStock = unitsInStock,
+                Revision = 1,
+            },
+            cancellationToken
+        );
+        return product.ProductId;
+    }
 
     public async Task<Cart?> LoadCartAsync(string userId, CancellationToken cancellationToken)
     {

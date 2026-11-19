@@ -20,7 +20,7 @@ public class ShoppingCartRepository : IShoppingCartRepository
     ) =>
         _db
             .Carts.Where(c => c.UserId == userId)
-            .ToResponse()
+            .ToResponse(_db.CartProducts)
             .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<AddItemResult> AddItemToCartAsync(
@@ -30,7 +30,7 @@ public class ShoppingCartRepository : IShoppingCartRepository
         CancellationToken cancellationToken
     )
     {
-        var product = await _db.Products.FindAsync([productId], cancellationToken);
+        var product = await FindProductAsync(productId, cancellationToken);
         if (product == null)
         {
             return AddItemResult.ProductNotFound;
@@ -79,8 +79,8 @@ public class ShoppingCartRepository : IShoppingCartRepository
 
         // Products deleted since they were added are simply absent here and are skipped.
         var stocks = await _db
-            .Products.AsNoTracking()
-            .Where(p => productIds.Contains(p.ProductId))
+            .CartProducts.AsNoTracking()
+            .Where(p => productIds.Contains(p.ProductId) && !p.Deleted)
             .Select(p => new { p.ProductId, p.UnitsInStock })
             .ToDictionaryAsync(p => p.ProductId, p => p.UnitsInStock, cancellationToken);
 
@@ -163,7 +163,7 @@ public class ShoppingCartRepository : IShoppingCartRepository
         if (item == null)
             return false;
 
-        var product = await _db.Products.FindAsync([productId], cancellationToken);
+        var product = await FindProductAsync(productId, cancellationToken);
         if (product == null || product.UnitsInStock < newQuantity)
         {
             return false;
@@ -183,6 +183,15 @@ public class ShoppingCartRepository : IShoppingCartRepository
         _db.Carts.Remove(cart);
         return await _db.SaveChangesAsync(cancellationToken) > 0;
     }
+
+    // The cart's copy of a product that exists; a deleted one (a tombstone) or an unknown one is null.
+    private Task<CartProduct?> FindProductAsync(
+        int productId,
+        CancellationToken cancellationToken
+    ) =>
+        _db
+            .CartProducts.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.ProductId == productId && !p.Deleted, cancellationToken);
 
     // Tracked, with its items: for the methods that change the cart.
     private Task<Cart?> LoadCartAsync(string userId, CancellationToken cancellationToken) =>

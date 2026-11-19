@@ -74,10 +74,9 @@ public class ProductEventsHandlerTests : IAsyncLifetime
     [Fact]
     public async Task Deleted_KeepsTombstoneAndRemovesFromCarts()
     {
-        // cart_items still references products by a foreign key (removed in the next step): seed both.
-        var deletedId = await _database.SeedProductAsync(10, _cancellationToken);
-        var otherId = await _database.SeedProductAsync(10, _cancellationToken);
-        await HandleAsync(Changed(revision: 1, name: "Chai", price: 18, productId: deletedId));
+        // Both copies at revision 1.
+        var deletedId = await _database.SeedCartProductAsync(10, _cancellationToken);
+        var otherId = await _database.SeedCartProductAsync(10, _cancellationToken);
         await SeedCartAsync("user-1", deletedId, otherId);
         await SeedCartAsync("user-2", deletedId);
 
