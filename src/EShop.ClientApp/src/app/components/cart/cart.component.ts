@@ -1,6 +1,7 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CartService } from '../../services/cart.service';
+import { CategoryService } from '../../services/categories.service';
 import { cartItemProblem, ICartItem, isUnavailable } from '../../models/cart-item.model';
 import { standardFreight } from '../../models/order.model';
 import { FormsModule } from '@angular/forms';
@@ -19,6 +20,9 @@ export class CartComponent implements OnInit
   protected errorMessage: string | null = null;
   // Quantities the server has confirmed; the input's ngModel changes cartItem.quantity before the request.
   private confirmedQuantities: { [productId: number]: number } = {};
+  private readonly categoryService = inject(CategoryService);
+  // Category names by id for the item rows: the cart has only the ids (#75).
+  private categoryNames = new Map<number, string>();
 
   constructor(private cartService: CartService) { }
 
@@ -27,7 +31,7 @@ export class CartComponent implements OnInit
     this.loadCartItems();
   }
 
-  // The cart comes with product names, categories and current prices: no request per item.
+  // The cart comes with product names, category ids and current prices: no request per item.
   private loadCartItems(): void
   {
     this.cartService.getCart().subscribe(cart =>
@@ -35,7 +39,27 @@ export class CartComponent implements OnInit
       this.cartItems = cart.cartItems;
       this.confirmedQuantities = {};
       this.cartItems.forEach(cartItem => this.confirmedQuantities[cartItem.productId] = cartItem.quantity);
+      this.loadCategoryNames();
     });
+  }
+
+  // One request for all names, cached by CategoryService, and only when an item has a category. A failure leaves
+  // the names empty: the cart works without them.
+  private loadCategoryNames(): void
+  {
+    if (!this.cartItems.some(cartItem => cartItem.categoryId !== null))
+    {
+      return;
+    }
+    this.categoryService.getCategories().subscribe({
+      next: page => this.categoryNames = new Map(page.items.map(c => [c.categoryId, c.categoryName])),
+      error: () => undefined
+    });
+  }
+
+  protected categoryNameOf(cartItem: ICartItem): string | null
+  {
+    return cartItem.categoryId === null ? null : this.categoryNames.get(cartItem.categoryId) ?? null;
   }
 
   getSummaryPriceForCartItem(cartItem: ICartItem)

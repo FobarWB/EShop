@@ -289,7 +289,7 @@ describe('CartService', () =>
   function cartWith(quantity: number): ICart
   {
     const item = {
-      productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity,
+      productId: 7, productName: 'Chai', categoryId: 1, unitPrice: 18, quantity,
       unitsInStock: 39, discontinued: false
     };
     return { cartId: 5, cartItems: quantity > 0 ? [item] : [] };

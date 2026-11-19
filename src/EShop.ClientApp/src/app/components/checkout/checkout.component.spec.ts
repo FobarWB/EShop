@@ -20,11 +20,11 @@ const cart: ICart = {
   cartId: 5,
   cartItems: [
     {
-      productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2,
+      productId: 7, productName: 'Chai', categoryId: 1, unitPrice: 18, quantity: 2,
       unitsInStock: 39, discontinued: false
     },
     {
-      productId: 9, productName: 'Aniseed Syrup', categoryName: 'Condiments', unitPrice: 10, quantity: 1,
+      productId: 9, productName: 'Aniseed Syrup', categoryId: 2, unitPrice: 10, quantity: 1,
       unitsInStock: 13, discontinued: false
     },
   ]

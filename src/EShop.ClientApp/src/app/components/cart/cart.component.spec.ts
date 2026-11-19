@@ -9,17 +9,27 @@ import { ICart } from '../../models/cart.model';
 import { AuthService } from '../../services/auth.service';
 
 const cartUrl = '/api/carts/me';
+const categoriesUrl = '/api/categories?pageSize=100';
+const categories = {
+  items: [
+    { categoryId: 1, categoryName: 'Beverages', description: null },
+    { categoryId: 2, categoryName: 'Condiments', description: null }
+  ],
+  page: 1,
+  pageSize: 100,
+  totalCount: 2
+};
 
 // Chai 18 € × 2 + Aniseed Syrup 10 € × 1 = 46 €; total with 5 € shipping = 51 €.
 const cart: ICart = {
   cartId: 5,
   cartItems: [
     {
-      productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2,
+      productId: 7, productName: 'Chai', categoryId: 1, unitPrice: 18, quantity: 2,
       unitsInStock: 39, discontinued: false
     },
     {
-      productId: 9, productName: 'Aniseed Syrup', categoryName: 'Condiments', unitPrice: 10, quantity: 1,
+      productId: 9, productName: 'Aniseed Syrup', categoryId: 2, unitPrice: 10, quantity: 1,
       unitsInStock: 13, discontinued: false
     },
   ]
@@ -83,6 +93,32 @@ describe('CartComponent', () =>
 
     expect(itemRows()).toHaveLength(0);
     expect(text(fixture.nativeElement)).toContain('0 items');
+  });
+
+  it('shows no category when the names cannot be loaded', () =>
+  {
+    fixture.detectChanges();
+    httpTesting.expectOne(cartUrl).flush(structuredClone(cart));
+    httpTesting.expectOne(categoriesUrl).flush('Server error', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    const rows = itemRows();
+    expect(rows).toHaveLength(2);
+    expect(text(rows[0])).toContain('Chai');
+    expect(text(rows[0])).not.toContain('Beverages');
+  });
+
+  it('does not request categories when no item has one', () =>
+  {
+    fixture.detectChanges();
+    httpTesting.expectOne(cartUrl).flush({
+      ...cart,
+      cartItems: cart.cartItems.map(item => ({ ...item, categoryId: null }))
+    });
+    fixture.detectChanges();
+
+    // verify() in afterEach fails if the categories were requested.
+    expect(itemRows()).toHaveLength(2);
   });
 
   it('shows an empty cart when the server has none (404)', () =>
@@ -294,13 +330,18 @@ describe('CartComponent', () =>
     return fixture.nativeElement.querySelector('.btn-checkout');
   }
 
-  // Answers the only request the page makes on load: the cart already has the product details,
-  // so httpTesting.verify() fails the test if the page asks for products or categories.
+  // Answers the requests the page makes on load: the cart, which has the product details, and one page of
+  // categories for the names (#75). httpTesting.verify() fails the test if the page asks for products.
   function loadCart(value: ICart): void
   {
     fixture.detectChanges(); // runs ngOnInit
     // flush() hands over the same object and the component changes it, so every test gets its own copy.
     httpTesting.expectOne(cartUrl).flush(structuredClone(value));
+    // Only asked for when an item has a category (an empty cart has none).
+    if (value.cartItems.some(item => item.categoryId !== null))
+    {
+      httpTesting.expectOne(categoriesUrl).flush(categories);
+    }
     fixture.detectChanges();
   }
 

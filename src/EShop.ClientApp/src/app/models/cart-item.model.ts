@@ -1,9 +1,10 @@
-// Product details are read with the cart: the price and the stock are the current ones.
+// Product details are read with the cart: the price and the stock are the latest the cart knows. The category is
+// an id (#75); the cart page looks the names up.
 export interface ICartItem
 {
     productId: number;
     productName: string;
-    categoryName: string | null;
+    categoryId: number | null;
     unitPrice: number | null;
     quantity: number;
     unitsInStock: number;
