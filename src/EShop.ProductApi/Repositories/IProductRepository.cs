@@ -16,4 +16,7 @@ public interface IProductRepository
     // false: no product with this id.
     Task<bool> UpdateAsync(int id, ProductRequest request, CancellationToken cancellationToken);
     Task<DeleteResult> DeleteAsync(int id, CancellationToken cancellationToken);
+
+    // Writes ProductChanged of every product to the outbox; returns the number of products.
+    Task<int> RepublishAllAsync(CancellationToken cancellationToken);
 }

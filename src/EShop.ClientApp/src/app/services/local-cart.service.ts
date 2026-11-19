@@ -1,21 +1,19 @@
 import { inject, Injectable } from '@angular/core';
-import { catchError, forkJoin, map, Observable, of, switchMap } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of } from 'rxjs';
 import { ICart } from '../models/cart.model';
 import { ICartItem } from '../models/cart-item.model';
 import { ProductService } from './products.service';
-import { CategoryService } from './categories.service';
 
 type StoredItem = Pick<ICartItem, 'productId' | 'quantity'>;
 
 // The cart of an anonymous user: only product ids and quantities are stored, so prices never go stale;
-// names, categories and current prices are loaded when the cart is read (CartService moves it to the server after the sign-in).
+// names, category ids and current prices are loaded when the cart is read (CartService moves it to the server after the sign-in).
 @Injectable({
   providedIn: 'root'
 })
 export class LocalCartService
 {
   private readonly productService = inject(ProductService);
-  private readonly categoryService = inject(CategoryService);
   private readonly storageKey = 'cart';
 
   getCart(): Observable<ICart>
@@ -81,21 +79,16 @@ export class LocalCartService
   private complete(item: StoredItem): Observable<ICartItem | null>
   {
     return this.productService.getProduct(item.productId).pipe(
-      switchMap(product =>
-      {
-        const categoryName$: Observable<string | null> = product.categoryId
-          ? this.categoryService.getCategory(product.categoryId).pipe(map(category => category.categoryName))
-          : of(null);
-        return categoryName$.pipe(map(categoryName => ({
-          productId: item.productId,
-          productName: product.productName,
-          categoryName,
-          unitPrice: product.unitPrice,
-          quantity: item.quantity,
-          unitsInStock: product.unitsInStock,
-          discontinued: product.discontinued
-        })));
-      }),
+      // The same shape as the server cart: the category as an id, the cart page has the names.
+      map(product => ({
+        productId: item.productId,
+        productName: product.productName,
+        categoryId: product.categoryId,
+        unitPrice: product.unitPrice,
+        quantity: item.quantity,
+        unitsInStock: product.unitsInStock,
+        discontinued: product.discontinued
+      })),
       catchError(() => of(null))
     );
   }

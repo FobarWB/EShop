@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-18
+verified: 2026-11-19
 ---
 
 # Decisions
@@ -16,7 +16,7 @@ Architecture decision records: the context, the decision and its consequences. N
 - [RelativeApiUrlsBehindProxy](RelativeApiUrlsBehindProxy.md): the client calls `/api/...`; the dev server or nginx forwards to the APIs.
 - [UseKeycloakForAuthentication](UseKeycloakForAuthentication.md): Keycloak (OIDC) issues the tokens, the APIs only validate them.
 - [ShoppingCartReadsCatalogData](ShoppingCartReadsCatalogData.md): the cart returns product details with the current price,
-  read from the shared `products` and `categories` tables.
+  read from the shared `products` and `categories` tables (superseded by #75: the cart's own product replica).
 - [PagedListResponses](PagedListResponses.md): lists are paged with `{ items, page, pageSize, totalCount }` and offset paging.
 - [OptimisticConcurrencyWithXmin](OptimisticConcurrencyWithXmin.md): products carry PostgreSQL's `xmin` as a concurrency
   token; a concurrent change becomes 409 instead of a lost update.

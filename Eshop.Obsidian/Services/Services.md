@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-10
+verified: 2026-11-19
 ---
 
 # Services
@@ -21,11 +21,14 @@ Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 ## Messaging
 
 OrderApi publishes `order.placed`, `order.cancelled` and `order.guest-placed`, CustomerApi `customer.guest-account-ready`,
-each through its own transactional outbox (`outbox_messages.producer`) to the topic exchange `eshop.events`.
-Three consumers, each with its own queue, inbox, delayed retries and dead letter queue: NotificationService (order
-emails), CustomerApi (guest accounts in Keycloak) and OrderApi (attaching guest orders), see
-[GuestCheckout](../Decisions/GuestCheckout.md). The mechanics are shared: `MessageConsumer` + one `IMessageHandler` per
-service in `EShop.Messaging`; contracts in `EShop.OrderApi.Contracts` and `EShop.CustomerApi.Contracts`. See
+ProductApi `product.changed` and `product.deleted` (#75), each through its own transactional outbox
+(`outbox_messages.producer`) to the topic exchange `eshop.events`.
+Four consumers, each with its own queue, inbox, delayed retries and dead letter queue: NotificationService (order
+emails), CustomerApi (guest accounts in Keycloak), OrderApi (attaching guest orders, see
+[GuestCheckout](../Decisions/GuestCheckout.md)) and ShoppingCart (its product replica, see
+[DatabasePerService](../Decisions/DatabasePerService.md)). The mechanics are shared: `MessageConsumer` + one
+`IMessageHandler` per service in `EShop.Messaging`; contracts in `EShop.OrderApi.Contracts`, `EShop.CustomerApi.Contracts`
+and `EShop.ProductApi.Contracts`. See
 [TransactionalOutbox](../Decisions/TransactionalOutbox.md), [DelayedRetryWithTtlQueues](../Decisions/DelayedRetryWithTtlQueues.md)
 and [RabbitMq](../Learning/RabbitMq.md).
 
@@ -43,7 +46,8 @@ and [RabbitMq](../Learning/RabbitMq.md).
 - Errors: `AddEShopProblemDetails()` + `app.UseExceptionHandler()` (first in the pipeline) from `EShop.ServiceDefaults`.
   Every error is `application/problem+json`; an unhandled exception is 500 without a stack trace.
   `ForeignKeyViolationHandler` maps PostgreSQL `23503` and `23001` to 409 (see [PostgreSql](../Learning/PostgreSql.md)):
-  the repositories check references before a `DELETE`, the constraint catches a concurrent request between check and write.
+  CategoryApi checks the products of a category before a `DELETE`, the constraint catches a concurrent request between
+  check and write. ProductApi no longer checks (#75): carts and orders reference products without a foreign key.
   `ConcurrencyConflictHandler` maps `DbUpdateConcurrencyException` to 409: a row changed between reading and writing
   (products carry `xmin`, see [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md)).
 - Lists: `[FromQuery] PageRequest paging` (`page` ≥ 1, `pageSize` 1–100, default 20) and `PagedResponse<T>`

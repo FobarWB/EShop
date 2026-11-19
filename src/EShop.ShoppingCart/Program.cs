@@ -1,5 +1,7 @@
 using EShop.Data;
+using EShop.Messaging;
 using EShop.ServiceDefaults;
+using EShop.ShoppingCart.ProductEvents;
 using EShop.ShoppingCart.Repositories;
 using Microsoft.AspNetCore.HttpLogging;
 using Scalar.AspNetCore;
@@ -21,6 +23,12 @@ builder.Services.AddCors(options =>
 );
 
 builder.Services.AddEShopDbContext(builder.Configuration);
+
+// ProductApi's events keep cart_products up to date (#75).
+builder.Services.AddEShopMessaging(builder.Configuration);
+builder.Services.AddMessageConsumer<ProductEventsHandler, EShopDbContext>(
+    ProductEventsQueue.Definition
+);
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();

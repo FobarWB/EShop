@@ -97,6 +97,49 @@ namespace EShop.Data.Migrations
                     b.ToTable("cart_items", (string)null);
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.CartProduct", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("deleted");
+
+                    b.Property<bool>("Discontinued")
+                        .HasColumnType("boolean")
+                        .HasColumnName("discontinued");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("product_name");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<short>("UnitsInStock")
+                        .HasColumnType("smallint")
+                        .HasColumnName("units_in_stock");
+
+                    b.HasKey("ProductId")
+                        .HasName("pk_cart_products");
+
+                    b.ToTable("cart_products", (string)null);
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.Category", b =>
                 {
                     b.Property<int>("CategoryId")
@@ -426,27 +469,6 @@ namespace EShop.Data.Migrations
                     b.ToTable("employees", (string)null);
                 });
 
-            modelBuilder.Entity("EShop.Data.Entities.InboxMessage", b =>
-                {
-                    b.Property<string>("Consumer")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("consumer");
-
-                    b.Property<Guid>("MessageId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("message_id");
-
-                    b.Property<DateTime>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed_at");
-
-                    b.HasKey("Consumer", "MessageId")
-                        .HasName("pk_inbox_messages");
-
-                    b.ToTable("inbox_messages", (string)null);
-                });
-
             modelBuilder.Entity("EShop.Data.Entities.Order", b =>
                 {
                     b.Property<int>("OrderId")
@@ -682,56 +704,6 @@ namespace EShop.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("EShop.Data.Entities.OutboxMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempts");
-
-                    b.Property<string>("LastError")
-                        .HasColumnType("text")
-                        .HasColumnName("last_error");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("payload");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processed_at");
-
-                    b.Property<string>("Producer")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("producer");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("type");
-
-                    b.HasKey("Id")
-                        .HasName("pk_outbox_messages");
-
-                    b.HasIndex("Producer", "OccurredAt")
-                        .HasDatabaseName("ix_outbox_messages_producer_occurred_at")
-                        .HasFilter("processed_at IS NULL");
-
-                    b.ToTable("outbox_messages", (string)null);
-                });
-
             modelBuilder.Entity("EShop.Data.Entities.Product", b =>
                 {
                     b.Property<int>("ProductId")
@@ -765,6 +737,10 @@ namespace EShop.Data.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0)
                         .HasColumnName("reorder_level");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision");
 
                     b.Property<int?>("SupplierId")
                         .HasColumnType("integer")
@@ -956,6 +932,77 @@ namespace EShop.Data.Migrations
                     b.ToTable("territories", (string)null);
                 });
 
+            modelBuilder.Entity("EShop.Messaging.Consumers.InboxMessage", b =>
+                {
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("consumer");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<DateTime>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.HasKey("Consumer", "MessageId")
+                        .HasName("pk_inbox_messages");
+
+                    b.ToTable("inbox_messages", (string)null);
+                });
+
+            modelBuilder.Entity("EShop.Messaging.Outbox.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<string>("Producer")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("producer");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_outbox_messages");
+
+                    b.HasIndex("Producer", "OccurredAt")
+                        .HasDatabaseName("ix_outbox_messages_producer_occurred_at")
+                        .HasFilter("processed_at IS NULL");
+
+                    b.ToTable("outbox_messages", (string)null);
+                });
+
             modelBuilder.Entity("EmployeeTerritory", b =>
                 {
                     b.Property<int>("EmployeeId")
@@ -1000,16 +1047,7 @@ namespace EShop.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_cart_items_carts_cart_id");
 
-                    b.HasOne("EShop.Data.Entities.Product", "Product")
-                        .WithMany("CartItems")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_cart_items_products_product_id");
-
                     b.Navigation("Cart");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.CustomerAddress", b =>
@@ -1066,15 +1104,7 @@ namespace EShop.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_order_details_orders_order_id");
 
-                    b.HasOne("EShop.Data.Entities.Product", "Product")
-                        .WithMany("OrderDetails")
-                        .HasForeignKey("ProductId")
-                        .IsRequired()
-                        .HasConstraintName("fk_order_details_products_product_id");
-
                     b.Navigation("Order");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.OrderStatusChange", b =>
@@ -1164,13 +1194,6 @@ namespace EShop.Data.Migrations
                     b.Navigation("OrderDetails");
 
                     b.Navigation("StatusChanges");
-                });
-
-            modelBuilder.Entity("EShop.Data.Entities.Product", b =>
-                {
-                    b.Navigation("CartItems");
-
-                    b.Navigation("OrderDetails");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Region", b =>

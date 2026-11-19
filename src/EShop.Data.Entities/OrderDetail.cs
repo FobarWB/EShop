@@ -29,8 +29,7 @@ namespace EShop.Data.Entities
         [InverseProperty("OrderDetails")]
         public virtual Order Order { get; set; } = null!;
 
-        [ForeignKey("ProductId")]
-        [InverseProperty("OrderDetails")]
-        public virtual Product Product { get; set; } = null!;
+        // ProductId without a foreign key (#75): the order keeps its own copy of name and price, so the product
+        // can be deleted, and the catalog gets its own database (#78).
     }
 }

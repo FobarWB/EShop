@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-10
+verified: 2026-11-19
 issue: 50
 ---
 
@@ -138,6 +138,22 @@ coordinator: OrderApi → `order.guest-placed` → CustomerApi (Keycloak user, s
   event type (`order.guest-placed`) would otherwise land in its queue and go to the DLQ as unknown.
 - Checked on compose: a guest order went through all three queues in about a second (three outbox rows published,
   one inbox row per consumer, all DLQs empty).
+
+## Applied in #75
+
+Product replicas fed by ProductApi's events ([DatabasePerService](../Decisions/DatabasePerService.md),
+[ShoppingCart](../Services/ShoppingCart.md)). Lessons:
+
+- **Snapshot events with a revision** make a consumer order-independent: duplicates, a republish and a reordered
+  delivery all end with the newest copy. The upsert compares revisions in SQL, so no read-then-write race.
+- **Tombstones**: a delete is a state, not an absence; without it a late snapshot re-creates the product.
+- **Events before the queue exists are lost**: the topic exchange drops what no binding matches. The replica's initial
+  data is a republish after the consumer has declared its queue.
+- Checked on compose: republish filled 77 copies; a repeated republish changed nothing (the same revisions); a price
+  change reached the cart page in about 2 s (the publisher's poll); deleting a product that was in a cart removed it
+  (`removed from 1 carts`), tombstone revision 2; all DLQs empty.
+- The first log check after the PUT showed nothing: it ran before the publisher's next poll. Eventual consistency,
+  seen by hand.
 
 ## Open questions
 

@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using EShop.Data;
 using EShop.Data.Entities;
+using EShop.Messaging.Outbox;
+using EShop.ProductApi.Contracts;
 using EShop.ProductApi.Dtos;
 using EShop.ServiceDefaults;
 using EShop.Tests.Common;
@@ -367,8 +370,9 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Delete_ProductInCart_Returns409AndKeepsProduct()
+    public async Task Delete_ProductInCart_Returns204AndKeepsTheCartItem()
     {
+        // No check of carts (#75): the cart drops the item when ProductDeleted reaches it.
         var chai = await SeedProductAsync("Chai");
         await _database.SeedAsync(
             new Cart
@@ -384,14 +388,16 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldBeNull();
+        await using var db = _database.CreateContext();
+        (await db.CartItems.SingleAsync(_cancellationToken)).ProductId.ShouldBe(chai.ProductId);
     }
 
     [Fact]
-    public async Task Delete_ProductInOrder_Returns409AndKeepsProduct()
+    public async Task Delete_ProductInOrder_Returns204AndKeepsTheOrderDetail()
     {
+        // The order keeps its copy of name and price (#75).
         var chai = await SeedProductAsync("Chai");
         await _database.SeedAsync(
             new Order
@@ -415,42 +421,175 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
             _cancellationToken
         );
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var db = _database.CreateContext();
+        (await db.OrderDetails.SingleAsync(_cancellationToken)).ProductName.ShouldBe("Chai");
     }
 
     [Fact]
-    public async Task Delete_ProductAddedToCartAfterCheck_Returns409AndKeepsProduct()
+    public async Task Create_StoresProductChangedWithRevision1()
     {
-        // The race from #32: another request puts the product into a cart after the in-use check;
-        // PostgreSQL rejects the DELETE (23503) and the exception handler turns it into 409.
-        var chai = await SeedProductAsync("Chai");
-        using var admin = CreateAdminWithConcurrentWrite(() =>
-            _database.SeedAsync(
-                new Cart
-                {
-                    UserId = "user-1",
-                    CartItems = [new CartItem { ProductId = chai.ProductId, Quantity = 1 }],
-                },
-                _cancellationToken
-            )
-        );
-
-        var response = await admin.DeleteAsync(
-            $"api/products/{chai.ProductId}",
+        var response = await _admin.PostAsJsonAsync(
+            "api/products",
+            new
+            {
+                productName = "Chai",
+                unitPrice = 18,
+                unitsInStock = 39,
+            },
             _cancellationToken
         );
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldNotBeNull();
+        var created = (
+            await response.Content.ReadFromJsonAsync<ProductResponse>(_cancellationToken)
+        ).ShouldNotBeNull();
+        var message = (await OutboxAsync()).ShouldHaveSingleItem();
+        message.Producer.ShouldBe(ProductApiOutbox.Producer);
+        message.Type.ShouldBe(ProductEventTypes.ProductChanged);
+        var changed = Deserialize<ProductChanged>(message);
+        changed.ProductId.ShouldBe(created.ProductId);
+        changed.ProductName.ShouldBe("Chai");
+        changed.UnitPrice.ShouldBe(18m);
+        changed.UnitsInStock.ShouldBe((short)39);
+        changed.Revision.ShouldBe(1);
+        (await _database.FindAsync<Product>(created.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .Revision.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Update_StoresProductChangedWithNextRevision()
+    {
+        var chai = await _database.SeedAsync(
+            new Product { ProductName = "Chai", Revision = 4 },
+            _cancellationToken
+        );
+
+        await _admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new { productName = "Chai Latte" },
+            _cancellationToken
+        );
+
+        var changed = Deserialize<ProductChanged>((await OutboxAsync()).ShouldHaveSingleItem());
+        changed.ProductName.ShouldBe("Chai Latte");
+        changed.Revision.ShouldBe(5);
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .Revision.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task Update_NothingChanged_StoresNoEvent()
+    {
+        // Every field of the request given: an omitted one is null, and the seeded row has the database defaults
+        // (unit_price, units_on_order, reorder_level = 0), so a short body would change them.
+        var chai = await _database.SeedAsync(
+            new Product
+            {
+                ProductName = "Chai",
+                UnitPrice = 18,
+                UnitsInStock = 39,
+                UnitsOnOrder = 0,
+                ReorderLevel = 10,
+                Revision = 4,
+            },
+            _cancellationToken
+        );
+
+        var response = await _admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new
+            {
+                productName = "Chai",
+                unitPrice = 18,
+                unitsInStock = 39,
+                unitsOnOrder = 0,
+                reorderLevel = 10,
+            },
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await OutboxAsync()).ShouldBeEmpty();
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .Revision.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task Update_ProductChangedAfterRead_StoresNoEvent()
+    {
+        // The 409 of a concurrent change rolls back the event together with the update.
+        var chai = await SeedProductAsync("Chai");
+        using var admin = CreateAdminWithConcurrentWrite(async () =>
+        {
+            await using var db = _database.CreateContext();
+            await db
+                .Products.Where(p => p.ProductId == chai.ProductId)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(p => p.ProductName, "Chai Tea"),
+                    _cancellationToken
+                );
+        });
+
+        await admin.PutAsJsonAsync(
+            $"api/products/{chai.ProductId}",
+            new { productName = "Chai Latte" },
+            _cancellationToken
+        );
+
+        (await OutboxAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Delete_StoresProductDeletedWithNextRevision()
+    {
+        var chai = await _database.SeedAsync(
+            new Product { ProductName = "Chai", Revision = 4 },
+            _cancellationToken
+        );
+
+        await _admin.DeleteAsync($"api/products/{chai.ProductId}", _cancellationToken);
+
+        var message = (await OutboxAsync()).ShouldHaveSingleItem();
+        message.Type.ShouldBe(ProductEventTypes.ProductDeleted);
+        var deleted = Deserialize<ProductDeleted>(message);
+        deleted.ProductId.ShouldBe(chai.ProductId);
+        deleted.Revision.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task RepublishEvents_Returns202AndStoresCurrentStateOfEveryProduct()
+    {
+        var chai = await _database.SeedAsync(
+            new Product { ProductName = "Chai", Revision = 4 },
+            _cancellationToken
+        );
+        var chang = await SeedProductAsync("Chang");
+
+        var response = await _admin.PostAsync(
+            "api/products/events/republish",
+            null,
+            _cancellationToken
+        );
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        var events = (await OutboxAsync()).Select(Deserialize<ProductChanged>).ToList();
+        events
+            .Select(e => (e.ProductId, e.Revision))
+            .ShouldBe([(chai.ProductId, 4L), (chang.ProductId, 0L)], ignoreOrder: true);
+        // A snapshot again, not a change: the stored revision stays.
+        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+            .ShouldNotBeNull()
+            .Revision.ShouldBe(4);
     }
 
     [Theory]
     [InlineData("POST", "api/products")]
     [InlineData("PUT", "api/products/1")]
     [InlineData("DELETE", "api/products/1")]
+    [InlineData("POST", "api/products/events/republish")]
     public async Task WriteEndpoints_Anonymous_Return401(string method, string url)
     {
         var response = await SendJsonAsync(_client, method, url);
@@ -462,6 +601,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     [InlineData("POST", "api/products")]
     [InlineData("PUT", "api/products/1")]
     [InlineData("DELETE", "api/products/1")]
+    [InlineData("POST", "api/products/events/republish")]
     public async Task WriteEndpoints_WithoutAdminRole_Return403(string method, string url)
     {
         using var user = _factory.CreateClient().AsUser("user-1");
@@ -511,6 +651,16 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         response.Headers.TryGetValues("Access-Control-Allow-Origin", out var values);
         (values?.SingleOrDefault()).ShouldBe(allowed ? origin : null);
     }
+
+    private async Task<List<OutboxMessage>> OutboxAsync()
+    {
+        await using var db = _database.CreateContext();
+        return await db.OutboxMessages.AsNoTracking().ToListAsync(_cancellationToken);
+    }
+
+    private static T Deserialize<T>(OutboxMessage message)
+        where T : class =>
+        JsonSerializer.Deserialize<T>(message.Payload, JsonSerializerOptions.Web).ShouldNotBeNull();
 
     private Task<Product> SeedProductAsync(string name, int? categoryId = null) =>
         _database.SeedAsync(

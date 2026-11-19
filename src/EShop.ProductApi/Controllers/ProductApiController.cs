@@ -75,7 +75,7 @@ public class ProductApiController : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
-    // DELETE api/products/1
+    // DELETE api/products/1: also a product in carts and orders (#75). 409 only for a concurrent change (xmin).
     [HttpDelete("{id}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
@@ -87,12 +87,18 @@ public class ProductApiController : ControllerBase
         {
             DeleteResult.Deleted => NoContent(),
             DeleteResult.NotFound => NotFound(),
-            DeleteResult.InUse => Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Product is in use",
-                detail: $"Product {id} is referenced by cart items or order details."
-            ),
             _ => throw new UnreachableException(),
         };
+    }
+
+    // POST api/products/events/republish: ProductChanged for every product, e.g. the initial data of a new replica.
+    // Safe to repeat: a consumer ignores a revision it already has.
+    [HttpPost("events/republish")]
+    [ProducesResponseType(202)]
+    public async Task<IActionResult> RepublishEvents(CancellationToken cancellationToken)
+    {
+        var count = await _repository.RepublishAllAsync(cancellationToken);
+        // Accepted, not done: the events are in the outbox, the publisher sends them within seconds.
+        return Accepted(new { products = count });
     }
 }

@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-02
+verified: 2026-11-19
 issue: 33
 ---
 
@@ -39,6 +39,12 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
   `BeginTransactionAsync` to be atomic.
 - **Enums as text.** `HasConversion<string>()` stores the name; a private setter (`get; private set;`) is still mapped,
   so the entity can guard its own state.
+- **`HasDefaultValue` and `null`.** An entity seeded with `null` in a column that has a database default is inserted
+  without that column, so the row gets the default (0), not `null`. A later `null` from a request is then a real change.
+  Found by a test that expected "a PUT without changes publishes nothing" (#75).
+- **Navigations need a relationship.** Removing the foreign key `cart_items → products` removed `CartItem.Product`;
+  the cart query joins explicitly (`Join` inside the projection, still one SQL query), and `ExecuteUpdate` uses a
+  correlated `db.OrderDetails.Any(…)` instead of `p.OrderDetails` (#75).
 - **Generated migrations are a draft.** Read the SQL (`dotnet ef migrations script <from> <to>`) before applying: EF does
   not know how to fill a new NOT NULL column or convert existing values.
 

@@ -114,7 +114,7 @@ describe('LocalCartService', () =>
       expect(result).toEqual({ cartId: 0, cartItems: [] });
     });
 
-    it('completes the items with product, category, current price and stock', () =>
+    it('completes the items with product, category id, current price and stock without a category request', () =>
     {
       service.addItem(7, 2);
       let result: ICart | undefined;
@@ -123,10 +123,9 @@ describe('LocalCartService', () =>
 
       httpTesting.expectOne('/api/products/7').flush(
         { productId: 7, productName: 'Chai', unitPrice: 18, categoryId: 1, unitsInStock: 39, discontinued: false });
-      httpTesting.expectOne('/api/categories/1').flush({ categoryId: 1, categoryName: 'Beverages' });
       expect(result?.cartItems).toEqual([
         {
-          productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2,
+          productId: 7, productName: 'Chai', categoryId: 1, unitPrice: 18, quantity: 2,
           unitsInStock: 39, discontinued: false
         }
       ]);
@@ -140,7 +139,7 @@ describe('LocalCartService', () =>
       service.getCart().subscribe(c => result = c);
 
       httpTesting.expectOne('/api/products/7').flush({ productId: 7, productName: 'Chai', unitPrice: 18, categoryId: null });
-      expect(result?.cartItems[0].categoryName).toBeNull();
+      expect(result?.cartItems[0].categoryId).toBeNull();
     });
 
     it('drops a product that no longer exists', () =>

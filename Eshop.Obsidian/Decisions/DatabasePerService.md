@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-18
+verified: 2026-11-19
 issue: 51
 ---
 
@@ -47,3 +47,17 @@ rests on one transaction over three services' data.
 - Deleting a product no longer checks carts and orders: orders keep a snapshot, carts get `ProductDeleted`.
 - [ShoppingCartReadsCatalogData](ShoppingCartReadsCatalogData.md) is superseded by #75, the stock return of
   [OrderLifecycle](OrderLifecycle.md) by #76.
+
+## Refined in #75
+
+- `products.revision` orders the snapshots, not `xmin` (changes with every UPDATE, wraps around) and not the event time
+  (taken before the commit). Two counters for now: `Version` = `xmin` (concurrency), `Revision` = events; once
+  ProductApi is the only writer of `products` (#76), `Revision` can replace `xmin` as the concurrency token.
+- A deleted product stays in a replica as a tombstone, so a late `ProductChanged` cannot bring it back.
+- Initial replica data: `POST api/products/events/republish`, not SQL copied between tables.
+- The OrderApi replica moved to #76, with its first reader; stock changed by OrderApi does not reach the replicas
+  until #76.
+- No foreign key `cart_items → cart_products` until the cart has its own DbContext (#77): now it would need a backfill
+  and replica rows in OrderApi's tests.
+- Validation that a product exists moves from the foreign keys to the services: the cart checks its copy, the checkout
+  reads `products` by id (#75), then the replica and the reservation (#76).

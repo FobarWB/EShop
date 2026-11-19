@@ -44,19 +44,31 @@ public class OrderRepository : IOrderRepository
             return new PlaceOrderResult(PlaceOrderStatus.AlreadyPlaced, existing);
         }
 
-        // Tracked: the stock and the cart change below. The xmin of each product is read here,
-        // and SaveChanges writes the new stock only if the row has not changed since.
+        // Tracked: the cart is emptied below.
         var cart = await _db
             .Carts.Include(c => c.CartItems)
-            .ThenInclude(i => i.Product)
             .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
         if (cart == null || cart.CartItems.Count == 0)
         {
             return new PlaceOrderResult(PlaceOrderStatus.CartEmpty);
         }
 
-        // cart_items.product_id is a required foreign key: Include always loads the product.
-        var lines = cart.CartItems.Select(i => new OrderLine(i.Product!, i.Quantity)).ToList();
+        // Tracked: the stock changes below. The xmin of each product is read here, and SaveChanges writes the new
+        // stock only if the row has not changed since. Read by id, without a foreign key since #75 (until #76
+        // reserves the stock in ProductApi).
+        var productIds = cart.CartItems.Select(i => i.ProductId).ToArray();
+        var products = await _db
+            .Products.Where(p => productIds.Contains(p.ProductId))
+            .ToDictionaryAsync(p => p.ProductId, cancellationToken);
+        // A product deleted while ProductDeleted has not reached the cart yet: refused like a discontinued one.
+        var missing = productIds.Where(id => !products.ContainsKey(id)).ToList();
+        if (missing.Count > 0)
+        {
+            return new PlaceOrderResult(PlaceOrderStatus.ProductsUnavailable, ProductIds: missing);
+        }
+        var lines = cart
+            .CartItems.Select(i => new OrderLine(products[i.ProductId], i.Quantity))
+            .ToList();
         return await CreateOrderAsync(
             owner,
             idempotencyKey,
@@ -187,8 +199,11 @@ public class OrderRepository : IOrderRepository
             // A relative update, units_in_stock = units_in_stock + quantity: it does not depend on a value read
             // earlier, so a checkout running at the same time cannot make it wrong. It changes products.xmin,
             // so that checkout fails its own check (409) instead of writing a stale stock.
+            // A product deleted since the order has nothing to return to: the subquery finds no row to update.
             await _db
-                .Products.Where(p => p.OrderDetails.Any(d => d.OrderId == orderId))
+                .Products.Where(p =>
+                    _db.OrderDetails.Any(d => d.OrderId == orderId && d.ProductId == p.ProductId)
+                )
                 .ExecuteUpdateAsync(
                     s =>
                         s.SetProperty(
@@ -196,7 +211,9 @@ public class OrderRepository : IOrderRepository
                             p =>
                                 (short)(
                                     p.UnitsInStock
-                                    + p.OrderDetails.Where(d => d.OrderId == orderId)
+                                    + _db.OrderDetails.Where(d =>
+                                            d.OrderId == orderId && d.ProductId == p.ProductId
+                                        )
                                         .Select(d => d.Quantity)
                                         .First()
                                 )

@@ -23,7 +23,13 @@ public class ProductRepository : IProductRepository
         var product = new Product();
         request.ApplyTo(product);
         _db.Products.Add(product);
+
+        // Two SaveChanges in one transaction: the event needs the id the INSERT generates.
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
+        ProductEvents.AddChanged(_db, product, DateTime.UtcNow);
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         // Read back through the same projection: no second copy of the mapping.
         return await _db
@@ -68,6 +74,13 @@ public class ProductRepository : IProductRepository
         }
 
         request.ApplyTo(product);
+        // A PUT that changes nothing writes nothing and publishes nothing.
+        if (_db.ChangeTracker.HasChanges())
+        {
+            // Revision + 1 read in C# is safe: the UPDATE checks xmin, so of two concurrent PUTs the second
+            // fails with 409 instead of sending the same revision twice.
+            ProductEvents.AddChanged(_db, product, DateTime.UtcNow);
+        }
         await _db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -80,18 +93,28 @@ public class ProductRepository : IProductRepository
             return DeleteResult.NotFound;
         }
 
-        // cart_items and order_details reference products without cascade: PostgreSQL would reject
-        // the DELETE (23503), so check first and let the controller return 409.
-        var inUse =
-            await _db.CartItems.AnyAsync(i => i.ProductId == id, cancellationToken)
-            || await _db.OrderDetails.AnyAsync(d => d.ProductId == id, cancellationToken);
-        if (inUse)
-        {
-            return DeleteResult.InUse;
-        }
-
+        // No check of carts and orders (#75): orders keep a copy of name and price, carts drop the product on
+        // ProductDeleted.
+        ProductEvents.AddDeleted(_db, p, DateTime.UtcNow);
         _db.Products.Remove(p);
         await _db.SaveChangesAsync(cancellationToken);
         return DeleteResult.Deleted;
+    }
+
+    // The initial data of a new replica: every product's current state, in one transaction.
+    // Not tracked: AddSnapshot only reads the entities, SaveChanges writes only the outbox rows.
+    public async Task<int> RepublishAllAsync(CancellationToken cancellationToken)
+    {
+        var products = await _db
+            .Products.AsNoTracking()
+            .OrderBy(p => p.ProductId)
+            .ToListAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        foreach (var product in products)
+        {
+            ProductEvents.AddSnapshot(_db, product, now);
+        }
+        await _db.SaveChangesAsync(cancellationToken);
+        return products.Count;
     }
 }

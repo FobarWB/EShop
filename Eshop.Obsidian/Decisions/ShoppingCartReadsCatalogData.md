@@ -1,11 +1,14 @@
 ---
 type: decision
-status: accepted
-verified: 2026-10-27
+status: superseded
+verified: 2026-11-19
 issue: 33
 ---
 
 # ShoppingCartReadsCatalogData
+
+Superseded by [DatabasePerService](DatabasePerService.md) in #75: the cart reads its own copy, `cart_products`, fed by
+product events; the price is still the latest known, the category an id. The text below is the decision of #33.
 
 ## Context
 

@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-11-10
-issue: 50
+verified: 2026-11-19
+issue: 75
 ---
 
 # OrderApi
@@ -44,7 +44,8 @@ Orders are documents: no PUT of the order or DELETE. Status changes follow
 `OrderRepository.PlaceOrderAsync` writes in one explicit transaction with two `SaveChangesAsync`:
 
 1. An order of this user with this key exists: return it (the cart is already empty after the first success).
-2. Load the cart with its items and their products, tracked; each product's `xmin` is read here.
+2. Load the cart with its items, then its products by id (no foreign key since #75), tracked; each product's `xmin` is
+   read here. A product deleted while still in the cart → 409 with its id, as a discontinued one.
 3. Check availability and stock; a failed check returns a result and writes nothing.
 4. Insert `orders` and `order_details` with the current prices and names copied into `order_details.unit_price` and
    `order_details.product_name`, freight 5 (`OrderRepository.StandardFreight`, a flat fee), `order_date` =
@@ -149,6 +150,8 @@ Writes `orders`, `order_details`, `order_status_changes`, `outbox_messages`, `pr
 - Migration `AddOrderLifecycle`: the Northwind rows got `Delivered`, orders placed through the API before it `Pending`;
   `product_name` was copied from `products`.
 - `customer_id` (Northwind `char(5)`) stays null for new orders.
+- `order_details.product_id` has no foreign key since #75: a product can be deleted, the order keeps its copy of name
+  and price. The cancel returns stock only to products that still exist.
 
 ## Dependencies
 

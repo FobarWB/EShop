@@ -11,6 +11,7 @@ COPY src/EShop.Data.Entities/EShop.Data.Entities.csproj src/EShop.Data.Entities/
 COPY src/EShop.Data/EShop.Data.csproj src/EShop.Data/
 COPY src/EShop.Messaging/EShop.Messaging.csproj src/EShop.Messaging/
 COPY src/EShop.ServiceDefaults/EShop.ServiceDefaults.csproj src/EShop.ServiceDefaults/
+COPY src/EShop.ProductApi.Contracts/EShop.ProductApi.Contracts.csproj src/EShop.ProductApi.Contracts/
 COPY src/EShop.ProductApi/EShop.ProductApi.csproj src/EShop.ProductApi/
 RUN dotnet restore src/EShop.ProductApi/EShop.ProductApi.csproj
 
@@ -22,6 +23,7 @@ COPY src/EShop.Data.Entities/ src/EShop.Data.Entities/
 COPY src/EShop.Data/ src/EShop.Data/
 COPY src/EShop.Messaging/ src/EShop.Messaging/
 COPY src/EShop.ServiceDefaults/ src/EShop.ServiceDefaults/
+COPY src/EShop.ProductApi.Contracts/ src/EShop.ProductApi.Contracts/
 COPY src/EShop.ProductApi/ src/EShop.ProductApi/
 
 # The design-time host (ProductApi's Program.cs) needs some connection string to configure the DbContext.

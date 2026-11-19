@@ -18,7 +18,7 @@ const cart: ICart = {
   cartId: 0,
   cartItems: [
     {
-      productId: 7, productName: 'Chai', categoryName: 'Beverages', unitPrice: 18, quantity: 2,
+      productId: 7, productName: 'Chai', categoryId: 1, unitPrice: 18, quantity: 2,
       unitsInStock: 39, discontinued: false
     }
   ]
