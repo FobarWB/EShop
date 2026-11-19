@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-10
+verified: 2026-11-19
 issue: 50
 ---
 
@@ -22,6 +22,8 @@ depends on every event, and no one owns them).
 - Consumers reference the producer's contracts project (NotificationService now; in #51 ProductApi gets its own).
 - Since #45 a second producer: `EShop.CustomerApi.Contracts` with `GuestAccountReady` and `CustomerEventTypes`.
   OrderApi and CustomerApi reference each other's contracts project, never each other's service project.
+- Since #75 a third producer: `EShop.ProductApi.Contracts` with `ProductChanged`, `ProductDeleted` and
+  `ProductEventTypes`; ShoppingCart references it.
 - Events carry the data their consumers need (event-carried state transfer): the email is built from `OrderPlaced`
   alone, without calling OrderApi back.
 - Fields are only added (nullable), never renamed, removed or retyped.

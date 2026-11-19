@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-10
+verified: 2026-11-19
 ---
 
 # ClientApp
@@ -80,12 +80,13 @@ does not fit, the page says "Showing the first N of M products". Server-side fil
 ## Cart page
 
 `CartService` is the one cart for the components: signed-in users use the server cart (`/api/carts/me`), anonymous
-users `LocalCartService` (`localStorage`). Both return the items with product name, category name and current price,
-so `CartComponent` makes no request per item (#33).
+users `LocalCartService` (`localStorage`). Both return the items with product name, category id and current price,
+so `CartComponent` makes no request per item (#33). For the names it loads one page of categories (cached by
+`CategoryService`), only when an item has a category; a failed request leaves the names empty (#75).
 
 - Server cart: the API returns the details (one SQL query); a 404 (no cart yet) is shown as an empty cart.
 - Anonymous cart: `localStorage` keeps only `productId` and `quantity`, so prices never go stale; `LocalCartService`
-  loads each product and its category when the cart is read. A product deleted since it was added drops out of the cart;
+  loads each product when the cart is read (one request per item; the category request per item is gone since #75). A product deleted since it was added drops out of the cart;
   carts stored in the older format (with `cartId`) are still read.
 
 The page changes its state only after a change is confirmed (remove, quantity, clear); it does not reload.
@@ -166,3 +167,4 @@ next to the button.
 - A product deleted while it is in an anonymous cart stays in the header counter but not on the cart page, so it cannot
   be removed by hand; the merge after the sign-in drops it.
 - The category page filters and sorts in the browser (see [Lists](#lists), #61).
+- The cart page takes the category names from one page of 100 categories: with more, some items show none (#61).
