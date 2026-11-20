@@ -5,6 +5,7 @@ using EShop.Messaging;
 using EShop.OrderApi;
 using EShop.OrderApi.Accounts;
 using EShop.OrderApi.GuestAccounts;
+using EShop.OrderApi.ProductEvents;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
 using EShop.ServiceDefaults.Keycloak;
@@ -34,6 +35,11 @@ builder.Services.AddOutboxPublisher<EShopDbContext>(OrderApiOutbox.Producer);
 // Guest orders (#45): attaches them to the account CustomerApi created.
 builder.Services.AddMessageConsumer<GuestAccountReadyHandler, EShopDbContext>(
     GuestAccountsQueue.Definition
+);
+
+// The product replica (#76): checkout reads order_products, not ProductApi's products.
+builder.Services.AddMessageConsumer<ProductEventsHandler, EShopDbContext>(
+    ProductEventsQueue.Definition
 );
 
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();

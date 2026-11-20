@@ -28,6 +28,7 @@ namespace EShop.Data
         public virtual DbSet<Cart> Carts { get; set; } = null!;
         public virtual DbSet<CartItem> CartItems { get; set; } = null!;
         public virtual DbSet<CartProduct> CartProducts { get; set; } = null!;
+        public virtual DbSet<OrderProduct> OrderProducts { get; set; } = null!;
         public virtual DbSet<OrderStatusChange> OrderStatusChanges { get; set; } = null!;
         public virtual DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
         public virtual DbSet<InboxMessage> InboxMessages { get; set; } = null!;
@@ -65,6 +66,7 @@ namespace EShop.Data
 
             // The id comes from ProductApi's events, not from a sequence of this table.
             modelBuilder.Entity<CartProduct>().Property(e => e.ProductId).ValueGeneratedNever();
+            modelBuilder.Entity<OrderProduct>().Property(e => e.ProductId).ValueGeneratedNever();
 
             modelBuilder.Entity<Customer>(entity =>
             {

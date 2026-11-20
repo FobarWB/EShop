@@ -12,6 +12,7 @@ COPY src/EShop.ServiceDefaults/EShop.ServiceDefaults.csproj src/EShop.ServiceDef
 COPY src/EShop.Messaging/EShop.Messaging.csproj src/EShop.Messaging/
 COPY src/EShop.OrderApi.Contracts/EShop.OrderApi.Contracts.csproj src/EShop.OrderApi.Contracts/
 COPY src/EShop.CustomerApi.Contracts/EShop.CustomerApi.Contracts.csproj src/EShop.CustomerApi.Contracts/
+COPY src/EShop.ProductApi.Contracts/EShop.ProductApi.Contracts.csproj src/EShop.ProductApi.Contracts/
 COPY src/EShop.OrderApi/EShop.OrderApi.csproj src/EShop.OrderApi/
 RUN dotnet restore src/EShop.OrderApi/EShop.OrderApi.csproj
 
@@ -22,6 +23,7 @@ COPY src/EShop.ServiceDefaults/ src/EShop.ServiceDefaults/
 COPY src/EShop.Messaging/ src/EShop.Messaging/
 COPY src/EShop.OrderApi.Contracts/ src/EShop.OrderApi.Contracts/
 COPY src/EShop.CustomerApi.Contracts/ src/EShop.CustomerApi.Contracts/
+COPY src/EShop.ProductApi.Contracts/ src/EShop.ProductApi.Contracts/
 COPY src/EShop.OrderApi/ src/EShop.OrderApi/
 RUN dotnet publish src/EShop.OrderApi/EShop.OrderApi.csproj -c Release --no-restore -o /app/publish /p:UseAppHost=false
 
