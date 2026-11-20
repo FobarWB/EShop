@@ -869,6 +869,55 @@ namespace EShop.Data.Migrations
                     b.ToTable("shippers", (string)null);
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.StockReservation", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("OrderId")
+                        .HasName("pk_stock_reservations");
+
+                    b.ToTable("stock_reservations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_stock_reservations_status", "status IN ('Reserved', 'Rejected', 'Released', 'Cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.StockReservationLine", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("OrderId", "ProductId")
+                        .HasName("pk_stock_reservation_lines");
+
+                    b.ToTable("stock_reservation_lines", (string)null);
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.Supplier", b =>
                 {
                     b.Property<int>("SupplierId")
@@ -1175,6 +1224,18 @@ namespace EShop.Data.Migrations
                     b.Navigation("Supplier");
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.StockReservationLine", b =>
+                {
+                    b.HasOne("EShop.Data.Entities.StockReservation", "Reservation")
+                        .WithMany("Lines")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_reservation_lines_stock_reservations_order_id");
+
+                    b.Navigation("Reservation");
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.Territory", b =>
                 {
                     b.HasOne("EShop.Data.Entities.Region", "Region")
@@ -1243,6 +1304,11 @@ namespace EShop.Data.Migrations
             modelBuilder.Entity("EShop.Data.Entities.Shipper", b =>
                 {
                     b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.StockReservation", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Supplier", b =>
