@@ -1,13 +1,20 @@
 namespace EShop.Data.Entities;
 
 // The order lifecycle: the only place that knows the allowed transitions.
-//   Pending → Paid → Shipped → Delivered
-//   Pending, Paid → Cancelled
+//   Pending → Confirmed → Paid → Shipped → Delivered
+//   Pending → Rejected: ProductApi could not reserve the stock (#76)
+//   Pending, Confirmed, Paid → Cancelled
 public partial class Order
 {
     private static readonly Dictionary<OrderStatus, OrderStatus[]> AllowedTransitions = new()
     {
-        [OrderStatus.Pending] = [OrderStatus.Paid, OrderStatus.Cancelled],
+        [OrderStatus.Pending] =
+        [
+            OrderStatus.Confirmed,
+            OrderStatus.Rejected,
+            OrderStatus.Cancelled,
+        ],
+        [OrderStatus.Confirmed] = [OrderStatus.Paid, OrderStatus.Cancelled],
         [OrderStatus.Paid] = [OrderStatus.Shipped, OrderStatus.Cancelled],
         [OrderStatus.Shipped] = [OrderStatus.Delivered],
     };

@@ -609,7 +609,7 @@ namespace EShop.Data.Migrations
 
                     b.ToTable("orders", null, t =>
                         {
-                            t.HasCheckConstraint("ck_orders_status", "status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                            t.HasCheckConstraint("ck_orders_status", "status IN ('Pending', 'Confirmed', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Rejected')");
                         });
                 });
 
@@ -698,9 +698,9 @@ namespace EShop.Data.Migrations
 
                     b.ToTable("order_status_changes", null, t =>
                         {
-                            t.HasCheckConstraint("ck_order_status_changes_from_status", "from_status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                            t.HasCheckConstraint("ck_order_status_changes_from_status", "from_status IN ('Pending', 'Confirmed', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Rejected')");
 
-                            t.HasCheckConstraint("ck_order_status_changes_to_status", "to_status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                            t.HasCheckConstraint("ck_order_status_changes_to_status", "to_status IN ('Pending', 'Confirmed', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Rejected')");
                         });
                 });
 

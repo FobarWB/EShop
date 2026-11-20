@@ -452,7 +452,7 @@ public class OrderRepositoryTests : IAsyncLifetime
     {
         var seeded = await _database.SeedOrderAsync(
             UserId,
-            OrderStatus.Pending,
+            OrderStatus.Confirmed,
             _cancellationToken
         );
 
@@ -514,7 +514,7 @@ public class OrderRepositoryTests : IAsyncLifetime
     {
         var seeded = await _database.SeedOrderAsync(
             "user-2",
-            OrderStatus.Pending,
+            OrderStatus.Confirmed,
             _cancellationToken
         );
 

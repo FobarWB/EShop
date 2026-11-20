@@ -126,9 +126,16 @@ describe('OrderComponent', () =>
     httpTesting.expectNone('/api/orders/7/cancel');
   });
 
-  it('offers no cancel button for a shipped order', () =>
+  it('offers a cancel button for a confirmed order', () =>
   {
-    load({ ...order, status: 'Shipped' });
+    load({ ...order, status: 'Confirmed' });
+
+    expect(cancelButton()).not.toBeNull();
+  });
+
+  it.each(['Shipped', 'Rejected'] as const)('offers no cancel button for a %s order', status =>
+  {
+    load({ ...order, status });
 
     expect(cancelButton()).toBeNull();
   });

@@ -49,10 +49,18 @@ public sealed class OrderApiDatabase : TestDatabase
     private static readonly Dictionary<OrderStatus, OrderStatus[]> PathTo = new()
     {
         [OrderStatus.Pending] = [],
-        [OrderStatus.Paid] = [OrderStatus.Paid],
-        [OrderStatus.Shipped] = [OrderStatus.Paid, OrderStatus.Shipped],
-        [OrderStatus.Delivered] = [OrderStatus.Paid, OrderStatus.Shipped, OrderStatus.Delivered],
+        [OrderStatus.Confirmed] = [OrderStatus.Confirmed],
+        [OrderStatus.Paid] = [OrderStatus.Confirmed, OrderStatus.Paid],
+        [OrderStatus.Shipped] = [OrderStatus.Confirmed, OrderStatus.Paid, OrderStatus.Shipped],
+        [OrderStatus.Delivered] =
+        [
+            OrderStatus.Confirmed,
+            OrderStatus.Paid,
+            OrderStatus.Shipped,
+            OrderStatus.Delivered,
+        ],
         [OrderStatus.Cancelled] = [OrderStatus.Cancelled],
+        [OrderStatus.Rejected] = [OrderStatus.Rejected],
     };
 
     // An order of the user in the given status, with one line per product.

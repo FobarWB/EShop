@@ -317,12 +317,34 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
         response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
     }
 
+    [Theory]
+    [InlineData("Confirmed")]
+    [InlineData("Rejected")]
+    public async Task ChangeStatus_StatusOfTheStockReservation_Returns400AndKeepsPending(
+        string status
+    )
+    {
+        var seeded = await _database.SeedOrderAsync(
+            UserId,
+            OrderStatus.Pending,
+            _cancellationToken
+        );
+        using var admin = _factory.CreateClient().AsAdmin();
+
+        var response = await PutStatusAsync(admin, seeded.OrderId, new { status });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken)).Status.ShouldBe(
+            OrderStatus.Pending
+        );
+    }
+
     [Fact]
     public async Task ChangeStatus_AdminWalksTheLifecycle_DeliversTheOrder()
     {
         var seeded = await _database.SeedOrderAsync(
             UserId,
-            OrderStatus.Pending,
+            OrderStatus.Confirmed,
             _cancellationToken
         );
         using var admin = _factory.CreateClient().AsAdmin();
@@ -337,7 +359,12 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
         var order = await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken);
         order.Status.ShouldBe(OrderStatus.Delivered);
         order.ShippedDate.ShouldNotBeNull();
-        order.StatusChanges.ShouldAllBe(c => c.ChangedBy == "admin-1");
+        // The seed's Pending → Confirmed is in the journal too; the admin made the three changes after it.
+        order
+            .StatusChanges.Where(c => c.ChangedBy == "admin-1")
+            .OrderBy(c => c.ChangedAt)
+            .Select(c => c.ToStatus)
+            .ShouldBe([OrderStatus.Paid, OrderStatus.Shipped, OrderStatus.Delivered]);
     }
 
     private Task<HttpResponseMessage> PutStatusAsync(HttpClient client, int orderId, object body) =>

@@ -4,8 +4,10 @@ namespace EShop.Data.Entities;
 public enum OrderStatus
 {
     Pending,
+    Confirmed,
     Paid,
     Shipped,
     Delivered,
     Cancelled,
+    Rejected,
 }
