@@ -77,19 +77,38 @@ public class OrderEventsConsumerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task OrderPlaced_SendsEmailAndRecordsInbox()
+    public async Task OrderConfirmed_SendsEmailAndRecordsInbox()
     {
         var messageId = Guid.CreateVersion7();
 
-        await PublishAsync(OrderEventTypes.OrderPlaced, Placed(11085, Email), messageId);
+        await PublishAsync(OrderEventTypes.OrderConfirmed, Confirmed(11085, Email), messageId);
 
         (await SentCountReachesAsync(1)).ShouldBeTrue();
         var email = _sender.Sent.ShouldHaveSingleItem();
-        (email.To, email.Subject).ShouldBe((Email, "Order #11085 placed"));
+        (email.To, email.Subject).ShouldBe((Email, "Order #11085 accepted"));
         // The inbox row is written after the email: wait for it too.
         (
             await Eventually.HoldsAsync(() => InboxContainsAsync(messageId), _cancellationToken)
         ).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task OrderRejected_SendsRejectionEmail()
+    {
+        await PublishAsync(
+            OrderEventTypes.OrderRejected,
+            new OrderRejected(
+                11085,
+                Email,
+                "Jane Doe",
+                DateTime.UtcNow,
+                [new OrderRejectedItem("Chai", 2, 0)]
+            ),
+            Guid.CreateVersion7()
+        );
+
+        (await SentCountReachesAsync(1)).ShouldBeTrue();
+        _sender.Sent.ShouldHaveSingleItem().Subject.ShouldBe("Order #11085 could not be accepted");
     }
 
     [Fact]
@@ -106,19 +125,61 @@ public class OrderEventsConsumerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OrderPlaced_BoundByAnEarlierVersion_NoLongerArrives()
+    {
+        // The queue as the version before #76 left it, then declared again as this one does on start.
+        await using (var channel = await _broker.CreateChannelAsync(_cancellationToken))
+        {
+            await channel.QueueBindAsync(
+                OrderEventsQueue.Name,
+                Topology.EventsExchange,
+                OrderEventTypes.OrderPlaced,
+                cancellationToken: _cancellationToken
+            );
+        }
+        await DeclareAndPurgeQueuesAsync();
+
+        await PublishAsync(
+            OrderEventTypes.OrderPlaced,
+            Confirmed(1, Email),
+            Guid.CreateVersion7(),
+            routingKey: OrderEventTypes.OrderPlaced
+        );
+        await PublishAsync(
+            OrderEventTypes.OrderCancelled,
+            new OrderCancelled(2, Email, DateTime.UtcNow),
+            Guid.CreateVersion7()
+        );
+
+        // Handled in order: once the cancellation's email is sent, order.placed would have reached the DLQ already.
+        (await SentCountReachesAsync(1)).ShouldBeTrue();
+        _sender.Sent.ShouldHaveSingleItem().Subject.ShouldBe("Order #2 cancelled");
+        (
+            await _broker.MessageCountAsync(
+                Topology.DeadLetterQueue(OrderEventsQueue.Name),
+                _cancellationToken
+            )
+        ).ShouldBe(0u);
+    }
+
+    [Fact]
     public async Task SameMessageIdAgain_SendsOneEmail()
     {
         var messageId = Guid.CreateVersion7();
-        await PublishAsync(OrderEventTypes.OrderPlaced, Placed(1, Email), messageId);
+        await PublishAsync(OrderEventTypes.OrderConfirmed, Confirmed(1, Email), messageId);
         (await SentCountReachesAsync(1)).ShouldBeTrue();
 
         // A redelivery, then another event: handled in order, so once the second email is sent,
         // the duplicate has been handled too.
-        await PublishAsync(OrderEventTypes.OrderPlaced, Placed(1, Email), messageId);
-        await PublishAsync(OrderEventTypes.OrderPlaced, Placed(2, Email), Guid.CreateVersion7());
+        await PublishAsync(OrderEventTypes.OrderConfirmed, Confirmed(1, Email), messageId);
+        await PublishAsync(
+            OrderEventTypes.OrderConfirmed,
+            Confirmed(2, Email),
+            Guid.CreateVersion7()
+        );
 
         (await SentCountReachesAsync(2)).ShouldBeTrue();
-        _sender.Sent.Select(e => e.Subject).ShouldBe(["Order #1 placed", "Order #2 placed"]);
+        _sender.Sent.Select(e => e.Subject).ShouldBe(["Order #1 accepted", "Order #2 accepted"]);
     }
 
     [Fact]
@@ -126,7 +187,7 @@ public class OrderEventsConsumerTests : IAsyncLifetime
     {
         var messageId = Guid.CreateVersion7();
 
-        await PublishAsync(OrderEventTypes.OrderPlaced, Placed(1, email: null), messageId);
+        await PublishAsync(OrderEventTypes.OrderConfirmed, Confirmed(1, email: null), messageId);
 
         (
             await Eventually.HoldsAsync(() => InboxContainsAsync(messageId), _cancellationToken)
@@ -140,7 +201,7 @@ public class OrderEventsConsumerTests : IAsyncLifetime
         _sender.Fail = true;
         var messageId = Guid.CreateVersion7();
 
-        await PublishAsync(OrderEventTypes.OrderPlaced, Placed(1, Email), messageId);
+        await PublishAsync(OrderEventTypes.OrderConfirmed, Confirmed(1, Email), messageId);
 
         // Taken out of retry.1 before its 5 s TTL sends it back.
         var copy = (
@@ -162,8 +223,8 @@ public class OrderEventsConsumerTests : IAsyncLifetime
 
         // As the copy from retry.3 arrives back in the work queue: through the default exchange, attempt 3.
         await PublishAsync(
-            OrderEventTypes.OrderPlaced,
-            Placed(1, Email),
+            OrderEventTypes.OrderConfirmed,
+            Confirmed(1, Email),
             messageId,
             retryAttempt: OrderEventsQueue.RetryDelays.Count
         );
@@ -175,7 +236,7 @@ public class OrderEventsConsumerTests : IAsyncLifetime
     [Fact]
     public async Task UnknownType_MovesMessageToDeadLetterQueueWithoutSending()
     {
-        await PublishAsync("order.shipped", Placed(1, Email), Guid.CreateVersion7());
+        await PublishAsync("order.shipped", Confirmed(1, Email), Guid.CreateVersion7());
 
         (await DeadLetteredAsync()).Type.ShouldBe("order.shipped");
         _sender.Sent.ShouldBeEmpty();
@@ -184,20 +245,22 @@ public class OrderEventsConsumerTests : IAsyncLifetime
     [Fact]
     public async Task MissingMessageId_MovesMessageToDeadLetterQueue()
     {
-        await PublishAsync(OrderEventTypes.OrderPlaced, Placed(1, Email), messageId: null);
+        await PublishAsync(OrderEventTypes.OrderConfirmed, Confirmed(1, Email), messageId: null);
 
         (await DeadLetteredAsync()).MessageId.ShouldBeNull();
         _sender.Sent.ShouldBeEmpty();
     }
 
-    private static OrderPlaced Placed(int orderId, string? email) =>
+    private static OrderConfirmed Confirmed(int orderId, string? email) =>
         new(
             orderId,
+            "user-1",
             email,
             "Jane Doe",
             41m,
+            PlacedAsGuest: false,
             DateTime.UtcNow,
-            [new OrderPlacedItem("Chai", 2, 18m)]
+            [new OrderConfirmedItem(1, "Chai", 2, 18m)]
         );
 
     // Like the outbox publisher: to the events exchange, routed by the order event key. retryAttempt set:
@@ -206,7 +269,8 @@ public class OrderEventsConsumerTests : IAsyncLifetime
         string type,
         TEvent @event,
         Guid? messageId,
-        int? retryAttempt = null
+        int? retryAttempt = null,
+        string? routingKey = null
     )
     {
         await using var channel = await _broker.CreateChannelAsync(_cancellationToken);
@@ -226,11 +290,13 @@ public class OrderEventsConsumerTests : IAsyncLifetime
         }
         var body = JsonSerializer.SerializeToUtf8Bytes(@event, JsonSerializerOptions.Web);
 
-        // An unknown type still reaches the queue: routed by an order key, only its Type property differs.
-        var routingKey =
-            type == OrderEventTypes.OrderCancelled
-                ? OrderEventTypes.OrderCancelled
-                : OrderEventTypes.OrderPlaced;
+        // An unknown type still reaches the queue: routed by a bound order key, only its Type property differs.
+        routingKey ??= type switch
+        {
+            OrderEventTypes.OrderCancelled => OrderEventTypes.OrderCancelled,
+            OrderEventTypes.OrderRejected => OrderEventTypes.OrderRejected,
+            _ => OrderEventTypes.OrderConfirmed,
+        };
         var (exchange, destination) = retryAttempt is null
             ? (Topology.EventsExchange, routingKey)
             : ("", OrderEventsQueue.Name);
@@ -266,6 +332,7 @@ public class OrderEventsConsumerTests : IAsyncLifetime
             .ShouldNotBeNull("no message in the dead letter queue")
             .BasicProperties;
 
+    // As the consumer declares it on start, retired keys included.
     private async Task DeclareAndPurgeQueuesAsync()
     {
         await using var channel = await _broker.CreateChannelAsync(_cancellationToken);
@@ -275,7 +342,8 @@ public class OrderEventsConsumerTests : IAsyncLifetime
             OrderEventsQueue.Name,
             OrderEventsQueue.RoutingKeys,
             OrderEventsQueue.RetryDelays,
-            _cancellationToken
+            _cancellationToken,
+            OrderEventsQueue.RetiredRoutingKeys
         );
         foreach (var queue in AllQueues)
         {

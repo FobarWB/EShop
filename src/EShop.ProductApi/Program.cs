@@ -2,6 +2,7 @@ using EShop.Data;
 using EShop.Messaging;
 using EShop.ProductApi;
 using EShop.ProductApi.Repositories;
+using EShop.ProductApi.Reservations;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.HttpLogging;
 using Scalar.AspNetCore;
@@ -28,6 +29,11 @@ builder.Services.AddEShopDbContext(builder.Configuration);
 // Product changes write events to the outbox (#75); the publisher sends them to RabbitMQ.
 builder.Services.AddEShopMessaging(builder.Configuration);
 builder.Services.AddOutboxPublisher<EShopDbContext>(ProductApiOutbox.Producer);
+
+// The stock of placed orders (#76): reserved on order.placed, returned on order.cancelled.
+builder.Services.AddMessageConsumer<OrderEventsHandler, EShopDbContext>(
+    OrderEventsQueue.Definition
+);
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();

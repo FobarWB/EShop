@@ -16,9 +16,13 @@ public static class OrderEmails
     {
         switch (type)
         {
-            case OrderEventTypes.OrderPlaced:
-                var placed = Deserialize<OrderPlaced>(body);
-                email = placed.Email is null ? null : Placed(placed, placed.Email);
+            case OrderEventTypes.OrderConfirmed:
+                var confirmed = Deserialize<OrderConfirmed>(body);
+                email = confirmed.Email is null ? null : Confirmed(confirmed, confirmed.Email);
+                return true;
+            case OrderEventTypes.OrderRejected:
+                var rejected = Deserialize<OrderRejected>(body);
+                email = rejected.Email is null ? null : Rejected(rejected, rejected.Email);
                 return true;
             case OrderEventTypes.OrderCancelled:
                 var cancelled = Deserialize<OrderCancelled>(body);
@@ -30,7 +34,8 @@ public static class OrderEmails
         }
     }
 
-    private static OrderEmail Placed(OrderPlaced order, string to)
+    // The stock is reserved (#76): the order is accepted.
+    private static OrderEmail Confirmed(OrderConfirmed order, string to)
     {
         var body = new StringBuilder()
             .AppendLine(CultureInfo.InvariantCulture, $"Hello {order.ShipName},")
@@ -62,7 +67,35 @@ public static class OrderEmails
         }
         body.Append("EShop");
 
-        return new OrderEmail(to, $"Order #{order.OrderId} placed", body.ToString());
+        return new OrderEmail(to, $"Order #{order.OrderId} accepted", body.ToString());
+    }
+
+    // ProductApi could not reserve every line: nothing was taken, the buyer may order again with what is available.
+    private static OrderEmail Rejected(OrderRejected order, string to)
+    {
+        var body = new StringBuilder()
+            .AppendLine(CultureInfo.InvariantCulture, $"Hello {order.ShipName},")
+            .AppendLine()
+            .AppendLine(
+                CultureInfo.InvariantCulture,
+                $"unfortunately we could not accept your order #{order.OrderId}:"
+            )
+            .AppendLine("some products are not available in the quantity you ordered.")
+            .AppendLine();
+        foreach (var item in order.Items)
+        {
+            body.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"  {item.ProductName}: ordered {item.Quantity}, available {item.Available}"
+            );
+        }
+        body.AppendLine()
+            .AppendLine("Nothing was reserved for this order. You are welcome to order again")
+            .AppendLine("with the quantities that are available.")
+            .AppendLine()
+            .Append("EShop");
+
+        return new OrderEmail(to, $"Order #{order.OrderId} could not be accepted", body.ToString());
     }
 
     private static OrderEmail Cancelled(OrderCancelled order, string to)

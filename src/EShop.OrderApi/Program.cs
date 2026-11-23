@@ -5,7 +5,9 @@ using EShop.Messaging;
 using EShop.OrderApi;
 using EShop.OrderApi.Accounts;
 using EShop.OrderApi.GuestAccounts;
+using EShop.OrderApi.ProductEvents;
 using EShop.OrderApi.Repositories;
+using EShop.OrderApi.Stock;
 using EShop.ServiceDefaults;
 using EShop.ServiceDefaults.Keycloak;
 using Microsoft.AspNetCore.HttpLogging;
@@ -34,6 +36,16 @@ builder.Services.AddOutboxPublisher<EShopDbContext>(OrderApiOutbox.Producer);
 // Guest orders (#45): attaches them to the account CustomerApi created.
 builder.Services.AddMessageConsumer<GuestAccountReadyHandler, EShopDbContext>(
     GuestAccountsQueue.Definition
+);
+
+// The product replica (#76): checkout reads order_products, not ProductApi's products.
+builder.Services.AddMessageConsumer<ProductEventsHandler, EShopDbContext>(
+    ProductEventsQueue.Definition
+);
+
+// ProductApi's answers to order.placed (#76): the Pending order becomes Confirmed or Rejected.
+builder.Services.AddMessageConsumer<StockEventsHandler, EShopDbContext>(
+    StockEventsQueue.Definition
 );
 
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();

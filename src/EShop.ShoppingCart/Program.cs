@@ -1,6 +1,7 @@
 using EShop.Data;
 using EShop.Messaging;
 using EShop.ServiceDefaults;
+using EShop.ShoppingCart.OrderEvents;
 using EShop.ShoppingCart.ProductEvents;
 using EShop.ShoppingCart.Repositories;
 using Microsoft.AspNetCore.HttpLogging;
@@ -28,6 +29,11 @@ builder.Services.AddEShopDbContext(builder.Configuration);
 builder.Services.AddEShopMessaging(builder.Configuration);
 builder.Services.AddMessageConsumer<ProductEventsHandler, EShopDbContext>(
     ProductEventsQueue.Definition
+);
+
+// A confirmed order leaves the buyer's cart (#76).
+builder.Services.AddMessageConsumer<OrderEventsHandler, EShopDbContext>(
+    OrderEventsQueue.Definition
 );
 builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);

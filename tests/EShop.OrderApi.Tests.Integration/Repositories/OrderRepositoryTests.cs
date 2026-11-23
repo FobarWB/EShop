@@ -18,7 +18,7 @@ public class OrderRepositoryTests : IAsyncLifetime
     private const string UserId = "user-1";
     private const string Email = "jane@example.com";
 
-    private static readonly PlaceOrderRequest Address = new()
+    private static readonly ShippingAddressRequest Address = new()
     {
         ShipName = "Jane Doe",
         ShipAddress = "1 Main St",
@@ -41,62 +41,44 @@ public class OrderRepositoryTests : IAsyncLifetime
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
-    public async Task PlaceOrder_CartWithItems_StoresOrderWithCopiedPrices()
+    public async Task PlaceOrder_Items_StoresPendingOrderWithCopiedPrices()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
         var chang = await _database.SeedProductAsync("Chang", 19m, 5, _cancellationToken);
-        await _database.SeedAsync(
-            new Cart
-            {
-                UserId = UserId,
-                CartItems =
-                [
-                    new CartItem { ProductId = chai.ProductId, Quantity = 2 },
-                    new CartItem { ProductId = chang.ProductId, Quantity = 1 },
-                ],
-            },
-            _cancellationToken
-        );
 
-        var result = await PlaceOrderAsync();
+        var result = await PlaceOrderAsync((chai.ProductId, 2), (chang.ProductId, 1));
 
         result.Status.ShouldBe(PlaceOrderStatus.Placed);
         result
             .Order.ShouldNotBeNull()
             .Total.ShouldBe(18m * 2 + 19m + OrderRepository.StandardFreight);
         var order = (await _database.LoadOrdersAsync(_cancellationToken)).ShouldHaveSingleItem();
+        order.Status.ShouldBe(OrderStatus.Pending);
         order.UserId.ShouldBe(UserId);
         order.CustomerEmail.ShouldBe(Email);
         order.IdempotencyKey.ShouldBe(_key);
         order.Freight.ShouldBe(OrderRepository.StandardFreight);
         order.ShipCity.ShouldBe("Berlin");
         order
-            .OrderDetails.Select(d => (d.ProductId, d.UnitPrice, d.Quantity))
+            .OrderDetails.Select(d => (d.ProductId, d.ProductName, d.UnitPrice, d.Quantity))
             .ShouldBe(
-                [(chai.ProductId, 18m, (short)2), (chang.ProductId, 19m, (short)1)],
+                [
+                    (chai.ProductId, "Chai", 18m, (short)2),
+                    (chang.ProductId, "Chang", 19m, (short)1),
+                ],
                 ignoreOrder: true
             );
     }
 
     [Fact]
-    public async Task PlaceOrder_CartWithItems_StoresOrderPlacedInOutbox()
+    public async Task PlaceOrder_Items_StoresOrderPlacedWithProductIdsInOutbox()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
         var chang = await _database.SeedProductAsync("Chang", 19m, 5, _cancellationToken);
-        await _database.SeedAsync(
-            new Cart
-            {
-                UserId = UserId,
-                CartItems =
-                [
-                    new CartItem { ProductId = chai.ProductId, Quantity = 2 },
-                    new CartItem { ProductId = chang.ProductId, Quantity = 1 },
-                ],
-            },
-            _cancellationToken
-        );
 
-        var placed = (await PlaceOrderAsync()).Order.ShouldNotBeNull();
+        var placed = (
+            await PlaceOrderAsync((chai.ProductId, 2), (chang.ProductId, 1))
+        ).Order.ShouldNotBeNull();
 
         var message = (await _database.LoadOutboxAsync(_cancellationToken)).ShouldHaveSingleItem();
         message.Type.ShouldBe(OrderEventTypes.OrderPlaced);
@@ -105,37 +87,72 @@ public class OrderRepositoryTests : IAsyncLifetime
         payload.OrderId.ShouldBe(placed.OrderId);
         payload.Email.ShouldBe(Email);
         payload.Total.ShouldBe(18m * 2 + 19m + OrderRepository.StandardFreight);
+        // ProductApi reserves by ProductId (#76).
         payload
-            .Items.Select(i => (i.ProductName, i.Quantity, i.UnitPrice))
-            .ShouldBe([("Chai", 2, 18m), ("Chang", 1, 19m)], ignoreOrder: true);
+            .Items.Select(i => (i.ProductId, i.ProductName, i.Quantity, i.UnitPrice))
+            .ShouldBe(
+                [(chai.ProductId, "Chai", 2, 18m), (chang.ProductId, "Chang", 1, 19m)],
+                ignoreOrder: true
+            );
     }
 
     [Fact]
-    public async Task PlaceOrder_CartWithItems_DecrementsStockAndEmptiesCart()
+    public async Task PlaceOrder_Items_TakesNoStockAndLeavesTheCart()
     {
-        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-        await _database.SeedCartAsync(UserId, chai.ProductId, 3, _cancellationToken);
+        // The stock is ProductApi's and the cart ShoppingCart's (#76): checkout writes neither.
+        var product = await _database.SeedAsync(
+            new Product
+            {
+                ProductName = "Chai",
+                UnitPrice = 18m,
+                UnitsInStock = 10,
+            },
+            _cancellationToken
+        );
+        await _database.SeedAsync(
+            new OrderProduct
+            {
+                ProductId = product.ProductId,
+                ProductName = "Chai",
+                UnitPrice = 18m,
+                UnitsInStock = 10,
+                Revision = 1,
+            },
+            _cancellationToken
+        );
+        await _database.SeedCartAsync(UserId, product.ProductId, 3, _cancellationToken);
 
-        await PlaceOrderAsync();
+        (await PlaceOrderAsync((product.ProductId, 3))).Status.ShouldBe(PlaceOrderStatus.Placed);
 
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+        (await _database.FindAsync<Product>(product.ProductId, _cancellationToken))
             .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)7);
+            .UnitsInStock.ShouldBe((short)10);
         (await _database.LoadCartAsync(UserId, _cancellationToken))
             .ShouldNotBeNull()
-            .CartItems.ShouldBeEmpty();
+            .CartItems.ShouldHaveSingleItem()
+            .Quantity.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task PlaceOrder_SameProductOnTwoLines_SumsTheQuantities()
+    {
+        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
+
+        var result = await PlaceOrderAsync((chai.ProductId, 1), (chai.ProductId, 2));
+
+        result.Status.ShouldBe(PlaceOrderStatus.Placed);
+        result.Order.ShouldNotBeNull().Items.ShouldHaveSingleItem().Quantity.ShouldBe(3);
     }
 
     [Fact]
     public async Task PlaceOrder_PriceChangedAfterwards_OrderKeepsCopiedPrice()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-        await _database.SeedCartAsync(UserId, chai.ProductId, 1, _cancellationToken);
-        var placed = (await PlaceOrderAsync()).Order.ShouldNotBeNull();
+        var placed = (await PlaceOrderAsync((chai.ProductId, 1))).Order.ShouldNotBeNull();
         await using (var db = _database.CreateContext())
         {
             await db
-                .Products.Where(p => p.ProductId == chai.ProductId)
+                .OrderProducts.Where(p => p.ProductId == chai.ProductId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.UnitPrice, 25m), _cancellationToken);
         }
 
@@ -147,138 +164,77 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PlaceOrder_InsufficientStock_ReturnsProductIdsAndChangesNothing()
+    public async Task PlaceOrder_InsufficientStock_ReturnsProductIdsAndStoresNothing()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 2, _cancellationToken);
-        await _database.SeedCartAsync(UserId, chai.ProductId, 3, _cancellationToken);
 
-        var result = await PlaceOrderAsync();
+        var result = await PlaceOrderAsync((chai.ProductId, 3));
 
         result.Status.ShouldBe(PlaceOrderStatus.InsufficientStock);
         result.ProductIds.ShouldBe([chai.ProductId]);
-        await ShouldBeUnchangedAsync(chai.ProductId, unitsInStock: 2);
+        await ShouldStoreNothingAsync();
     }
 
-    [Fact]
-    public async Task PlaceOrder_DiscontinuedProduct_ReturnsProductIdsAndChangesNothing()
+    [Theory]
+    [InlineData("discontinued")]
+    [InlineData("no price")]
+    [InlineData("deleted")] // a tombstone in the replica
+    [InlineData("unknown")] // never seen, or its ProductChanged has not arrived yet
+    public async Task PlaceOrder_ProductNotForSale_ReturnsProductIdsAndStoresNothing(string product)
     {
-        var chai = await _database.SeedAsync(
-            new Product
-            {
-                ProductName = "Chai",
-                UnitPrice = 18m,
-                UnitsInStock = 10,
-                Discontinued = true,
-            },
-            _cancellationToken
-        );
-        await _database.SeedCartAsync(UserId, chai.ProductId, 1, _cancellationToken);
+        var chang = await _database.SeedProductAsync("Chang", 19m, 5, _cancellationToken);
+        var productId = product switch
+        {
+            "discontinued" => (
+                await _database.SeedProductAsync(
+                    "Chai",
+                    18m,
+                    10,
+                    _cancellationToken,
+                    discontinued: true
+                )
+            ).ProductId,
+            "no price" => (
+                await _database.SeedProductAsync("Chai", null, 10, _cancellationToken)
+            ).ProductId,
+            "deleted" => (
+                await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken, deleted: true)
+            ).ProductId,
+            _ => 999_999,
+        };
 
-        var result = await PlaceOrderAsync();
+        var result = await PlaceOrderAsync((chang.ProductId, 1), (productId, 1));
 
+        // Only the line to fix: the client marks it.
         result.Status.ShouldBe(PlaceOrderStatus.ProductsUnavailable);
-        result.ProductIds.ShouldBe([chai.ProductId]);
-        await ShouldBeUnchangedAsync(chai.ProductId, unitsInStock: 10);
+        result.ProductIds.ShouldBe([productId]);
+        await ShouldStoreNothingAsync();
     }
 
     [Fact]
-    public async Task PlaceOrder_ProductDeletedWhileInCart_ReturnsProductIdsAndChangesNothing()
+    public async Task PlaceOrder_SameKeyAgain_ReturnsSameOrderAndStoresOneEvent()
     {
-        // No foreign key since #75: the product is gone, and ProductDeleted has not emptied the cart yet.
-        var chai = await _database.SeedAsync(
-            new Product
-            {
-                ProductName = "Chai",
-                UnitPrice = 18m,
-                UnitsInStock = 10,
-            },
-            _cancellationToken
-        );
-        const int DeletedProductId = 999;
-        var cart = await _database.SeedCartAsync(UserId, chai.ProductId, 1, _cancellationToken);
-        await _database.SeedAsync(
-            new CartItem
-            {
-                CartId = cart.CartId,
-                ProductId = DeletedProductId,
-                Quantity = 1,
-            },
-            _cancellationToken
-        );
-
-        var result = await PlaceOrderAsync();
-
-        result.Status.ShouldBe(PlaceOrderStatus.ProductsUnavailable);
-        result.ProductIds.ShouldBe([DeletedProductId]);
-        // Not ShouldBeUnchangedAsync: this cart has two items, and both stay.
-        (await _database.LoadOrdersAsync(_cancellationToken)).ShouldBeEmpty();
-        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)10);
-        (await _database.LoadCartAsync(UserId, _cancellationToken))
-            .ShouldNotBeNull()
-            .CartItems.Count.ShouldBe(2);
-    }
-
-    [Fact]
-    public async Task PlaceOrder_NoCart_ReturnsCartEmpty()
-    {
-        var result = await PlaceOrderAsync();
-
-        result.Status.ShouldBe(PlaceOrderStatus.CartEmpty);
-    }
-
-    [Fact]
-    public async Task PlaceOrder_CartWithoutItems_ReturnsCartEmpty()
-    {
-        await _database.SeedAsync(new Cart { UserId = UserId }, _cancellationToken);
-
-        var result = await PlaceOrderAsync();
-
-        result.Status.ShouldBe(PlaceOrderStatus.CartEmpty);
-        (await _database.LoadOrdersAsync(_cancellationToken)).ShouldBeEmpty();
-        (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task PlaceOrder_SameKeyAgain_ReturnsSameOrderAndDecrementsStockOnce()
-    {
-        // The retry finds a filled cart again: the key, not the empty cart, prevents the second order.
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-        var cart = await _database.SeedCartAsync(UserId, chai.ProductId, 3, _cancellationToken);
-        var first = await PlaceOrderAsync();
-        await _database.SeedAsync(
-            new CartItem
-            {
-                CartId = cart.CartId,
-                ProductId = chai.ProductId,
-                Quantity = 3,
-            },
-            _cancellationToken
-        );
+        var first = await PlaceOrderAsync((chai.ProductId, 3));
 
-        var second = await PlaceOrderAsync();
+        var second = await PlaceOrderAsync((chai.ProductId, 3));
 
         second.Status.ShouldBe(PlaceOrderStatus.AlreadyPlaced);
         second.Order.ShouldNotBeNull().OrderId.ShouldBe(first.Order.ShouldNotBeNull().OrderId);
         (await _database.LoadOrdersAsync(_cancellationToken)).ShouldHaveSingleItem();
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)7);
-        // One order, one event: the retry publishes nothing again.
+        // One order, one event: the retry publishes nothing again, so ProductApi reserves once.
         (await _database.LoadOutboxAsync(_cancellationToken)).ShouldHaveSingleItem();
     }
 
     [Fact]
-    public async Task PlaceOrder_SameKeyPlacedConcurrently_ReturnsThatOrderAndChangesNothingElse()
+    public async Task PlaceOrder_SameKeyPlacedConcurrently_ReturnsThatOrderAndStoresNothingElse()
     {
         // The other request passes the key check too and commits first: our INSERT hits the unique index.
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-        await _database.SeedCartAsync(UserId, chai.ProductId, 3, _cancellationToken);
         Order? concurrent = null;
 
         var result = await PlaceOrderAsync(
+            [(chai.ProductId, 3)],
             new BeforeSaveChangesInterceptor(async () =>
                 concurrent = await _database.SeedAsync(
                     OrderApiDatabase.NewOrder(UserId, _key),
@@ -289,32 +245,7 @@ public class OrderRepositoryTests : IAsyncLifetime
 
         result.Status.ShouldBe(PlaceOrderStatus.AlreadyPlaced);
         result.Order.ShouldNotBeNull().OrderId.ShouldBe(concurrent.ShouldNotBeNull().OrderId);
-        await ShouldBeUnchangedAsync(chai.ProductId, unitsInStock: 10, expectedOrders: 1);
-    }
-
-    [Fact]
-    public async Task PlaceOrder_ProductChangedAfterRead_ThrowsAndChangesNothing()
-    {
-        // Another buyer takes the stock between our check and our save: xmin no longer matches.
-        var chai = await _database.SeedProductAsync("Chai", 18m, 3, _cancellationToken);
-        await _database.SeedCartAsync(UserId, chai.ProductId, 3, _cancellationToken);
-
-        await Should.ThrowAsync<DbUpdateConcurrencyException>(() =>
-            PlaceOrderAsync(
-                new BeforeSaveChangesInterceptor(async () =>
-                {
-                    await using var db = _database.CreateContext();
-                    await db
-                        .Products.Where(p => p.ProductId == chai.ProductId)
-                        .ExecuteUpdateAsync(
-                            s => s.SetProperty(p => p.UnitsInStock, (short)0),
-                            _cancellationToken
-                        );
-                })
-            )
-        );
-
-        await ShouldBeUnchangedAsync(chai.ProductId, unitsInStock: 0);
+        await ShouldStoreNothingAsync(expectedOrders: 1);
     }
 
     [Fact]
@@ -333,12 +264,11 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PlaceOrder_CartWithItems_StartsStatusJournal()
+    public async Task PlaceOrder_Items_StartsStatusJournal()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-        await _database.SeedCartAsync(UserId, chai.ProductId, 1, _cancellationToken);
 
-        var placed = (await PlaceOrderAsync()).Order.ShouldNotBeNull();
+        var placed = (await PlaceOrderAsync((chai.ProductId, 1))).Order.ShouldNotBeNull();
 
         var order = await _database.LoadOrderAsync(placed.OrderId, _cancellationToken);
         order.Status.ShouldBe(OrderStatus.Pending);
@@ -352,12 +282,11 @@ public class OrderRepositoryTests : IAsyncLifetime
     public async Task PlaceOrder_ProductRenamedAfterwards_OrderKeepsCopiedName()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-        await _database.SeedCartAsync(UserId, chai.ProductId, 1, _cancellationToken);
-        var placed = (await PlaceOrderAsync()).Order.ShouldNotBeNull();
+        var placed = (await PlaceOrderAsync((chai.ProductId, 1))).Order.ShouldNotBeNull();
         await using (var db = _database.CreateContext())
         {
             await db
-                .Products.Where(p => p.ProductId == chai.ProductId)
+                .OrderProducts.Where(p => p.ProductId == chai.ProductId)
                 .ExecuteUpdateAsync(
                     s => s.SetProperty(p => p.ProductName, "Chai Tea"),
                     _cancellationToken
@@ -372,27 +301,31 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ChangeStatus_CancelPending_ReturnsStockAndRecordsChange()
+    public async Task ChangeStatus_CancelPending_RecordsChangeAndLeavesTheStockToProductApi()
     {
-        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-        var chang = await _database.SeedProductAsync("Chang", 19m, 5, _cancellationToken);
+        var product = await _database.SeedAsync(
+            new Product
+            {
+                ProductName = "Chai",
+                UnitPrice = 18m,
+                UnitsInStock = 10,
+            },
+            _cancellationToken
+        );
         var seeded = await _database.SeedOrderAsync(
             UserId,
             OrderStatus.Pending,
             _cancellationToken,
-            (chai.ProductId, 2),
-            (chang.ProductId, 3)
+            (product.ProductId, 2)
         );
 
         var result = await CancelAsync(seeded.OrderId);
 
         result.ShouldBe(ChangeOrderStatusResult.Changed);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
+        // ProductApi returns what it reserved, on order.cancelled (#76).
+        (await _database.FindAsync<Product>(product.ProductId, _cancellationToken))
             .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)12);
-        (await _database.FindAsync<Product>(chang.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)8);
+            .UnitsInStock.ShouldBe((short)10);
         var order = await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken);
         order.Status.ShouldBe(OrderStatus.Cancelled);
         var change = order.StatusChanges.ShouldHaveSingleItem();
@@ -452,7 +385,7 @@ public class OrderRepositoryTests : IAsyncLifetime
     {
         var seeded = await _database.SeedOrderAsync(
             UserId,
-            OrderStatus.Pending,
+            OrderStatus.Confirmed,
             _cancellationToken
         );
 
@@ -472,20 +405,15 @@ public class OrderRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task ChangeStatus_CancelShipped_ReturnsNotAllowedAndChangesNothing()
     {
-        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
         var seeded = await _database.SeedOrderAsync(
             UserId,
             OrderStatus.Shipped,
-            _cancellationToken,
-            (chai.ProductId, 2)
+            _cancellationToken
         );
 
         var result = await CancelAsync(seeded.OrderId);
 
         result.ShouldBe(ChangeOrderStatusResult.NotAllowed);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)10);
         (await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken)).Status.ShouldBe(
             OrderStatus.Shipped
         );
@@ -514,7 +442,7 @@ public class OrderRepositoryTests : IAsyncLifetime
     {
         var seeded = await _database.SeedOrderAsync(
             "user-2",
-            OrderStatus.Pending,
+            OrderStatus.Confirmed,
             _cancellationToken
         );
 
@@ -535,16 +463,14 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ChangeStatus_CancelledConcurrently_ThrowsAndReturnsStockOnce()
+    public async Task ChangeStatus_CancelledConcurrently_ThrowsAndStoresOneCancellation()
     {
         // Both requests read Pending. The other one cancels and commits inside our SaveChanges:
-        // our UPDATE finds a changed xmin, nothing of ours is stored, and the stock comes back once.
-        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
+        // our UPDATE finds a changed xmin, and nothing of ours is stored.
         var seeded = await _database.SeedOrderAsync(
             UserId,
             OrderStatus.Pending,
-            _cancellationToken,
-            (chai.ProductId, 2)
+            _cancellationToken
         );
 
         await Should.ThrowAsync<DbUpdateConcurrencyException>(() =>
@@ -556,13 +482,10 @@ public class OrderRepositoryTests : IAsyncLifetime
             )
         );
 
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)12);
         (
             await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken)
         ).StatusChanges.ShouldHaveSingleItem();
-        // Only the committed cancellation published its event; ours was rolled back with the rest.
+        // Only the committed cancellation published its event, so ProductApi returns the stock once.
         (await _database.LoadOutboxAsync(_cancellationToken))
             .ShouldHaveSingleItem()
             .Type.ShouldBe(OrderEventTypes.OrderCancelled);
@@ -610,20 +533,6 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PlaceGuestOrder_SameProductOnTwoLines_SumsTheQuantities()
-    {
-        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
-
-        var result = await PlaceGuestOrderAsync(Email, (chai.ProductId, 1), (chai.ProductId, 2));
-
-        result.Status.ShouldBe(PlaceOrderStatus.Placed);
-        result.Order.ShouldNotBeNull().Items.ShouldHaveSingleItem().Quantity.ShouldBe(3);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)7);
-    }
-
-    [Fact]
     public async Task PlaceGuestOrder_UnknownProduct_ReturnsProductsUnavailableAndStoresNothing()
     {
         var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
@@ -653,9 +562,6 @@ public class OrderRepositoryTests : IAsyncLifetime
         result.Status.ShouldBe(PlaceOrderStatus.AlreadyPlaced);
         result.Order.ShouldNotBeNull().OrderId.ShouldBe(concurrent.ShouldNotBeNull().OrderId);
         (await _database.LoadOrdersAsync(_cancellationToken)).ShouldHaveSingleItem();
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)10);
     }
 
     [Fact]
@@ -691,6 +597,25 @@ public class OrderRepositoryTests : IAsyncLifetime
         return order;
     }
 
+    private Task<PlaceOrderResult> PlaceOrderAsync(params (int ProductId, int Quantity)[] items) =>
+        PlaceOrderAsync(items, []);
+
+    private Task<PlaceOrderResult> PlaceOrderAsync(
+        (int ProductId, int Quantity)[] items,
+        params IInterceptor[] interceptors
+    ) =>
+        ActAsync(
+            r =>
+                r.PlaceOrderAsync(
+                    UserId,
+                    Email,
+                    _key,
+                    new PlaceOrderRequest { Address = Address, Items = ItemsOf(items) },
+                    _cancellationToken
+                ),
+            interceptors
+        );
+
     private Task<PlaceOrderResult> PlaceGuestOrderAsync(
         string email,
         params (int ProductId, int Quantity)[] items
@@ -702,22 +627,14 @@ public class OrderRepositoryTests : IAsyncLifetime
         params IInterceptor[] interceptors
     ) =>
         ActAsync(
-            r =>
-                r.PlaceGuestOrderAsync(
-                    email,
-                    _key,
-                    Address,
-                    items
-                        .Select(i => new GuestOrderItem
-                        {
-                            ProductId = i.ProductId,
-                            Quantity = i.Quantity,
-                        })
-                        .ToList(),
-                    _cancellationToken
-                ),
+            r => r.PlaceGuestOrderAsync(email, _key, Address, ItemsOf(items), _cancellationToken),
             interceptors
         );
+
+    private static List<OrderItemRequest> ItemsOf((int ProductId, int Quantity)[] items) =>
+        items
+            .Select(i => new OrderItemRequest { ProductId = i.ProductId, Quantity = i.Quantity })
+            .ToList();
 
     private Task<ChangeOrderStatusResult> CancelAsync(
         int orderId,
@@ -735,12 +652,6 @@ public class OrderRepositoryTests : IAsyncLifetime
             interceptors
         );
 
-    private Task<PlaceOrderResult> PlaceOrderAsync(params IInterceptor[] interceptors) =>
-        ActAsync(
-            r => r.PlaceOrderAsync(UserId, Email, _key, Address, _cancellationToken),
-            interceptors
-        );
-
     private async Task<T> ActAsync<T>(
         Func<OrderRepository, Task<T>> action,
         params IInterceptor[] interceptors
@@ -755,20 +666,10 @@ public class OrderRepositoryTests : IAsyncLifetime
         where T : class =>
         JsonSerializer.Deserialize<T>(message.Payload, JsonSerializerOptions.Web).ShouldNotBeNull();
 
-    // The checkout wrote nothing: no order and no event of its own, the stock as expected, the cart item still there.
-    private async Task ShouldBeUnchangedAsync(
-        int productId,
-        short unitsInStock,
-        int expectedOrders = 0
-    )
+    // The checkout wrote nothing: no order and no event of its own.
+    private async Task ShouldStoreNothingAsync(int expectedOrders = 0)
     {
         (await _database.LoadOrdersAsync(_cancellationToken)).Count.ShouldBe(expectedOrders);
         (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
-        (await _database.FindAsync<Product>(productId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe(unitsInStock);
-        (await _database.LoadCartAsync(UserId, _cancellationToken))
-            .ShouldNotBeNull()
-            .CartItems.ShouldHaveSingleItem();
     }
 }

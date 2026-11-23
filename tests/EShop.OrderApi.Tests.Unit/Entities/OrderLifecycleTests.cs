@@ -9,14 +9,17 @@ public class OrderLifecycleTests
 
     private static readonly HashSet<(OrderStatus, OrderStatus)> Allowed =
     [
-        (OrderStatus.Pending, OrderStatus.Paid),
+        (OrderStatus.Pending, OrderStatus.Confirmed),
+        (OrderStatus.Pending, OrderStatus.Rejected),
         (OrderStatus.Pending, OrderStatus.Cancelled),
+        (OrderStatus.Confirmed, OrderStatus.Paid),
+        (OrderStatus.Confirmed, OrderStatus.Cancelled),
         (OrderStatus.Paid, OrderStatus.Shipped),
         (OrderStatus.Paid, OrderStatus.Cancelled),
         (OrderStatus.Shipped, OrderStatus.Delivered),
     ];
 
-    // Every pair of statuses, 25 cases: the five transitions above are allowed, all others are not.
+    // Every pair of statuses, 49 cases: the eight transitions above are allowed, all others are not.
     public static TheoryData<OrderStatus, OrderStatus, bool> AllPairs()
     {
         var data = new TheoryData<OrderStatus, OrderStatus, bool>();
@@ -89,10 +92,18 @@ public class OrderLifecycleTests
         OrderStatus[] path = status switch
         {
             OrderStatus.Pending => [],
-            OrderStatus.Paid => [OrderStatus.Paid],
-            OrderStatus.Shipped => [OrderStatus.Paid, OrderStatus.Shipped],
-            OrderStatus.Delivered => [OrderStatus.Paid, OrderStatus.Shipped, OrderStatus.Delivered],
+            OrderStatus.Confirmed => [OrderStatus.Confirmed],
+            OrderStatus.Paid => [OrderStatus.Confirmed, OrderStatus.Paid],
+            OrderStatus.Shipped => [OrderStatus.Confirmed, OrderStatus.Paid, OrderStatus.Shipped],
+            OrderStatus.Delivered =>
+            [
+                OrderStatus.Confirmed,
+                OrderStatus.Paid,
+                OrderStatus.Shipped,
+                OrderStatus.Delivered,
+            ],
             OrderStatus.Cancelled => [OrderStatus.Cancelled],
+            OrderStatus.Rejected => [OrderStatus.Rejected],
             _ => throw new ArgumentOutOfRangeException(nameof(status)),
         };
         foreach (var next in path)

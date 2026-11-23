@@ -6,6 +6,8 @@ namespace EShop.OrderApi.Repositories;
 
 public interface IOrderRepository
 {
+    // The Pending order and its order.placed (#76): ProductApi reserves the stock and answers. The items are summed
+    // per product; names, prices and the stock hint come from the catalog's replica (order_products).
     Task<PlaceOrderResult> PlaceOrderAsync(
         string userId,
         string? customerEmail,
@@ -14,12 +16,12 @@ public interface IOrderRepository
         CancellationToken cancellationToken
     );
 
-    // email: trimmed and in lower case. The items are summed per product; prices and stock come from the products.
+    // As PlaceOrderAsync, for a buyer without an account. email: trimmed and in lower case.
     Task<PlaceOrderResult> PlaceGuestOrderAsync(
         string email,
         Guid idempotencyKey,
-        PlaceOrderRequest address,
-        IReadOnlyList<GuestOrderItem> items,
+        ShippingAddressRequest address,
+        IReadOnlyList<OrderItemRequest> items,
         CancellationToken cancellationToken
     );
 
@@ -44,7 +46,7 @@ public interface IOrderRepository
         CancellationToken cancellationToken
     );
 
-    // ownerId null: any order (an admin). Cancelling returns the stock in the same transaction.
+    // ownerId null: any order (an admin). The stock of a cancelled order is returned by ProductApi on order.cancelled.
     Task<ChangeOrderStatusResult> ChangeStatusAsync(
         int orderId,
         string? ownerId,

@@ -106,6 +106,50 @@ public class TopologyTests
         Encoding.UTF8.GetString(message.ShouldNotBeNull().Body.Span).ShouldBe("poison");
     }
 
+    [Fact]
+    public async Task DeclareConsumerQueue_RetiredRoutingKey_NoLongerRoutesToWorkQueue()
+    {
+        // An earlier version bound _routingKey; this one binds another key and retires the old one.
+        await (await DeclareAsync([ShortDelay])).DisposeAsync();
+        var newKey = $"test.{Guid.NewGuid():N}";
+        await using var channel = await _broker.CreateChannelAsync(_cancellationToken);
+        await Topology.DeclareConsumerQueueAsync(
+            channel,
+            _queue,
+            [newKey],
+            [ShortDelay],
+            _cancellationToken,
+            retiredRoutingKeys: [_routingKey]
+        );
+
+        // One channel delivers in order: once the marker has arrived, the retired event would have too.
+        await PublishAsync(channel, Topology.EventsExchange, _routingKey, "retired");
+        await PublishAsync(channel, Topology.EventsExchange, newKey, "marker");
+
+        var message = await _broker.WaitForMessageAsync(_queue, _cancellationToken);
+        Encoding.UTF8.GetString(message.ShouldNotBeNull().Body.Span).ShouldBe("marker");
+        (await _broker.MessageCountAsync(_queue, _cancellationToken)).ShouldBe(0u);
+    }
+
+    [Fact]
+    public async Task DeclareConsumerQueue_RetiredRoutingKeyNeverBound_DoesNotThrow()
+    {
+        // A fresh broker: the old binding never existed.
+        await using var channel = await _broker.CreateChannelAsync(_cancellationToken);
+        await Topology.DeclareEventsExchangeAsync(channel, _cancellationToken);
+
+        await Topology.DeclareConsumerQueueAsync(
+            channel,
+            _queue,
+            [_routingKey],
+            [ShortDelay],
+            _cancellationToken,
+            retiredRoutingKeys: [$"test.{Guid.NewGuid():N}"]
+        );
+
+        channel.IsOpen.ShouldBeTrue();
+    }
+
     // A channel with this test's exchange, queues and binding declared; the caller disposes it.
     private async Task<IChannel> DeclareAsync(IReadOnlyList<TimeSpan> retryDelays)
     {

@@ -9,7 +9,6 @@ import { IAddress } from '../../models/address.model';
 import { ICart } from '../../models/cart.model';
 import { IOrder } from '../../models/order.model';
 import { AuthService } from '../../services/auth.service';
-import { CartService } from '../../services/cart.service';
 
 const cartUrl = '/api/carts/me';
 const ordersUrl = '/api/orders';
@@ -73,8 +72,6 @@ describe('CheckoutComponent', () =>
 
   afterEach(() =>
   {
-    // A placed order re-reads the cart for the header counter.
-    httpTesting.match(cartUrl);
     httpTesting.verify();
   });
 
@@ -98,7 +95,7 @@ describe('CheckoutComponent', () =>
     expect(placeOrderButton().disabled).toBe(false);
   });
 
-  it('places the order with the address and opens the confirmation', async () =>
+  it('places the order with the address and the cart items and opens the confirmation', async () =>
   {
     loadCart(cart);
     fillAddress();
@@ -107,24 +104,13 @@ describe('CheckoutComponent', () =>
 
     const req = httpTesting.expectOne(ordersUrl);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ ...address, shipRegion: null });
+    expect(req.request.body).toEqual({
+      address: { ...address, shipRegion: null },
+      items: [{ productId: 7, quantity: 2 }, { productId: 9, quantity: 1 }]
+    });
     expect(req.request.headers.get('Idempotency-Key')).toBeTruthy();
     req.flush(order, { status: 201, statusText: 'Created' });
     expect(navigate).toHaveBeenCalledWith(['/orders', 7], { queryParams: { placed: true } });
-  });
-
-  it('updates the cart counter after the order: the API has emptied the cart', () =>
-  {
-    const cartService = TestBed.inject(CartService);
-    loadCart(cart);
-    expect(cartService.itemCount()).toBe(3);
-    fillAddress();
-
-    placeOrderButton().click();
-    httpTesting.expectOne(ordersUrl).flush(order, { status: 201, statusText: 'Created' });
-    httpTesting.expectOne(cartUrl).flush('Cart not found', { status: 404, statusText: 'Not Found' });
-
-    expect(cartService.itemCount()).toBe(0);
   });
 
   it('prefills the form with the first saved address and allows ordering', () =>

@@ -4,6 +4,8 @@ namespace EShop.OrderApi.Contracts;
 public static class OrderEventTypes
 {
     public const string OrderPlaced = "order.placed";
+    public const string OrderConfirmed = "order.confirmed";
+    public const string OrderRejected = "order.rejected";
     public const string OrderCancelled = "order.cancelled";
     public const string GuestOrderPlaced = "order.guest-placed";
 }

@@ -71,7 +71,8 @@ public sealed class MessageConsumer<THandler, TContext> : BackgroundService
                     _queue.Name,
                     _queue.RoutingKeys,
                     _queue.RetryDelays,
-                    stoppingToken
+                    stoppingToken,
+                    _queue.RetiredRoutingKeys
                 );
                 await channel.BasicQosAsync(
                     prefetchSize: 0,

@@ -114,12 +114,11 @@ export class CheckoutComponent implements OnInit
     this.accountExists.set(false);
     const { email, ...value } = this.form.getRawValue();
     const address = { ...value, shipRegion: value.shipRegion || null };
+    const items = this.items().map(({ productId, quantity }) => ({ productId, quantity }));
     const guest = this.isGuest();
     const request = guest
-      ? this.ordersService.placeGuestOrder(
-        { email, address, items: this.items().map(({ productId, quantity }) => ({ productId, quantity })) },
-        this.idempotencyKey)
-      : this.ordersService.placeOrder(address, this.idempotencyKey);
+      ? this.ordersService.placeGuestOrder({ email, address, items }, this.idempotencyKey)
+      : this.ordersService.placeOrder({ address, items }, this.idempotencyKey);
     request.subscribe({
       next: order => guest ? this.showGuestOrder(order, email) : this.showOrder(order),
       error: (error: HttpErrorResponse) =>
@@ -130,10 +129,10 @@ export class CheckoutComponent implements OnInit
     });
   }
 
-  // The API has emptied the server cart; the confirmation page loads the order by its id.
+  // The confirmation page loads the order by its id and follows its status; it also reads the cart counter again
+  // once ShoppingCart has emptied the cart (#76).
   private showOrder(order: IOrder): void
   {
-    this.cartService.refreshItemCount();
     this.router.navigate(['/orders', order.orderId], { queryParams: { placed: true } });
   }
 

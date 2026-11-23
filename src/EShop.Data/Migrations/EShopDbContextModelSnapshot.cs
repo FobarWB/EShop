@@ -609,7 +609,7 @@ namespace EShop.Data.Migrations
 
                     b.ToTable("orders", null, t =>
                         {
-                            t.HasCheckConstraint("ck_orders_status", "status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                            t.HasCheckConstraint("ck_orders_status", "status IN ('Pending', 'Confirmed', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Rejected')");
                         });
                 });
 
@@ -656,6 +656,45 @@ namespace EShop.Data.Migrations
                     b.ToTable("order_details", (string)null);
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.OrderProduct", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("deleted");
+
+                    b.Property<bool>("Discontinued")
+                        .HasColumnType("boolean")
+                        .HasColumnName("discontinued");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("product_name");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<short>("UnitsInStock")
+                        .HasColumnType("smallint")
+                        .HasColumnName("units_in_stock");
+
+                    b.HasKey("ProductId")
+                        .HasName("pk_order_products");
+
+                    b.ToTable("order_products", (string)null);
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.OrderStatusChange", b =>
                 {
                     b.Property<long>("OrderStatusChangeId")
@@ -698,9 +737,9 @@ namespace EShop.Data.Migrations
 
                     b.ToTable("order_status_changes", null, t =>
                         {
-                            t.HasCheckConstraint("ck_order_status_changes_from_status", "from_status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                            t.HasCheckConstraint("ck_order_status_changes_from_status", "from_status IN ('Pending', 'Confirmed', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Rejected')");
 
-                            t.HasCheckConstraint("ck_order_status_changes_to_status", "to_status IN ('Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled')");
+                            t.HasCheckConstraint("ck_order_status_changes_to_status", "to_status IN ('Pending', 'Confirmed', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Rejected')");
                         });
                 });
 
@@ -828,6 +867,55 @@ namespace EShop.Data.Migrations
                         .HasName("pk_shippers");
 
                     b.ToTable("shippers", (string)null);
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.StockReservation", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("OrderId")
+                        .HasName("pk_stock_reservations");
+
+                    b.ToTable("stock_reservations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_stock_reservations_status", "status IN ('Reserved', 'Rejected', 'Released', 'Cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.StockReservationLine", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("OrderId", "ProductId")
+                        .HasName("pk_stock_reservation_lines");
+
+                    b.ToTable("stock_reservation_lines", (string)null);
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Supplier", b =>
@@ -1136,6 +1224,18 @@ namespace EShop.Data.Migrations
                     b.Navigation("Supplier");
                 });
 
+            modelBuilder.Entity("EShop.Data.Entities.StockReservationLine", b =>
+                {
+                    b.HasOne("EShop.Data.Entities.StockReservation", "Reservation")
+                        .WithMany("Lines")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_reservation_lines_stock_reservations_order_id");
+
+                    b.Navigation("Reservation");
+                });
+
             modelBuilder.Entity("EShop.Data.Entities.Territory", b =>
                 {
                     b.HasOne("EShop.Data.Entities.Region", "Region")
@@ -1204,6 +1304,11 @@ namespace EShop.Data.Migrations
             modelBuilder.Entity("EShop.Data.Entities.Shipper", b =>
                 {
                     b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("EShop.Data.Entities.StockReservation", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("EShop.Data.Entities.Supplier", b =>

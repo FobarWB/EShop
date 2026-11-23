@@ -17,6 +17,7 @@
     <ProjectReference Include="..\EShop.OrderApi.Contracts\EShop.OrderApi.Contracts.csproj" />
     <ProjectReference Include="..\EShop.ServiceDefaults\EShop.ServiceDefaults.csproj" />
     <ProjectReference Include="..\EShop.CustomerApi.Contracts\EShop.CustomerApi.Contracts.csproj" />
+    <ProjectReference Include="..\EShop.ProductApi.Contracts\EShop.ProductApi.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

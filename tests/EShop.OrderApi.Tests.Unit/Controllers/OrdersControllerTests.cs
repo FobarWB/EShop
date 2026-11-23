@@ -18,13 +18,18 @@ public class OrdersControllerTests
     private const int ProductId = 42;
 
     private static readonly Guid Key = Guid.NewGuid();
-    private static readonly PlaceOrderRequest Request = new()
+    private static readonly ShippingAddressRequest Address = new()
     {
         ShipName = "Jane Doe",
         ShipAddress = "1 Main St",
         ShipCity = "Berlin",
         ShipPostalCode = "10115",
         ShipCountry = "Germany",
+    };
+    private static readonly PlaceOrderRequest Request = new()
+    {
+        Address = Address,
+        Items = [new OrderItemRequest { ProductId = ProductId, Quantity = 2 }],
     };
     private static readonly OrderResponse Order = new(
         7,
@@ -45,8 +50,8 @@ public class OrdersControllerTests
     private static readonly GuestOrderRequest GuestRequest = new()
     {
         Email = " Jane@Example.com ",
-        Address = Request,
-        Items = [new GuestOrderItem { ProductId = ProductId, Quantity = 2 }],
+        Address = Address,
+        Items = [new OrderItemRequest { ProductId = ProductId, Quantity = 2 }],
     };
 
     private readonly IOrderRepository _repository = Substitute.For<IOrderRepository>();
@@ -83,7 +88,9 @@ public class OrdersControllerTests
         var result = await _controller.PlaceGuestOrder(Key, GuestRequest, CancellationToken.None);
 
         StatusCodeOf(result).ShouldBe(201);
-        await _accounts.DidNotReceiveWithAnyArgs().AccountExistsAsync(default!, default);
+        await _accounts
+            .DidNotReceiveWithAnyArgs()
+            .AccountExistsAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -101,7 +108,13 @@ public class OrdersControllerTests
         StatusCodeOf(result).ShouldBe(409);
         await _repository
             .DidNotReceiveWithAnyArgs()
-            .PlaceGuestOrderAsync(default!, default, default!, default!, default);
+            .PlaceGuestOrderAsync(
+                default!,
+                default,
+                default!,
+                default!,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -111,7 +124,7 @@ public class OrdersControllerTests
             .PlaceGuestOrderAsync(
                 Email,
                 Key,
-                Request,
+                Address,
                 GuestRequest.Items,
                 Arg.Any<CancellationToken>()
             )
@@ -128,7 +141,13 @@ public class OrdersControllerTests
     public async Task PlaceGuestOrder_KeyReused_Returns409()
     {
         _repository
-            .PlaceGuestOrderAsync(default!, default, default!, default!, default)
+            .PlaceGuestOrderAsync(
+                default!,
+                default,
+                default!,
+                default!,
+                Arg.Any<CancellationToken>()
+            )
             .ReturnsForAnyArgs(new PlaceOrderResult(PlaceOrderStatus.IdempotencyKeyReused));
 
         var result = await _controller.PlaceGuestOrder(Key, GuestRequest, CancellationToken.None);
@@ -139,7 +158,6 @@ public class OrdersControllerTests
     [Theory]
     [InlineData(PlaceOrderStatus.Placed, 201)]
     [InlineData(PlaceOrderStatus.AlreadyPlaced, 201)]
-    [InlineData(PlaceOrderStatus.CartEmpty, 400)]
     [InlineData(PlaceOrderStatus.ProductsUnavailable, 409)]
     [InlineData(PlaceOrderStatus.InsufficientStock, 409)]
     public async Task PlaceOrder_MapsRepositoryResultToStatusCode(

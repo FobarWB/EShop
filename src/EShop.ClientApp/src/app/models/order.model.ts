@@ -5,10 +5,10 @@ import { IShippingAddress } from './shipping-address.model';
 export const standardFreight = 5;
 
 // The statuses of OrderApi (OrderStatus), sent as names.
-export type OrderStatus = 'Pending' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled';
+export type OrderStatus = 'Pending' | 'Confirmed' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Rejected';
 
 // Mirrors the server rule (Order.Lifecycle.cs) only to show or hide the button; the server decides (409).
-export const cancellableStatuses: readonly OrderStatus[] = ['Pending', 'Paid'];
+export const cancellableStatuses: readonly OrderStatus[] = ['Pending', 'Confirmed', 'Paid'];
 
 // The prices are the copies stored at checkout, not the current product prices.
 export interface IOrder extends IShippingAddress

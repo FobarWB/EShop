@@ -11,25 +11,36 @@ namespace EShop.OrderApi.Tests.Integration;
 
 public sealed class OrderApiDatabase : TestDatabase
 {
+    private int _lastProductId;
+
     public OrderApiDatabase()
         : base("orderapi") { }
 
-    public Task<Product> SeedProductAsync(
+    // OrderApi's copy of a product, as ProductApi's events would store it (#76). The ids come from the events, not
+    // from a sequence: a counter keeps them unique within the run.
+    public Task<OrderProduct> SeedProductAsync(
         string name,
-        decimal unitPrice,
+        decimal? unitPrice,
         short unitsInStock,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool discontinued = false,
+        bool deleted = false
     ) =>
         SeedAsync(
-            new Product
+            new OrderProduct
             {
+                ProductId = Interlocked.Increment(ref _lastProductId),
                 ProductName = name,
                 UnitPrice = unitPrice,
                 UnitsInStock = unitsInStock,
+                Discontinued = discontinued,
+                Deleted = deleted,
+                Revision = 1,
             },
             cancellationToken
         );
 
+    // Since #76 checkout never touches carts: only the test that proves it seeds one.
     public Task<Cart> SeedCartAsync(
         string userId,
         int productId,
@@ -49,10 +60,18 @@ public sealed class OrderApiDatabase : TestDatabase
     private static readonly Dictionary<OrderStatus, OrderStatus[]> PathTo = new()
     {
         [OrderStatus.Pending] = [],
-        [OrderStatus.Paid] = [OrderStatus.Paid],
-        [OrderStatus.Shipped] = [OrderStatus.Paid, OrderStatus.Shipped],
-        [OrderStatus.Delivered] = [OrderStatus.Paid, OrderStatus.Shipped, OrderStatus.Delivered],
+        [OrderStatus.Confirmed] = [OrderStatus.Confirmed],
+        [OrderStatus.Paid] = [OrderStatus.Confirmed, OrderStatus.Paid],
+        [OrderStatus.Shipped] = [OrderStatus.Confirmed, OrderStatus.Paid, OrderStatus.Shipped],
+        [OrderStatus.Delivered] =
+        [
+            OrderStatus.Confirmed,
+            OrderStatus.Paid,
+            OrderStatus.Shipped,
+            OrderStatus.Delivered,
+        ],
         [OrderStatus.Cancelled] = [OrderStatus.Cancelled],
+        [OrderStatus.Rejected] = [OrderStatus.Rejected],
     };
 
     // An order of the user in the given status, with one line per product.

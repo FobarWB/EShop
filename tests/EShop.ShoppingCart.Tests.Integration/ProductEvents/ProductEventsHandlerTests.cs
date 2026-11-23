@@ -93,7 +93,7 @@ public class ProductEventsHandlerTests : IAsyncLifetime
                 .ToListAsync(_cancellationToken)
         )
             .ShouldHaveSingleItem()
-            .ShouldBe(new { UserId = "user-1", ProductId = otherId });
+            .ShouldBe(new { UserId = (string?)"user-1", ProductId = otherId });
     }
 
     [Fact]
