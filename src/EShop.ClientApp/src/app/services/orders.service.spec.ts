@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 
 import { OrdersService } from './orders.service';
 import { IShippingAddress } from '../models/shipping-address.model';
+import { IPlaceOrderRequest } from '../models/place-order-request.model';
 
 const address: IShippingAddress = {
   shipName: 'Jane Doe',
@@ -50,13 +51,15 @@ describe('OrdersService', () =>
     expect(req.request.headers.get('Idempotency-Key')).toBe('key-2');
   });
 
-  it('places an order with the address and the idempotency key', () =>
+  it('places an order with the address, the items and the idempotency key', () =>
   {
-    service.placeOrder(address, 'key-1').subscribe();
+    const request: IPlaceOrderRequest = { address, items: [{ productId: 7, quantity: 2 }] };
+
+    service.placeOrder(request, 'key-1').subscribe();
 
     const req = httpTesting.expectOne('/api/orders');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual(address);
+    expect(req.request.body).toEqual(request);
     expect(req.request.headers.get('Idempotency-Key')).toBe('key-1');
   });
 

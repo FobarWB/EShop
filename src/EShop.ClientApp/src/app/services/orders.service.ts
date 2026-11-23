@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { IGuestOrderRequest } from '../models/guest-order-request.model';
 import { IOrder, IOrderSummary } from '../models/order.model';
 import { IPage } from '../models/page.model';
-import { IShippingAddress } from '../models/shipping-address.model';
+import { IPlaceOrderRequest } from '../models/place-order-request.model';
 
 @Injectable({
   providedIn: 'root'
@@ -15,10 +15,10 @@ export class OrdersService
   private readonly http = inject(HttpClient);
   private readonly apiUrl = '/api/orders';
 
-  // The items come from the user's server cart; the key makes a retried request return the same order.
-  placeOrder(address: IShippingAddress, idempotencyKey: string): Observable<IOrder>
+  // The items of the user's server cart; the key makes a retried request return the same order.
+  placeOrder(request: IPlaceOrderRequest, idempotencyKey: string): Observable<IOrder>
   {
-    return this.http.post<IOrder>(this.apiUrl, address, { headers: { 'Idempotency-Key': idempotencyKey } });
+    return this.http.post<IOrder>(this.apiUrl, request, { headers: { 'Idempotency-Key': idempotencyKey } });
   }
 
   // Without sign-in: the items come from the browser's cart; the key makes a retry return the same order.

@@ -98,7 +98,7 @@ describe('CheckoutComponent', () =>
     expect(placeOrderButton().disabled).toBe(false);
   });
 
-  it('places the order with the address and opens the confirmation', async () =>
+  it('places the order with the address and the cart items and opens the confirmation', async () =>
   {
     loadCart(cart);
     fillAddress();
@@ -107,7 +107,10 @@ describe('CheckoutComponent', () =>
 
     const req = httpTesting.expectOne(ordersUrl);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ ...address, shipRegion: null });
+    expect(req.request.body).toEqual({
+      address: { ...address, shipRegion: null },
+      items: [{ productId: 7, quantity: 2 }, { productId: 9, quantity: 1 }]
+    });
     expect(req.request.headers.get('Idempotency-Key')).toBeTruthy();
     req.flush(order, { status: 201, statusText: 'Created' });
     expect(navigate).toHaveBeenCalledWith(['/orders', 7], { queryParams: { placed: true } });

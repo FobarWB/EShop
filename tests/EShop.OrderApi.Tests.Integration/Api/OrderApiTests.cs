@@ -3,13 +3,10 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using EShop.Data;
 using EShop.Data.Entities;
 using EShop.OrderApi.Controllers;
 using EShop.OrderApi.Dtos;
 using EShop.Tests.Common;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EShop.OrderApi.Tests.Integration.Api;
 
@@ -65,17 +62,18 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
     }
 
     [Fact]
-    public async Task PlaceOrder_CartWithItems_Returns201WithLocationOfTheOrder()
+    public async Task PlaceOrder_Items_Returns201WithLocationOfTheOrder()
     {
-        var chai = await SeedCartAsync(UserId, unitsInStock: 10);
+        var chai = await SeedProductAsync(unitsInStock: 10);
 
-        var response = await PlaceOrderAsync(_user, Guid.NewGuid());
+        var response = await PlaceOrderAsync(_user, Guid.NewGuid(), Body((chai, 1)));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var order = (
             await response.Content.ReadFromJsonAsync<OrderResponse>(Json, _cancellationToken)
         ).ShouldNotBeNull();
-        order.Items.ShouldHaveSingleItem().ProductId.ShouldBe(chai.ProductId);
+        order.Items.ShouldHaveSingleItem().ProductId.ShouldBe(chai);
+        order.Status.ShouldBe(OrderStatus.Pending);
         // From the token's email claim (TestAuthHandler: <user>@example.com).
         order.CustomerEmail.ShouldBe($"{UserId}@example.com");
         var location = response.Headers.Location.ShouldNotBeNull();
@@ -87,9 +85,13 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
     [Fact]
     public async Task PlaceOrder_WithoutIdempotencyKey_Returns400AndPlacesNoOrder()
     {
-        await SeedCartAsync(UserId, unitsInStock: 10);
+        var chai = await SeedProductAsync(unitsInStock: 10);
 
-        var response = await _user.PostAsJsonAsync("api/orders", Address, _cancellationToken);
+        var response = await _user.PostAsJsonAsync(
+            "api/orders",
+            Body((chai, 1)),
+            _cancellationToken
+        );
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
@@ -99,40 +101,53 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
     [Fact]
     public async Task PlaceOrder_MalformedIdempotencyKey_Returns400()
     {
-        await SeedCartAsync(UserId, unitsInStock: 10);
+        var chai = await SeedProductAsync(unitsInStock: 10);
 
-        var response = await PlaceOrderAsync(_user, "not-a-guid");
+        var response = await PlaceOrderAsync(_user, "not-a-guid", Body((chai, 1)));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    [Fact]
-    public async Task PlaceOrder_WithoutCity_Returns400ValidationProblem()
+    // [ApiController] answers before the action runs, also for the nested address and the list items.
+    [Theory]
+    [MemberData(nameof(InvalidBodies))]
+    public async Task PlaceOrder_InvalidBody_Returns400ValidationProblem(string name, object body)
     {
-        await SeedCartAsync(UserId, unitsInStock: 10);
+        var response = await PlaceOrderAsync(_user, Guid.NewGuid(), body);
 
-        var response = await PlaceOrderAsync(
-            _user,
-            Guid.NewGuid().ToString(),
-            new
-            {
-                shipName = "Jane Doe",
-                shipAddress = "1 Main St",
-                shipPostalCode = "10115",
-                shipCountry = "Germany",
-            }
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, name);
         response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
+        (await _database.LoadOrdersAsync(_cancellationToken)).ShouldBeEmpty();
     }
+
+    public static TheoryData<string, object> InvalidBodies() =>
+        new()
+        {
+            { "no items", new { address = Address, items = Array.Empty<object>() } },
+            { "quantity 0", Body((1, 0)) },
+            { "no address", new { items = new[] { new { productId = 1, quantity = 1 } } } },
+            {
+                "no city",
+                new
+                {
+                    address = new
+                    {
+                        shipName = "Jane Doe",
+                        shipAddress = "1 Main St",
+                        shipPostalCode = "10115",
+                        shipCountry = "Germany",
+                    },
+                    items = new[] { new { productId = 1, quantity = 1 } },
+                }
+            },
+        };
 
     [Fact]
     public async Task PlaceOrder_Anonymous_Returns401()
     {
         using var anonymous = _factory.CreateClient();
 
-        var response = await PlaceOrderAsync(anonymous, Guid.NewGuid());
+        var response = await PlaceOrderAsync(anonymous, Guid.NewGuid(), Body((1, 1)));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -140,9 +155,9 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
     [Fact]
     public async Task PlaceOrder_InsufficientStock_Returns409WithProductIds()
     {
-        var chai = await SeedCartAsync(UserId, unitsInStock: 1, quantity: 2);
+        var chai = await SeedProductAsync(unitsInStock: 1);
 
-        var response = await PlaceOrderAsync(_user, Guid.NewGuid());
+        var response = await PlaceOrderAsync(_user, Guid.NewGuid(), Body((chai, 2)));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
@@ -151,17 +166,17 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
             .GetProperty("productIds")
             .EnumerateArray()
             .Select(id => id.GetInt32())
-            .ShouldBe([chai.ProductId]);
+            .ShouldBe([chai]);
     }
 
     [Fact]
     public async Task PlaceOrder_Retried_ReturnsSameOrder()
     {
-        await SeedCartAsync(UserId, unitsInStock: 10);
+        var chai = await SeedProductAsync(unitsInStock: 10);
         var key = Guid.NewGuid();
-        var first = await PlaceOrderAsync(_user, key);
+        var first = await PlaceOrderAsync(_user, key, Body((chai, 1)));
 
-        var retry = await PlaceOrderAsync(_user, key);
+        var retry = await PlaceOrderAsync(_user, key, Body((chai, 1)));
 
         retry.StatusCode.ShouldBe(HttpStatusCode.Created);
         (await retry.Content.ReadFromJsonAsync<OrderResponse>(Json, _cancellationToken))
@@ -172,32 +187,6 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
                     .OrderId
             );
         (await _database.LoadOrdersAsync(_cancellationToken)).ShouldHaveSingleItem();
-    }
-
-    [Fact]
-    public async Task PlaceOrder_LastUnitBoughtByAnotherBuyer_Returns409AndKeepsTheirOrder()
-    {
-        // Both buyers have the last unit in their cart. While buyer 1 saves, buyer 2 completes a whole checkout:
-        // buyer 1's stock update finds a changed xmin, and the exception handler answers 409.
-        var chai = await SeedCartAsync(UserId, unitsInStock: 1);
-        await _database.SeedCartAsync("user-2", chai.ProductId, 1, _cancellationToken);
-        using var buyer1 = CreateClientWithConcurrentWrite(async () =>
-        {
-            using var buyer2 = _factory.CreateClient().AsUser("user-2");
-            var response = await PlaceOrderAsync(buyer2, Guid.NewGuid());
-            response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        });
-
-        var response = await PlaceOrderAsync(buyer1.AsUser(UserId), Guid.NewGuid());
-
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe(ProblemJson);
-        (await _database.LoadOrdersAsync(_cancellationToken))
-            .ShouldHaveSingleItem()
-            .UserId.ShouldBe("user-2");
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)0);
     }
 
     [Fact]
@@ -237,14 +226,12 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
     }
 
     [Fact]
-    public async Task CancelOrder_Pending_Returns200WithCancelledOrderAndReturnsStock()
+    public async Task CancelOrder_Pending_Returns200WithCancelledOrder()
     {
-        var chai = await _database.SeedProductAsync("Chai", 18m, 10, _cancellationToken);
         var seeded = await _database.SeedOrderAsync(
             UserId,
             OrderStatus.Pending,
-            _cancellationToken,
-            (chai.ProductId, 2)
+            _cancellationToken
         );
 
         var response = await _user.PostAsync(
@@ -257,9 +244,6 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
         (await response.Content.ReadFromJsonAsync<OrderResponse>(Json, _cancellationToken))
             .ShouldNotBeNull()
             .Status.ShouldBe(OrderStatus.Cancelled);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)12);
     }
 
     [Fact]
@@ -370,43 +354,26 @@ public class OrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
     private Task<HttpResponseMessage> PutStatusAsync(HttpClient client, int orderId, object body) =>
         client.PutAsJsonAsync($"api/orders/{orderId}/status", body, _cancellationToken);
 
-    private async Task<Product> SeedCartAsync(string userId, short unitsInStock, int quantity = 1)
-    {
-        var product = await _database.SeedProductAsync(
-            "Chai",
-            18m,
-            unitsInStock,
-            _cancellationToken
-        );
-        await _database.SeedCartAsync(userId, product.ProductId, quantity, _cancellationToken);
-        return product;
-    }
+    private async Task<int> SeedProductAsync(short unitsInStock) =>
+        (await _database.SeedProductAsync("Chai", 18m, unitsInStock, _cancellationToken)).ProductId;
 
-    private Task<HttpResponseMessage> PlaceOrderAsync(HttpClient client, Guid key) =>
-        PlaceOrderAsync(client, key.ToString());
+    private static object Body(params (int ProductId, int Quantity)[] items) =>
+        new
+        {
+            address = Address,
+            items = items.Select(i => new { productId = i.ProductId, quantity = i.Quantity }),
+        };
 
-    private Task<HttpResponseMessage> PlaceOrderAsync(
-        HttpClient client,
-        string key,
-        object? body = null
-    )
+    private Task<HttpResponseMessage> PlaceOrderAsync(HttpClient client, Guid key, object body) =>
+        PlaceOrderAsync(client, key.ToString(), body);
+
+    private Task<HttpResponseMessage> PlaceOrderAsync(HttpClient client, string key, object body)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "api/orders")
         {
-            Content = JsonContent.Create(body ?? Address),
+            Content = JsonContent.Create(body),
         };
         request.Headers.Add(OrdersController.IdempotencyKeyHeader, key);
         return client.SendAsync(request, _cancellationToken);
     }
-
-    private HttpClient CreateClientWithConcurrentWrite(Func<Task> write) =>
-        _factory
-            .WithWebHostBuilder(builder =>
-                builder.ConfigureTestServices(services =>
-                    services.ConfigureDbContext<EShopDbContext>(options =>
-                        options.AddInterceptors(new BeforeSaveChangesInterceptor(write))
-                    )
-                )
-            )
-            .CreateClient();
 }

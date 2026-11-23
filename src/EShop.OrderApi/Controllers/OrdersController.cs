@@ -125,7 +125,7 @@ public class OrdersController : ControllerBase
         CancellationToken cancellationToken
     ) => await _repository.RetrieveOrdersAsync(UserId, paging, cancellationToken);
 
-    // POST api/orders/5/cancel: a command, not a DELETE. The order stays as a document, and the stock comes back.
+    // POST api/orders/5/cancel: a command, not a DELETE. The order stays as a document; ProductApi returns the stock.
     [HttpPost("{id:int}/cancel")]
     public async Task<ActionResult<OrderResponse>> CancelOrder(
         int id,
@@ -196,10 +196,6 @@ public class OrdersController : ControllerBase
                 Status: PlaceOrderStatus.Placed or PlaceOrderStatus.AlreadyPlaced,
                 Order: { } order,
             } => CreatedAtAction(nameof(GetOrder), new { id = order.OrderId }, order),
-            { Status: PlaceOrderStatus.CartEmpty } => Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "The cart is empty"
-            ),
             { Status: PlaceOrderStatus.ProductsUnavailable, ProductIds: { } productIds } =>
                 ProductsProblem("Some products are no longer available", productIds),
             { Status: PlaceOrderStatus.InsufficientStock, ProductIds: { } productIds } =>

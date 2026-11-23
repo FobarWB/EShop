@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using EShop.Data.Entities;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
 using EShop.OrderApi.Controllers;
@@ -65,9 +64,6 @@ public class GuestOrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
         order.PlacedAsGuest.ShouldBeTrue();
         order.CustomerEmail.ShouldBe(GuestEmail);
         order.OrderDetails.ShouldHaveSingleItem().Quantity.ShouldBe((short)2);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)8);
     }
 
     [Fact]
@@ -108,9 +104,6 @@ public class GuestOrderApiTests : IClassFixture<OrderApiFactory>, IAsyncLifetime
         (await ProblemCodeAsync(response)).ShouldBe("account-exists");
         (await _database.LoadOrdersAsync(_cancellationToken)).ShouldBeEmpty();
         (await _database.LoadOutboxAsync(_cancellationToken)).ShouldBeEmpty();
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)10);
     }
 
     [Fact]

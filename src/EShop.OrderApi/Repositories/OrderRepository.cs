@@ -43,78 +43,29 @@ public class OrderRepository : IOrderRepository
         {
             return new PlaceOrderResult(PlaceOrderStatus.AlreadyPlaced, existing);
         }
-
-        // Tracked: the cart is emptied below.
-        var cart = await _db
-            .Carts.Include(c => c.CartItems)
-            .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
-        if (cart == null || cart.CartItems.Count == 0)
-        {
-            return new PlaceOrderResult(PlaceOrderStatus.CartEmpty);
-        }
-
-        // Tracked: the stock changes below. The xmin of each product is read here, and SaveChanges writes the new
-        // stock only if the row has not changed since. Read by id, without a foreign key since #75 (until #76
-        // reserves the stock in ProductApi).
-        var productIds = cart.CartItems.Select(i => i.ProductId).ToArray();
-        var products = await _db
-            .Products.Where(p => productIds.Contains(p.ProductId))
-            .ToDictionaryAsync(p => p.ProductId, cancellationToken);
-        // A product deleted while ProductDeleted has not reached the cart yet: refused like a discontinued one.
-        var missing = productIds.Where(id => !products.ContainsKey(id)).ToList();
-        if (missing.Count > 0)
-        {
-            return new PlaceOrderResult(PlaceOrderStatus.ProductsUnavailable, ProductIds: missing);
-        }
-        var lines = cart
-            .CartItems.Select(i => new OrderLine(products[i.ProductId], i.Quantity))
-            .ToList();
         return await CreateOrderAsync(
             owner,
             idempotencyKey,
-            request,
-            lines,
-            () => cart.CartItems.Clear(),
+            request.Address,
+            request.Items,
             cancellationToken
         );
     }
 
-    public async Task<PlaceOrderResult> PlaceGuestOrderAsync(
+    public Task<PlaceOrderResult> PlaceGuestOrderAsync(
         string email,
         Guid idempotencyKey,
-        PlaceOrderRequest address,
-        IReadOnlyList<GuestOrderItem> items,
+        ShippingAddressRequest address,
+        IReadOnlyList<OrderItemRequest> items,
         CancellationToken cancellationToken
-    )
-    {
-        // long: the lines come from the browser, and their sum must not overflow int.
-        var quantities = items
-            .GroupBy(i => i.ProductId)
-            .ToDictionary(g => g.Key, g => g.Sum(i => (long)i.Quantity));
-        var productIds = quantities.Keys.ToArray();
-
-        // Tracked, as the cart's products: the stock changes, and SaveChanges checks each product's xmin.
-        var products = await _db
-            .Products.Where(p => productIds.Contains(p.ProductId))
-            .ToListAsync(cancellationToken);
-
-        // A product deleted since the browser stored it: the client marks it, as a discontinued one.
-        var missing = productIds.Except(products.Select(p => p.ProductId)).ToList();
-        if (missing.Count > 0)
-        {
-            return new PlaceOrderResult(PlaceOrderStatus.ProductsUnavailable, ProductIds: missing);
-        }
-
-        var lines = products.Select(p => new OrderLine(p, quantities[p.ProductId])).ToList();
-        return await CreateOrderAsync(
+    ) =>
+        CreateOrderAsync(
             new OrderOwner(null, email, IsGuest: true),
             idempotencyKey,
             address,
-            lines,
-            onCreated: null,
+            items,
             cancellationToken
         );
-    }
 
     public Task<OrderResponse?> RetrieveGuestOrderAsync(
         string email,
@@ -178,7 +129,7 @@ public class OrderRepository : IOrderRepository
 
         if (next == OrderStatus.Cancelled)
         {
-            // Only tracked here; the SaveChanges below stores it with the status, in one transaction.
+            // ProductApi returns the stock of a reserved order when it receives this event (#76).
             _db.OutboxMessages.Add(
                 OutboxMessageFactory.Create(
                     OrderApiOutbox.Producer,
@@ -188,58 +139,40 @@ public class OrderRepository : IOrderRepository
                 )
             );
         }
-        // Two statements, one transaction: the status (with its journal row) and the stock are stored together.
-        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        // The order first. A concurrent change of the same order (a double cancel) waits for this row's lock,
-        // then fails the xmin check: DbUpdateConcurrencyException, 409, and its stock is never returned.
+        // One SaveChanges, one transaction: the status, its journal row and the event. A concurrent change of the
+        // same order (a double cancel, the stock answer arriving) fails the xmin check: DbUpdateConcurrencyException, 409.
         await _db.SaveChangesAsync(cancellationToken);
-
-        if (next == OrderStatus.Cancelled)
-        {
-            // A relative update, units_in_stock = units_in_stock + quantity: it does not depend on a value read
-            // earlier, so a checkout running at the same time cannot make it wrong. It changes products.xmin,
-            // so that checkout fails its own check (409) instead of writing a stale stock.
-            // A product deleted since the order has nothing to return to: the subquery finds no row to update.
-            await _db
-                .Products.Where(p =>
-                    _db.OrderDetails.Any(d => d.OrderId == orderId && d.ProductId == p.ProductId)
-                )
-                .ExecuteUpdateAsync(
-                    s =>
-                        s.SetProperty(
-                            p => p.UnitsInStock,
-                            p =>
-                                (short)(
-                                    p.UnitsInStock
-                                    + _db.OrderDetails.Where(d =>
-                                            d.OrderId == orderId && d.ProductId == p.ProductId
-                                        )
-                                        .Select(d => d.Quantity)
-                                        .First()
-                                )
-                        ),
-                    cancellationToken
-                );
-        }
-
-        await transaction.CommitAsync(cancellationToken);
         return ChangeOrderStatusResult.Changed;
     }
 
-    // The checkout of both kinds of buyers once the lines are known: check, store the order, decrement the stock,
-    // store the events. onCreated: what else changes in the same transaction (the signed-in user's cart is emptied).
+    // The checkout of both kinds of buyers: price the lines from the catalog's replica, store the Pending order and
+    // its events. The stock is ProductApi's: it reserves it on order.placed and answers (#76).
     private async Task<PlaceOrderResult> CreateOrderAsync(
         OrderOwner owner,
         Guid idempotencyKey,
-        PlaceOrderRequest address,
-        IReadOnlyList<OrderLine> lines,
-        Action? onCreated,
+        ShippingAddressRequest address,
+        IReadOnlyList<OrderItemRequest> items,
         CancellationToken cancellationToken
     )
     {
-        var unavailable = lines
-            .Where(l => l.Product.Discontinued || l.Product.UnitPrice is null)
-            .Select(l => l.Product.ProductId)
+        // long: the lines come from the browser, and their sum must not overflow int.
+        var quantities = items
+            .GroupBy(i => i.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(i => (long)i.Quantity));
+        var productIds = quantities.Keys.ToArray();
+        var products = await _db
+            .OrderProducts.AsNoTracking()
+            .Where(p => productIds.Contains(p.ProductId) && !p.Deleted)
+            .ToDictionaryAsync(p => p.ProductId, cancellationToken);
+
+        // Unknown or deleted (or its ProductChanged has not arrived yet), discontinued, or without a price:
+        // the client marks these lines.
+        var unavailable = productIds
+            .Where(id =>
+                !products.TryGetValue(id, out var product)
+                || product.Discontinued
+                || product.UnitPrice is null
+            )
             .ToList();
         if (unavailable.Count > 0)
         {
@@ -249,9 +182,9 @@ public class OrderRepository : IOrderRepository
             );
         }
 
-        var insufficient = lines
-            .Where(l => l.Quantity > l.Product.UnitsInStock)
-            .Select(l => l.Product.ProductId)
+        // An early answer from the replica, which follows every reservation a moment later. ProductApi decides.
+        var insufficient = productIds
+            .Where(id => quantities[id] > products[id].UnitsInStock)
             .ToList();
         if (insufficient.Count > 0)
         {
@@ -278,29 +211,26 @@ public class OrderRepository : IOrderRepository
             ShipCountry = address.ShipCountry,
         };
         order.RecordPlaced(owner.UserId ?? GuestChangedBy, now);
-        foreach (var (product, lineQuantity) in lines)
+        foreach (var (productId, quantity) in quantities)
         {
-            // The quantity fits a smallint: it is at most units_in_stock (checked above).
-            var quantity = (short)lineQuantity;
+            var product = products[productId];
             order.OrderDetails.Add(
                 new OrderDetail
                 {
-                    ProductId = product.ProductId,
+                    ProductId = productId,
                     // A copy of the current price (not null: checked above), so later price changes
                     // do not alter the order.
                     UnitPrice = product.UnitPrice!.Value,
                     ProductName = product.ProductName,
-                    Quantity = quantity,
+                    // Fits a smallint: at most units_in_stock (checked above).
+                    Quantity = (short)quantity,
                 }
             );
-            product.UnitsInStock -= quantity;
         }
         _db.Orders.Add(order);
-        onCreated?.Invoke();
 
         // Two SaveChanges, one transaction: the order (its id comes from the database) and then the events
-        // that need this id are committed together or not at all. A product changed since it was read (another buyer,
-        // an admin edit) fails the xmin check: DbUpdateConcurrencyException, which the exception handler turns into 409.
+        // that need this id are committed together or not at all.
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -340,7 +270,8 @@ public class OrderRepository : IOrderRepository
                         .OrderDetails.Select(d => new OrderPlacedItem(
                             d.ProductName,
                             d.Quantity,
-                            d.UnitPrice
+                            d.UnitPrice,
+                            d.ProductId
                         ))
                         .ToList(),
                     owner.IsGuest
@@ -389,7 +320,4 @@ public class OrderRepository : IOrderRepository
 
     // Who places the order: a signed-in user (UserId set) or a guest (only the email).
     private sealed record OrderOwner(string? UserId, string? Email, bool IsGuest);
-
-    // A product with the quantity to order; long, because a guest's lines for the same product are summed.
-    private sealed record OrderLine(Product Product, long Quantity);
 }
