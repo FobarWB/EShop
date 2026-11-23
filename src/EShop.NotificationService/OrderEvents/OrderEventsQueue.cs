@@ -10,9 +10,14 @@ public static class OrderEventsQueue
 
     public static readonly IReadOnlyList<string> RoutingKeys =
     [
-        OrderEventTypes.OrderPlaced,
+        // Not order.placed since #76: the order is only accepted once the stock is reserved.
+        OrderEventTypes.OrderConfirmed,
+        OrderEventTypes.OrderRejected,
         OrderEventTypes.OrderCancelled,
     ];
+
+    // Bound until #76: unbound on start, or every order.placed would still arrive and go to the DLQ.
+    public static readonly IReadOnlyList<string> RetiredRoutingKeys = [OrderEventTypes.OrderPlaced];
 
     // A short outage (Mailpit restarting) is covered by the first retries, a longer one by the last.
     public static readonly IReadOnlyList<TimeSpan> RetryDelays =
@@ -27,6 +32,7 @@ public static class OrderEventsQueue
         Name,
         "notifications",
         RoutingKeys,
-        RetryDelays
+        RetryDelays,
+        RetiredRoutingKeys
     );
 }

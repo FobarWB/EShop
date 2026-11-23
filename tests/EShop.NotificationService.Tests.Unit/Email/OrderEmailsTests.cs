@@ -10,35 +10,26 @@ public class OrderEmailsTests
     private const string Email = "jane@example.com";
 
     [Fact]
-    public void TryCompose_OrderPlaced_ListsItemsAndTotal()
+    public void TryCompose_OrderConfirmed_ListsItemsAndTotal()
     {
-        var body = Serialize(
-            new OrderPlaced(
-                11085,
-                Email,
-                "Jane Doe",
-                41m,
-                DateTime.UtcNow,
-                [new OrderPlacedItem("Chai", 2, 18m)]
-            )
-        );
+        var body = Serialize(Confirmed(placedAsGuest: false));
 
-        var known = OrderEmails.TryCompose(OrderEventTypes.OrderPlaced, body, out var email);
+        var known = OrderEmails.TryCompose(OrderEventTypes.OrderConfirmed, body, out var email);
 
         known.ShouldBeTrue();
         var composed = email.ShouldNotBeNull();
-        (composed.To, composed.Subject).ShouldBe((Email, "Order #11085 placed"));
+        (composed.To, composed.Subject).ShouldBe((Email, "Order #11085 accepted"));
         composed.Body.ShouldContain("Hello Jane Doe,");
         composed.Body.ShouldContain("Chai x 2   36.00");
         composed.Body.ShouldContain("Total (shipping included): 41.00");
     }
 
     [Fact]
-    public void TryCompose_GuestOrderPlaced_PointsToTheSetPasswordEmail()
+    public void TryCompose_GuestOrderConfirmed_PointsToTheSetPasswordEmail()
     {
-        var body = Serialize(Placed(placedAsGuest: true));
+        var body = Serialize(Confirmed(placedAsGuest: true));
 
-        OrderEmails.TryCompose(OrderEventTypes.OrderPlaced, body, out var email);
+        OrderEmails.TryCompose(OrderEventTypes.OrderConfirmed, body, out var email);
 
         var composed = email.ShouldNotBeNull();
         composed.Body.ShouldContain($"We created an account for {Email}.");
@@ -46,13 +37,49 @@ public class OrderEmailsTests
     }
 
     [Fact]
-    public void TryCompose_SignedInOrderPlaced_SaysNothingAboutAnAccount()
+    public void TryCompose_SignedInOrderConfirmed_SaysNothingAboutAnAccount()
     {
-        var body = Serialize(Placed(placedAsGuest: false));
+        var body = Serialize(Confirmed(placedAsGuest: false));
 
-        OrderEmails.TryCompose(OrderEventTypes.OrderPlaced, body, out var email);
+        OrderEmails.TryCompose(OrderEventTypes.OrderConfirmed, body, out var email);
 
         email.ShouldNotBeNull().Body.ShouldNotContain("account");
+    }
+
+    [Fact]
+    public void TryCompose_OrderRejected_ListsTheShortLines()
+    {
+        var body = Serialize(
+            new OrderRejected(
+                11085,
+                Email,
+                "Jane Doe",
+                DateTime.UtcNow,
+                [new OrderRejectedItem("Chai", 2, 1), new OrderRejectedItem("Tofu", 1, 0)]
+            )
+        );
+
+        var known = OrderEmails.TryCompose(OrderEventTypes.OrderRejected, body, out var email);
+
+        known.ShouldBeTrue();
+        var composed = email.ShouldNotBeNull();
+        (composed.To, composed.Subject).ShouldBe((Email, "Order #11085 could not be accepted"));
+        composed.Body.ShouldContain("Chai: ordered 2, available 1");
+        composed.Body.ShouldContain("Tofu: ordered 1, available 0");
+    }
+
+    [Fact]
+    public void TryCompose_OrderPlaced_IsNoLongerAnEmail()
+    {
+        // Retired in #76: the buyer hears of the order once it is accepted or rejected.
+        var known = OrderEmails.TryCompose(
+            OrderEventTypes.OrderPlaced,
+            Encoding.UTF8.GetBytes("{}"),
+            out var email
+        );
+
+        known.ShouldBeFalse();
+        email.ShouldBeNull();
     }
 
     [Fact]
@@ -99,22 +126,23 @@ public class OrderEmailsTests
     {
         Should.Throw<JsonException>(() =>
             OrderEmails.TryCompose(
-                OrderEventTypes.OrderPlaced,
+                OrderEventTypes.OrderConfirmed,
                 Encoding.UTF8.GetBytes("not json"),
                 out _
             )
         );
     }
 
-    private static OrderPlaced Placed(bool placedAsGuest) =>
+    private static OrderConfirmed Confirmed(bool placedAsGuest) =>
         new(
             11085,
+            "user-1",
             Email,
             "Jane Doe",
             41m,
+            placedAsGuest,
             DateTime.UtcNow,
-            [new OrderPlacedItem("Chai", 2, 18m)],
-            placedAsGuest
+            [new OrderConfirmedItem(1, "Chai", 2, 18m)]
         );
 
     private static byte[] Serialize<T>(T @event) =>

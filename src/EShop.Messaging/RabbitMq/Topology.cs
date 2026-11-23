@@ -26,7 +26,8 @@ public static class Topology
         string queue,
         IReadOnlyList<string> routingKeys,
         IReadOnlyList<TimeSpan> retryDelays,
-        CancellationToken ct
+        CancellationToken ct,
+        IReadOnlyList<string>? retiredRoutingKeys = null
     )
     {
         // 1. The final dead letter queue: no arguments, a person inspects what lands here.
@@ -67,6 +68,18 @@ public static class Topology
         foreach (var routingKey in routingKeys)
         {
             await channel.QueueBindAsync(queue, EventsExchange, routingKey, cancellationToken: ct);
+        }
+
+        // 5. Bindings of an earlier version that this one no longer wants. Unbinding a binding that does not exist
+        //    is not an error, so a fresh broker is fine too.
+        foreach (var routingKey in retiredRoutingKeys ?? [])
+        {
+            await channel.QueueUnbindAsync(
+                queue,
+                EventsExchange,
+                routingKey,
+                cancellationToken: ct
+            );
         }
     }
 
