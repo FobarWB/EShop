@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-19
+verified: 2026-11-23
 ---
 
 # Services
@@ -10,23 +10,26 @@ verified: 2026-11-19
 All backend services share one PostgreSQL database (`eshop`) through the common DbContext.
 Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 
-- [ProductApi](ProductApi.md): products CRUD.
+- [ProductApi](ProductApi.md): products CRUD; owns the stock (reservation, #76).
 - [CategoryApi](CategoryApi.md): categories CRUD.
 - [ShoppingCart](ShoppingCart.md): carts and cart items per user.
-- [OrderApi](OrderApi.md): checkout (cart → order) and the user's orders.
+- [OrderApi](OrderApi.md): checkout (lines from the client, priced from its product replica) and the user's orders;
+  confirms them on the stock answer.
 - [CustomerApi](CustomerApi.md): the signed-in user's phone and saved shipping addresses; the accounts of guest orders.
 - [NotificationService](NotificationService.md): worker that emails the buyer on the order events from RabbitMQ.
 - [ClientApp](ClientApp.md): Angular SPA that calls the five APIs.
 
 ## Messaging
 
-OrderApi publishes `order.placed`, `order.cancelled` and `order.guest-placed`, CustomerApi `customer.guest-account-ready`,
-ProductApi `product.changed` and `product.deleted` (#75), each through its own transactional outbox
-(`outbox_messages.producer`) to the topic exchange `eshop.events`.
-Four consumers, each with its own queue, inbox, delayed retries and dead letter queue: NotificationService (order
-emails), CustomerApi (guest accounts in Keycloak), OrderApi (attaching guest orders, see
-[GuestCheckout](../Decisions/GuestCheckout.md)) and ShoppingCart (its product replica, see
-[DatabasePerService](../Decisions/DatabasePerService.md)). The mechanics are shared: `MessageConsumer` + one
+OrderApi publishes `order.placed`, `order.confirmed`, `order.rejected`, `order.cancelled` and `order.guest-placed`,
+CustomerApi `customer.guest-account-ready`, ProductApi `product.changed`, `product.deleted` (#75), `stock.reserved` and
+`stock.rejected` (#76), each through its own transactional outbox (`outbox_messages.producer`) to the topic exchange
+`eshop.events`.
+Five consuming services, each queue with its own inbox key, delayed retries and dead letter queue: NotificationService
+(order emails), CustomerApi (guest accounts in Keycloak), OrderApi (attaching guest orders, see
+[GuestCheckout](../Decisions/GuestCheckout.md); its product replica; the stock answers), ShoppingCart (its product
+replica; confirmed orders leave the cart) and ProductApi (the stock reservation). The checkout is a saga over these
+events, see [DatabasePerService](../Decisions/DatabasePerService.md). The mechanics are shared: `MessageConsumer` + one
 `IMessageHandler` per service in `EShop.Messaging`; contracts in `EShop.OrderApi.Contracts`, `EShop.CustomerApi.Contracts`
 and `EShop.ProductApi.Contracts`. See
 [TransactionalOutbox](../Decisions/TransactionalOutbox.md), [DelayedRetryWithTtlQueues](../Decisions/DelayedRetryWithTtlQueues.md)

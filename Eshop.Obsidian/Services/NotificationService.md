@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-11-10
-issue: 50
+verified: 2026-11-23
+issue: 76
 ---
 
 # NotificationService
@@ -14,15 +14,17 @@ Worker without HTTP endpoints: consumes the order events of [OrderApi](OrderApi.
 
 ## Messages
 
-Queue `notifications.order-events`, bound to the topic exchange `eshop.events` with the routing keys `order.placed`
-and `order.cancelled` (`OrderEvents/OrderEventsQueue.cs`; not to `order.*`, so `order.guest-placed` does not come
-here). Contracts: `OrderPlaced`, `OrderCancelled` from
+Queue `notifications.order-events`, bound to the topic exchange `eshop.events` with the routing keys `order.confirmed`,
+`order.rejected` and `order.cancelled` (`OrderEvents/OrderEventsQueue.cs`; not to `order.*`, so `order.guest-placed`
+does not come here). `order.placed` is retired (#76): `OrderEventsQueue.RetiredRoutingKeys` unbinds it on start, because
+declaring only adds bindings. Contracts: `OrderConfirmed`, `OrderRejected`, `OrderCancelled` from
 [EShop.OrderApi.Contracts](../../src/EShop.OrderApi.Contracts/), see
 [MessageContractsOwnedByProducer](../Decisions/MessageContractsOwnedByProducer.md).
 
 | Event | Email |
 | --- | --- |
-| `order.placed` | "Order #N placed": the recipient name, the items (name × quantity, line total), the total with shipping; for a guest order (`PlacedAsGuest`) also that an account was created and which email sets its password (#45) |
+| `order.confirmed` | "Order #N accepted" (the stock is reserved, #76): the recipient name, the items (name × quantity, line total), the total with shipping; for a guest order (`PlacedAsGuest`) also that an account was created and which email sets its password (#45) |
+| `order.rejected` | "Order #N could not be accepted" (#76): each short line as "name: ordered N, available M"; nothing was reserved, the buyer may order again with what is available |
 | `order.cancelled` | "Order #N cancelled" with the time of the cancellation (UTC) |
 
 An event without `email` (the buyer has no address) sends nothing and is still recorded as processed.
@@ -50,7 +52,7 @@ One channel with publisher confirms, `BasicQos` prefetch 10, `autoAck: false`. F
 The email is sent before the inbox row is written: SMTP cannot be rolled back, and the other order would lose the email
 when the process dies in between. A duplicate beats a loss ([TransactionalOutbox](../Decisions/TransactionalOutbox.md)).
 
-The consumer declares the exchange and the five queues itself, in a loop that connects again every 5 s while RabbitMQ
+The consumer declares the exchange and the five queues itself and unbinds the retired keys, in a loop that connects again every 5 s while RabbitMQ
 is unavailable (until #45 a `TopologyInitializer` did it at start and stopped the process without a broker).
 
 ## Data
@@ -72,12 +74,14 @@ In compose it waits for the migrator, a healthy RabbitMQ and a healthy Mailpit.
 ## Tests
 
 - [Unit](../../tests/EShop.NotificationService.Tests.Unit/): `OrderEmails` (subjects, texts, the guest paragraph only
-  for guest orders, no address, unknown type, invalid JSON).
+  for guest orders, the short lines of a rejection, `order.placed` no longer an email, no address, unknown type,
+  invalid JSON).
 - [Integration](../../tests/EShop.NotificationService.Tests.Integration/): `MessageConsumer<OrderEmailHandler>`, registered
   as in `Program.cs`, against a RabbitMQ container
   (Testcontainers) and the database `eshop_test_notificationservice`, with a fake `IEmailSender`: email and inbox row,
   a duplicate `MessageId` sends one email, a failing sender puts a copy into `retry.1` with attempt 1, the last attempt
-  goes to the DLQ, unknown type and missing `MessageId` go to the DLQ without an email.
+  goes to the DLQ, unknown type and missing `MessageId` go to the DLQ without an email; an `order.placed` binding left by
+  an earlier version is removed, so such an event no longer arrives.
 
 ## Known issues
 

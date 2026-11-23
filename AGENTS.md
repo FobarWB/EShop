@@ -10,19 +10,19 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 
 | Path | Purpose | Local URL |
 |---|---|---|
-| `src/EShop.ProductApi/` | Products REST API; publishes `product.changed` / `product.deleted` | https://localhost:5002 |
+| `src/EShop.ProductApi/` | Products REST API; publishes `product.changed` / `product.deleted`; reserves and returns the stock of orders (consumes `order.placed` / `order.cancelled`) | https://localhost:5002 |
 | `src/EShop.CategoryApi/` | Categories REST API | https://localhost:5003 |
-| `src/EShop.ShoppingCart/` | Shopping cart REST API; keeps a product replica (`cart_products`) fed by product events | https://localhost:5004 |
-| `src/EShop.OrderApi/` | Orders REST API: checkout from the cart, guest checkout with an email; consumes `customer.guest-account-ready` | https://localhost:5005 |
+| `src/EShop.ShoppingCart/` | Shopping cart REST API; keeps a product replica (`cart_products`) fed by product events; takes confirmed orders out of the cart (`order.confirmed`) | https://localhost:5004 |
+| `src/EShop.OrderApi/` | Orders REST API: checkout with the client's lines priced from its product replica (`order_products`), guest checkout with an email; confirms or rejects orders on the stock answer; consumes `customer.guest-account-ready` | https://localhost:5005 |
 | `src/EShop.CustomerApi/` | Customer REST API: the signed-in user's phone and saved shipping addresses; creates the Keycloak accounts of guest orders (consumes `order.guest-placed`) | https://localhost:5006 |
 | `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
 | `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
 | `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
 | `src/EShop.NotificationService/` | Worker: consumes order events from RabbitMQ, sends emails through Mailpit (SMTP localhost:1025); `Dockerfile` of the worker container | — |
 | `src/EShop.Messaging/` | Shared event infrastructure for all services: publishing through the transactional outbox (one producer name per service), consuming with inbox, retries and DLQ (`MessageConsumer` + one `IMessageHandler` per service), RabbitMQ connection and topology | — |
-| `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderCancelled`, `GuestOrderPlaced`): the contract its consumers deserialize | — |
+| `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderConfirmed`, `OrderRejected`, `OrderCancelled`, `GuestOrderPlaced`): the contract its consumers deserialize | — |
 | `src/EShop.CustomerApi.Contracts/` | Events published by CustomerApi (`GuestAccountReady`) | — |
-| `src/EShop.ProductApi.Contracts/` | Events published by ProductApi (`ProductChanged`, `ProductDeleted`) | — |
+| `src/EShop.ProductApi.Contracts/` | Events published by ProductApi (`ProductChanged`, `ProductDeleted`, `StockReserved`, `StockRejected`) | — |
 | `src/EShop.ServiceDefaults/` | Shared API setup: JWT validation `AddEShopAuthentication()`, `User.GetUserId()` (token `sub`), Keycloak Admin API client `AddKeycloakAdminClient()` (service account, one settings section per API) | — |
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
 | `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the five APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
@@ -133,8 +133,9 @@ docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/n
 The data is loaded with the container's `psql` (no local PostgreSQL needed); copying the file avoids piping it through
 PowerShell 5.1, which would change the encoding of non-ASCII Northwind names.
 
-The cart's product replica (`cart_products`) is filled by events, not by the SQL file: once ShoppingCart has run (it
-declares its queue), call `POST /api/products/events/republish` as an admin (see `Eshop.Obsidian/Services/ProductApi.md`).
+The product replicas (`cart_products`, `order_products`) are filled by events, not by the SQL file: once ShoppingCart and
+OrderApi have run (they declare their queues), call `POST /api/products/events/republish` as an admin (see
+`Eshop.Obsidian/Services/ProductApi.md`). Checkout answers 409 for every product until `order_products` is filled.
 
 - `docker compose down` keeps the data (named volume `eshop_postgres-data`); `docker compose down -v` deletes it,
   and the next `up` runs `db/init/` again.

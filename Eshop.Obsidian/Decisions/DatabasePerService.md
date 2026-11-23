@@ -1,8 +1,8 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-19
-issue: 51
+verified: 2026-11-23
+issue: 76
 ---
 
 # DatabasePerService
@@ -26,10 +26,10 @@ rests on one transaction over three services' data.
   version, `ProductDeleted`); ShoppingCart and OrderApi keep replicas and ignore an event not newer than the stored
   version. The cart returns `categoryId`; the client resolves the name, as it does for the anonymous cart.
 - **Checkout as a saga (choreography) over RabbitMQ**: OrderApi stores a `Pending` order priced from its replica and
-  publishes `OrderPlaced`; ProductApi reserves the stock of all lines in one transaction (conditional update,
-  `stock_reservations`) and answers `StockReserved` or `StockRejected`; the order becomes `Confirmed` or `Rejected`.
-  Cancelling publishes `OrderCancelled`, and ProductApi returns the reserved stock once (compensation). ShoppingCart
-  empties the cart on `OrderPlaced`. Chosen over a synchronous reservation call: it builds on the messaging of #50,
+  publishes `OrderPlaced`; ProductApi reserves the stock of all lines in one transaction (rows locked with
+  `SELECT … FOR UPDATE`, `stock_reservations`) and answers `StockReserved` or `StockRejected`; the order becomes
+  `Confirmed` or `Rejected`. Cancelling publishes `OrderCancelled`, and ProductApi returns the reserved stock once
+  (compensation). ShoppingCart removes the ordered quantities from the cart on `OrderConfirmed`. Chosen over a synchronous reservation call: it builds on the messaging of #50,
   and OrderApi does not need ProductApi to be up to accept an order.
 - **Steps**, each keeping the shop working, merged into the integration branch of #51: messaging independent of
   `EShopDbContext` (#74), events and replicas (#75), checkout saga (#76), a DbContext and schema per service (#77),
@@ -43,7 +43,8 @@ rests on one transaction over three services' data.
   reservation decides.
 - A placed order can still be rejected for stock: the client polls the order until `Confirmed` or `Rejected`, and the
   confirmation email is sent on `OrderConfirmed`.
-- Overselling is prevented by ProductApi alone (conditional update), no longer by `xmin` checks in OrderApi.
+- Overselling is prevented by ProductApi alone (row locks in the reservation, `xmin` as a safety net), no longer by
+  `xmin` checks in OrderApi.
 - Deleting a product no longer checks carts and orders: orders keep a snapshot, carts get `ProductDeleted`.
 - [ShoppingCartReadsCatalogData](ShoppingCartReadsCatalogData.md) is superseded by #75, the stock return of
   [OrderLifecycle](OrderLifecycle.md) by #76.
@@ -61,3 +62,33 @@ rests on one transaction over three services' data.
   and replica rows in OrderApi's tests.
 - Validation that a product exists moves from the foreign keys to the services: the cart checks its copy, the checkout
   reads `products` by id (#75), then the replica and the reservation (#76).
+
+## Refined in #76
+
+- **Lines from the client**: `POST /api/orders` takes `{ address, items }`, as the guest checkout; names and prices come
+  from OrderApi's replica `order_products`, so the client cannot set a price. Considered: OrderApi asking ShoppingCart
+  for the cart synchronously (the cart service would have to be up to accept an order).
+- **Early check from the replica**: an unknown, deleted, discontinued or unpriced product, or a quantity above the
+  replica's stock, is a 409 at checkout. A hint only: the reservation decides.
+- **Reservation**: `SELECT … FOR UPDATE` of the order's products in product id order (no deadlock between two orders
+  sharing products), every stock change through `ProductEvents.AddChanged` (a revision and a `ProductChanged`).
+  Considered: a conditional `UPDATE … WHERE units_in_stock >= @q`, which would build the revision and the snapshot in a
+  second, SQL-only path.
+- **`stock_reservations` records the decision per order** (`Reserved`, `Rejected`, `Released`, `Cancelled`): a redelivered
+  event changes nothing, the stock is returned once, and an `order.cancelled` overtaking its `order.placed` (a retry
+  reorders them) leaves the tombstone `Cancelled`, so the late `order.placed` takes nothing.
+- **The cart is emptied on `OrderConfirmed`**, not on `OrderPlaced`: a rejected order keeps the cart. Only the ordered
+  quantities go; what was added after the checkout stays. A guest order's `OrderConfirmed` carries no user id, also when
+  CustomerApi attached the account before the answer.
+- **Lifecycle**: `Pending → Confirmed | Rejected`, only a confirmed order can be paid; admins cannot set `Confirmed` or
+  `Rejected` ([OrderLifecycle](OrderLifecycle.md)).
+- **Emails** on `order.confirmed` and `order.rejected`; NotificationService unbinds `order.placed` on start.
+- **Client**: the order page polls `GET /api/orders/{id}` every 2 s, at most 15 times; the guest page says the result
+  comes by email. The cart counter is read again 3 s after `Confirmed`, once `order.confirmed` has left the outbox.
+- Not in #76: `Revision` replacing `xmin` as the products' concurrency token.
+- Checked on compose: an order confirmed 4.3 s after the checkout (two outbox polls); a stock lowered behind the replica's
+  back rejected the order and kept the cart; two buyers of the last unit got one `Confirmed` and one `Rejected`, stock 0,
+  decided within 14 ms; a cancel returned the stock once (`Released`); a guest order was confirmed with `userId: null`;
+  all DLQs empty.
+- Open: sign-in for the account created at a guest checkout, and whether such an order waits for the email confirmation
+  (a separate issue).

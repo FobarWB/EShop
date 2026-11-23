@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-02
+verified: 2026-11-23
 issue: 14
 ---
 
@@ -99,6 +99,16 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 - **`numeric` scale**: `unit_price numeric(19,4)` comes back as `18.0000`: the same `decimal` value.
 - **Adding a nullable column without a default** (`customer_email`) changes only the catalog: instant, no table rewrite.
 - **DDL is transactional**: a migration and its `__EFMigrationsHistory` row commit together.
+
+## Stock reservation (#76)
+
+- **`SELECT … FOR UPDATE`** locks the rows until the commit; a second transaction waits, then reads the committed value.
+  Better than a version check when conflicts are frequent (the last units): no exception, no retry.
+- **Lock in one order**: transactions locking A then B and B then A wait for each other; PostgreSQL finds the cycle
+  after `deadlock_timeout` (1 s) and aborts one. `ORDER BY product_id` gives every reservation the same order.
+- **`SELECT *` leaves out system columns**: an entity that maps `xmin` needs `SELECT p.*, p.xmin`.
+- **Two INSERTs of one primary key**: the second waits for the first transaction, then fails with 23505; a natural
+  "first decision wins" for two first deliveries of one order.
 
 ## Open questions
 

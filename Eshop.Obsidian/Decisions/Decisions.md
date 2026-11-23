@@ -1,6 +1,6 @@
 ---
 type: index
-verified: 2026-11-19
+verified: 2026-11-23
 ---
 
 # Decisions
@@ -23,7 +23,8 @@ Architecture decision records: the context, the decision and its consequences. N
 - [IdempotentCheckout](IdempotentCheckout.md): the client sends one `Idempotency-Key` per checkout attempt; a retry
   returns the same order.
 - [OrderLifecycle](OrderLifecycle.md): order statuses with transitions in one place, stored as text with a CHECK,
-  an append-only status journal; cancelling returns the stock in the same transaction.
+  an append-only status journal; since #76 `Confirmed` / `Rejected` come from the stock reservation and ProductApi
+  returns the stock of a cancelled order.
 - [TransactionalOutbox](TransactionalOutbox.md): events are stored with the change in one transaction and published by a
   polling publisher; consumers keep an inbox (at least once, idempotent consumers).
 - [UseRabbitMqClient](UseRabbitMqClient.md): `RabbitMQ.Client` with a thin shared layer instead of MassTransit.

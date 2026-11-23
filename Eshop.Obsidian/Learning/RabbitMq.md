@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-19
+verified: 2026-11-23
 issue: 50
 ---
 
@@ -135,7 +135,8 @@ coordinator: OrderApi → `order.guest-placed` → CustomerApi (Keycloak user, s
   process without a broker; an API must keep serving HTTP. The consumer declares its queues in a loop that connects
   again every 5 s.
 - **Bind exact routing keys.** NotificationService binds `order.placed` and `order.cancelled`, not `order.*`: a new
-  event type (`order.guest-placed`) would otherwise land in its queue and go to the DLQ as unknown.
+  event type (`order.guest-placed`) would otherwise land in its queue and go to the DLQ as unknown. (Since #76:
+  `order.confirmed`, `order.rejected`, `order.cancelled`.)
 - Checked on compose: a guest order went through all three queues in about a second (three outbox rows published,
   one inbox row per consumer, all DLQs empty).
 
@@ -154,6 +155,24 @@ Product replicas fed by ProductApi's events ([DatabasePerService](../Decisions/D
   (`removed from 1 carts`), tombstone revision 2; all DLQs empty.
 - The first log check after the PUT showed nothing: it ran before the publisher's next poll. Eventual consistency,
   seen by hand.
+
+## Applied in #76
+
+The checkout saga ([DatabasePerService](../Decisions/DatabasePerService.md)). Lessons:
+
+- **Choreography**: no orchestrator; each service reacts to the event before it, and each step has its compensation
+  (a cancel returns the stock). The buyer sees the eventual consistency as `Pending` for a few seconds.
+- **Bindings only grow**: dropping a routing key from the code leaves its binding in the broker, and its events keep
+  arriving (here: to the DLQ as an unknown type). `ConsumerQueue.RetiredRoutingKeys` unbinds them on start; unbinding a
+  binding that does not exist is not an error. Checked on compose: `order.placed` disappeared from
+  `notifications.order-events`.
+- **Idempotency on two levels**: the inbox stops the same message; the state stops the same fact (a reservation exists,
+  a transition is no longer allowed). Each consumer of the saga has both.
+- **Retries reorder**: a compensation can arrive before its action. A tombstone (the reservation `Cancelled`) makes the
+  late action a no-op.
+- **One inbox key per queue** for new consumers: one event bound to two queues of a service is processed by each.
+- **Latency is the outbox poll**: an order was confirmed 4.3 s after the checkout, two polls of 2 s; the work itself
+  took milliseconds (two orders for the last unit were decided 14 ms apart).
 
 ## Open questions
 
