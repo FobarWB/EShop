@@ -4,8 +4,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ActivatedRoute, convertToParamMap, ParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
-import { OrderComponent } from './order.component';
+import { cartRefreshDelay, OrderComponent, statusPollInterval, statusPollLimit } from './order.component';
 import { IOrder } from '../../models/order.model';
+import { CartService } from '../../services/cart.service';
 
 const order: IOrder = {
   orderId: 7,
@@ -27,6 +28,7 @@ describe('OrderComponent', () =>
   let fixture: ComponentFixture<OrderComponent>;
   let httpTesting: HttpTestingController;
   let route: { paramMap: unknown; snapshot: { queryParamMap: ParamMap } };
+  let cartService: { refreshItemCount: ReturnType<typeof vi.fn> };
 
   beforeEach(async () =>
   {
@@ -34,13 +36,15 @@ describe('OrderComponent', () =>
       paramMap: of(convertToParamMap({ id: '7' })),
       snapshot: { queryParamMap: convertToParamMap({}) }
     };
+    cartService = { refreshItemCount: vi.fn() };
     await TestBed.configureTestingModule({
       imports: [OrderComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: route }
+        { provide: ActivatedRoute, useValue: route },
+        { provide: CartService, useValue: cartService }
       ]
     }).compileComponents();
 
@@ -50,8 +54,10 @@ describe('OrderComponent', () =>
 
   afterEach(() =>
   {
-    httpTesting.verify();
+    // Global state first: a failed verify() must not leave fake timers or spies to the tests that follow.
+    vi.useRealTimers();
     vi.restoreAllMocks();
+    httpTesting.verify();
   });
 
   it('shows the order number, the items, the total and the address', () =>
@@ -151,6 +157,106 @@ describe('OrderComponent', () =>
 
     expect(text(fixture.nativeElement.querySelector('.cancel-error'))).toContain('can no longer be cancelled');
     expect(text(fixture.nativeElement.querySelector('.order-status'))).toContain('Pending');
+  });
+
+  it('says the stock is being checked while the order is pending', () =>
+  {
+    load(order);
+
+    expect(text(fixture.nativeElement.querySelector('.status-note'))).toContain('checking that everything is in stock');
+  });
+
+  it('asks again until the order is decided, then stops', () =>
+  {
+    vi.useFakeTimers();
+    load(order);
+
+    vi.advanceTimersByTime(statusPollInterval);
+    httpTesting.expectOne('/api/orders/7').flush(order);
+    vi.advanceTimersByTime(statusPollInterval);
+    httpTesting.expectOne('/api/orders/7').flush({ ...order, status: 'Confirmed' });
+    fixture.detectChanges();
+
+    expect(text(fixture.nativeElement.querySelector('.order-status'))).toContain('Confirmed');
+    vi.advanceTimersByTime(statusPollInterval);
+    httpTesting.expectNone('/api/orders/7');
+  });
+
+  it('reads the cart counter again a little after the confirmation', () =>
+  {
+    vi.useFakeTimers();
+    load(order);
+    vi.advanceTimersByTime(statusPollInterval);
+    httpTesting.expectOne('/api/orders/7').flush({ ...order, status: 'Confirmed' });
+
+    expect(cartService.refreshItemCount).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(cartRefreshDelay);
+    expect(cartService.refreshItemCount).toHaveBeenCalledOnce();
+  });
+
+  it('reads the cart counter again when the order was confirmed before the page opened', () =>
+  {
+    vi.useFakeTimers();
+    route.snapshot.queryParamMap = convertToParamMap({ placed: 'true' });
+    fixture = TestBed.createComponent(OrderComponent);
+    load({ ...order, status: 'Confirmed' });
+
+    vi.advanceTimersByTime(cartRefreshDelay);
+
+    expect(cartService.refreshItemCount).toHaveBeenCalledOnce();
+  });
+
+  it('does not ask again for an order that is already decided', () =>
+  {
+    vi.useFakeTimers();
+    load({ ...order, status: 'Confirmed' });
+
+    vi.advanceTimersByTime(statusPollInterval * 2);
+
+    httpTesting.expectNone('/api/orders/7');
+  });
+
+  it('gives up after the limit and says it takes longer', () =>
+  {
+    vi.useFakeTimers();
+    load(order);
+
+    for (let i = 0; i < statusPollLimit; i++)
+    {
+      vi.advanceTimersByTime(statusPollInterval);
+      httpTesting.expectOne('/api/orders/7').flush(order);
+    }
+    fixture.detectChanges();
+
+    expect(text(fixture.nativeElement.querySelector('.status-message'))).toContain('takes longer than usual');
+    vi.advanceTimersByTime(statusPollInterval);
+    httpTesting.expectNone('/api/orders/7');
+  });
+
+  it('stops asking once the order is cancelled on the page', () =>
+  {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    load(order);
+
+    cancelButton().click();
+    httpTesting.expectOne('/api/orders/7/cancel').flush({ ...order, status: 'Cancelled' });
+    vi.advanceTimersByTime(statusPollInterval);
+
+    httpTesting.expectNone('/api/orders/7');
+  });
+
+  it('explains a rejected order and does not thank for it', () =>
+  {
+    route.snapshot.queryParamMap = convertToParamMap({ placed: 'true' });
+    fixture = TestBed.createComponent(OrderComponent);
+
+    load({ ...order, status: 'Rejected' });
+
+    expect(text(fixture.nativeElement.querySelector('h4'))).not.toContain('Thank you');
+    const note = fixture.nativeElement.querySelector('.status-note');
+    expect(text(note)).toContain('could not be accepted');
+    expect(note.querySelector('a').getAttribute('href')).toBe('/cart');
   });
 
   function load(value: IOrder): void

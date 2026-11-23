@@ -11,12 +11,13 @@
   <hr />
   <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>&euro; {{ placed.order.total | number: '1.2-2' }}</span></div>
   <p class="mt-4 emails">
-    We sent two emails to <b>{{ placed.email }}</b>: the order confirmation and a link to set your password.
+    We are checking that everything is in stock. You will get two emails at <b>{{ placed.email }}</b>:
+    whether the order is accepted (or what is not available), and a link to set your password.
     After that the order is in <a routerLink="/account/orders">My orders</a>.
   </p>
   } @else {
   <h4><b>Your order has been placed.</b></h4>
-  <p class="emails">Check your email for the confirmation.</p>
+  <p class="emails">We will email you whether it is accepted.</p>
   }
   <a routerLink="/">Back to shop</a>
 </div>

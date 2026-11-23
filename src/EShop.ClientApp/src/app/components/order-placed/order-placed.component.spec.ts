@@ -38,7 +38,7 @@ describe('OrderPlacedComponent', () =>
     expect(page).toContain('Order #11088');
     expect(page).toContain('Chai × 2');
     expect(page).toMatch(/Total\s*€ 41\.00/);
-    expect(page).toContain('We sent two emails to jane@example.com');
+    expect(page).toContain('You will get two emails at jane@example.com');
   });
 
   it('shows only a short note after a reload, when the state is gone', async () =>

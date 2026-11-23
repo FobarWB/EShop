@@ -129,11 +129,10 @@ export class CheckoutComponent implements OnInit
     });
   }
 
-  // The cart is emptied by ShoppingCart once the stock is reserved (#76), a moment later: the counter is read again
-  // here, and the order page follows the status. The confirmation page loads the order by its id.
+  // The confirmation page loads the order by its id and follows its status; it also reads the cart counter again
+  // once ShoppingCart has emptied the cart (#76).
   private showOrder(order: IOrder): void
   {
-    this.cartService.refreshItemCount();
     this.router.navigate(['/orders', order.orderId], { queryParams: { placed: true } });
   }
 

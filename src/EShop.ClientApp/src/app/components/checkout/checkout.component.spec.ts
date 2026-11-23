@@ -9,7 +9,6 @@ import { IAddress } from '../../models/address.model';
 import { ICart } from '../../models/cart.model';
 import { IOrder } from '../../models/order.model';
 import { AuthService } from '../../services/auth.service';
-import { CartService } from '../../services/cart.service';
 
 const cartUrl = '/api/carts/me';
 const ordersUrl = '/api/orders';
@@ -73,8 +72,6 @@ describe('CheckoutComponent', () =>
 
   afterEach(() =>
   {
-    // A placed order re-reads the cart for the header counter.
-    httpTesting.match(cartUrl);
     httpTesting.verify();
   });
 
@@ -114,20 +111,6 @@ describe('CheckoutComponent', () =>
     expect(req.request.headers.get('Idempotency-Key')).toBeTruthy();
     req.flush(order, { status: 201, statusText: 'Created' });
     expect(navigate).toHaveBeenCalledWith(['/orders', 7], { queryParams: { placed: true } });
-  });
-
-  it('updates the cart counter after the order: the API has emptied the cart', () =>
-  {
-    const cartService = TestBed.inject(CartService);
-    loadCart(cart);
-    expect(cartService.itemCount()).toBe(3);
-    fillAddress();
-
-    placeOrderButton().click();
-    httpTesting.expectOne(ordersUrl).flush(order, { status: 201, statusText: 'Created' });
-    httpTesting.expectOne(cartUrl).flush('Cart not found', { status: 404, statusText: 'Not Found' });
-
-    expect(cartService.itemCount()).toBe(0);
   });
 
   it('prefills the form with the first saved address and allows ordering', () =>
