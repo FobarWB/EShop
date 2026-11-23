@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-19
+verified: 2026-11-23
 issue: 33
 ---
 
@@ -55,10 +55,13 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
 - `ToPageAsync()` in `EShop.ServiceDefaults`: `CountAsync`, then `Skip`/`Take` on an ordered query.
 - EF Core wraps database errors in `DbUpdateException`; the PostgreSQL error is its `InnerException`
   (`PostgresException.SqlState`), see `ForeignKeyViolationHandler`.
-- `Product.Version` → `xmin`; `ConcurrencyConflictHandler` maps the exception to 409; the checkout writes order, stock
-  and cart in one `SaveChangesAsync` (#42, [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md)).
-- `Order.Version` → `xmin` too; the cancel saves the order, then `ExecuteUpdateAsync`s the stock, in one explicit
-  transaction (#43, [OrderLifecycle](../Decisions/OrderLifecycle.md)).
+- `Product.Version` → `xmin`; `ConcurrencyConflictHandler` maps the exception to 409; the checkout wrote order, stock
+  and cart in one `SaveChangesAsync` (#42 until #76: the stock is ProductApi's,
+  [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md)).
+- `Order.Version` → `xmin` too; the cancel saved the order, then `ExecuteUpdateAsync`ed the stock, in one explicit
+  transaction (#43 until #76, [OrderLifecycle](../Decisions/OrderLifecycle.md)).
+- **`FromSql` with `FOR UPDATE` returns tracked entities** as long as nothing is composed on top (only `ToListAsync`;
+  `SingleOrDefault` would wrap the SQL in a subquery). Related rows afterwards: `Entry(e).Collection(…).LoadAsync()` (#76).
 
 ## Outbox and background services (#50)
 

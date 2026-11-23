@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-11-19
-issue: 75
+verified: 2026-11-23
+issue: 76
 ---
 
 # ShoppingCart
@@ -67,11 +67,18 @@ an empty cart cleared or an unchanged quantity writes no rows and still succeeds
 - The initial data comes from ProductApi's republish (`POST api/products/events/republish`), after this consumer has
   declared its queue.
 
+`OrderEvents/OrderEventsHandler` on the queue `carts.orders` (#76; `order.confirmed` from [OrderApi](OrderApi.md)): takes
+the order's lines out of the buyer's cart, only the ordered quantities. A line holding no more than was ordered is
+deleted, a larger one reduced (added after the checkout). Relative `ExecuteDelete` / `ExecuteUpdate` inside the
+consumer's transaction, so a quantity changed through the API at the same time is not overwritten. A guest order
+(`UserId` null) changes no cart. Not on `order.placed`: a rejected order keeps the cart.
+
 ## Dependencies
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`); reads no other service's table since #75. RabbitMQ from
-`EShop.Messaging`, contracts of `EShop.ProductApi.Contracts`; in compose it waits for a healthy RabbitMQ.
-[OrderApi](OrderApi.md) reads the cart and deletes its items at checkout, in the transaction that stores the order.
+`EShop.Messaging`, contracts of `EShop.ProductApi.Contracts` and `EShop.OrderApi.Contracts`; in compose it waits for a
+healthy RabbitMQ. [OrderApi](OrderApi.md) no longer reads the cart (#76): the client sends the cart's lines with the
+order, and the cart is emptied on `order.confirmed`.
 JWT validation, `User.GetUserId()` and error handling from `EShop.ServiceDefaults`; tokens are issued by Keycloak.
 
 ## Tests
@@ -80,6 +87,8 @@ JWT validation, `User.GetUserId()` and error handling from `EShop.ServiceDefault
 (repository and API) tests; see [Testing](../Learning/Testing.md). The tests seed `cart_products`
 (`ShoppingCartDatabase.SeedCartProductAsync`), not `products`. `ProductEventsHandlerTests` call the handler in a
 transaction, as the consumer does: insert, newer and older revisions, a duplicate, tombstones, an unknown type.
+`OrderEvents.OrderEventsHandlerTests`: the ordered lines leave the cart, a larger quantity keeps the rest, a smaller one
+removes the line, other carts and guest orders are untouched.
 The API tests remove the consumer (`EShopApiFactory`).
 
 ## Known issues
@@ -87,6 +96,5 @@ The API tests remove the consumer (`EShopApiFactory`).
 - Two concurrent first adds for the same user can both try to create a cart; the second fails on the unique `UserId` index (500).
 - A quantity above stock or for an item that is not in the cart answers 400; 409 and 404 (as for POST) would be more precise.
 - A discontinued product can still be added to the cart; the cart marks it and the checkout refuses it.
-- The copy's stock is a hint: a checkout or a cancel in OrderApi does not reach it until #76.
-- An item added before the first republish has no copy: hidden in the cart, still ordered by the checkout (OrderApi
-  reads `cart_items`). Gone with #76.
+- The copy's stock is a hint: the reservation in ProductApi decides; every reservation publishes `ProductChanged`, so
+  the copy follows within seconds.

@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-17
+verified: 2026-11-23
 issue: 9
 ---
 
@@ -105,3 +105,16 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
 - **Mutation checks by test class**: a whole test project starts its containers again for every broken change; running
   only the affected project (or class) keeps a round of breakages at a few minutes. Watch the parser: a breakage that
   does not compile shows no test count at all and must not be read as "passed".
+
+## Saga tests (#76)
+
+- **A lock race, deterministic**: the first reservation keeps its transaction open, the second must not finish within
+  300 ms, then the first commits and the second is rejected. Without `FOR UPDATE` the second finishes at once.
+- **A helper that opens a transaction disposes it when the action throws**: otherwise its row locks outlive the test,
+  and every following test waits 30 s in its reset. Found by a deliberate breakage.
+- **Client: a throwing `afterEach` poisons the run.** `httpTesting.verify()` that throws stops the hooks after it,
+  so Angular's TestBed reset does not run, and the following specs (also other files) fail with "Cannot configure the
+  test module". One real failure shows as many. Open: [#82](https://github.com/FobarWB/EShop/issues/82).
+- **Polling with `vi.useFakeTimers()`** and `advanceTimersByTime`. `timer(0)` also waits for an advance, so "delay 0" is
+  no breakage the tests can see; break by calling directly.
+- **`HasDefaultValue` and null again**: a product seeded without a price got 0 and was reserved (see [EfCore](EfCore.md)).

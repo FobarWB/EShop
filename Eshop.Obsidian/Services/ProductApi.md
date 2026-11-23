@@ -1,12 +1,12 @@
 ---
 type: service
-verified: 2026-11-19
-issue: 75
+verified: 2026-11-23
+issue: 76
 ---
 
 # ProductApi
 
-REST API for products (CRUD).
+REST API for products (CRUD); owns the stock: reserves it for placed orders and returns it on cancel (#76).
 
 - Project: [EShop.ProductApi](../../src/EShop.ProductApi/)
 - Local URL: https://localhost:5002 (API reference: `/scalar`, OpenAPI document: `/openapi/v1.json`)
@@ -30,7 +30,7 @@ The list is paged (`{ items, page, pageSize, totalCount }`, see [PagedListRespon
 DELETE no longer checks carts and orders (#75): orders keep a copy of name and price, carts drop the product on
 `ProductDeleted`. Before #75 it returned 409 while cart items or order details referenced the product (#32, #33).
 PUT and DELETE also return 409 when the product changed since it was read (its `xmin` no longer matches, e.g. a
-checkout decremented the stock): the change is not stored, see [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md).
+reservation changed the stock): the change is not stored, see [OptimisticConcurrencyWithXmin](../Decisions/OptimisticConcurrencyWithXmin.md).
 
 ## Contract
 
@@ -56,8 +56,10 @@ Published through the outbox (producer `productapi`, `ProductApiOutbox.Producer`
 
 | Type | Contract | When |
 | --- | --- | --- |
-| `product.changed` | `ProductChanged(ProductId, ProductName, CategoryId, UnitPrice, UnitsInStock, Discontinued, Revision, ChangedAt)` | create, a PUT that changes something, republish |
+| `product.changed` | `ProductChanged(ProductId, ProductName, CategoryId, UnitPrice, UnitsInStock, Discontinued, Revision, ChangedAt)` | create, a PUT that changes something, a reservation or its return (#76), republish |
 | `product.deleted` | `ProductDeleted(ProductId, Revision, DeletedAt)` | delete |
+| `stock.reserved` | `StockReserved(OrderId, ReservedAt)` | the stock of every line of an order is taken (#76) |
+| `stock.rejected` | `StockRejected(OrderId, Shortages[ProductId, Requested, Available], RejectedAt)` | a line was short, nothing taken (#76) |
 
 - A snapshot, not a diff: consumers replace their copy and ignore a revision not newer than theirs.
 - `products.revision` (`bigint`, 0 for Northwind) grows by one with every change, in `ProductEvents` only: the one place
@@ -69,10 +71,31 @@ Published through the outbox (producer `productapi`, `ProductApiOutbox.Producer`
 - Republish writes the current state without a new revision: safe to repeat. Call it only after the consumers have
   declared their queues (ShoppingCart started once): an event without a bound queue is dropped (`mandatory: false`).
 
+## Stock reservation (#76)
+
+`Reservations/OrderEventsHandler` on the queue `products.orders` (`order.placed`, `order.cancelled` from
+[OrderApi](OrderApi.md)), see [DatabasePerService](../Decisions/DatabasePerService.md):
+
+- `order.placed`: a reservation of the order exists → nothing (a redelivery, or the tombstone of an order cancelled
+  first). Otherwise the lines summed per product, then
+  `SELECT p.*, p.xmin FROM products p WHERE p.product_id = ANY(@ids) ORDER BY p.product_id FOR UPDATE`. A missing
+  product, `ProductId` 0, discontinued or no price counts as 0 available. All lines available → the stock decremented
+  through `ProductEvents.AddChanged` (revision + 1, `ProductChanged`), `Reserved`, `stock.reserved`; any line short →
+  nothing taken, `Rejected`, `stock.rejected` with every shortage.
+- `order.cancelled`: the reservation locked `FOR UPDATE`; none → the tombstone `Cancelled`; `Reserved` → the stock
+  returned (`AddChanged`; a product deleted meanwhile is skipped), `Released`; otherwise nothing.
+- Inside the consumer's transaction: stock, events, answer and inbox row commit together. `FOR UPDATE` makes a second
+  order for the same product wait and read the stock the first one left; the same lock order (`ORDER BY product_id`)
+  rules out a deadlock. `xmin` stays as a safety net.
+- `stock_reservations` (`order_id` from the event, `status` text with CHECK, `created_at`, `released_at`) and
+  `stock_reservation_lines` (`order_id`, `product_id`, `quantity`; cascade from the reservation, no foreign key to
+  `products`: the lines are a record).
+
 ## Dependencies
 
 Shared DbContext (`EShopDbContext` in `EShop.Data`); outbox and RabbitMQ from `EShop.Messaging` (`RabbitMq:Password`
-from user-secrets; in compose it waits for a healthy RabbitMQ). Called by [ClientApp](ClientApp.md).
+from user-secrets; in compose it waits for a healthy RabbitMQ); contracts of `EShop.OrderApi.Contracts` (the migrator's
+Dockerfile copies them too: it builds ProductApi). Called by [ClientApp](ClientApp.md).
 Paging and error handling from `EShop.ServiceDefaults` (see [Services](Services.md)).
 Startup project of the EF Core tools and of the migrations bundle: building the migrator runs its `Program.cs`.
 
@@ -81,11 +104,13 @@ Startup project of the EF Core tools and of the migrations bundle: building the 
 [Unit](../../tests/EShop.ProductApi.Tests.Unit/) (controller) and [integration](../../tests/EShop.ProductApi.Tests.Integration/)
 (API) tests; see [Testing](../Learning/Testing.md). The API tests read `outbox_messages`: one event per change with
 the right type, fields and `Revision`, none for a PUT without changes or a 409, one per product for the republish.
+`OrderEventsHandlerTests`: all or nothing, every shortage, products not for sale, a redelivery, the stock returned once,
+cancel before place, cancel after a rejection, two orders for the last unit (the second waits for the first one's lock,
+then is rejected).
 
 ## Known issues
 
-- Stock changed by a checkout or a cancel in OrderApi publishes nothing: the replicas learn it with the next change of
-  the product. ProductApi owns the stock from #76 (reservation), and every stock change publishes `ProductChanged`.
+- `Revision` could replace `xmin` as the concurrency token now that ProductApi is the only writer of `products`.
 
 - The category page asks for one page of 100 and filters and sorts it in the browser; server-side filters, sorting
   and paging: [#61](https://github.com/FobarWB/EShop/issues/61).

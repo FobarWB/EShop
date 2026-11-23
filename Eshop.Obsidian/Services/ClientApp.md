@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-19
+verified: 2026-11-23
 ---
 
 # ClientApp
@@ -112,10 +112,12 @@ In the anonymous mode `CartService` emits once after each change, like the API c
   (`form.pristine`). A failed request leaves the form empty: saved addresses are a convenience, not a requirement.
 - One `crypto.randomUUID()` per page visit is the `Idempotency-Key` of every try, so a retry after an error cannot
   place a second order ([IdempotentCheckout](../Decisions/IdempotentCheckout.md)).
+- "Place order" sends `OrdersService.placeOrder({ address, items })` to `POST /api/orders`: the cart's `productId` and
+  `quantity` (#76: OrderApi no longer reads the cart).
 - 409: a message, the cart is reloaded (current stock), and the items named in `productIds` are marked even if the
   reloaded cart looks fine. 400 (empty cart): a message and a reload.
-- Success: the API has emptied the cart; the client opens `/orders/:id?placed=true`, which loads the order by id
-  (works after a reload).
+- Success: the client opens `/orders/:id?placed=true`, which loads the order by id (works after a reload). ShoppingCart
+  empties the cart once the order is confirmed (#76).
 
 ### As a guest (#45)
 
@@ -132,17 +134,27 @@ not count for the form's validity. "Place order" sends `OrdersService.placeGuest
 | 409 with `productIds` | as for a signed-in user: the items are marked, the cart is reloaded |
 | 429 / 503 | "Too many attempts…" / "Ordering without an account is temporarily unavailable…" |
 
-`OrderPlacedComponent` shows the order and "We sent two emails to …" from the state (`Router.currentNavigation()`,
-read while the navigation runs): a guest cannot load `/orders/:id`. After a reload the state is gone and it shows only
-"Your order has been placed"; the order is personal data and is not kept in the browser's storage.
+`OrderPlacedComponent` shows the order and "We are checking that everything is in stock. You will get two emails at …"
+(accepted or not available, and the set-password link) from the state (`Router.currentNavigation()`, read while the
+navigation runs): a guest cannot load `/orders/:id`, so the result of the reservation comes by email (#76). After a
+reload the state is gone and it shows only "Your order has been placed. We will email you whether it is accepted"; the
+order is personal data and is not kept in the browser's storage.
 
 ## Order page
 
-- `/orders/:id` shows the order with its status. "Cancel order" is shown for `Pending` and `Paid`
+- `/orders/:id` shows the order with its status. "Cancel order" is shown for `Pending`, `Confirmed` and `Paid`
   (`cancellableStatuses` in `order.model.ts`, a copy of the server rule for the button only) and asks for confirmation.
 - Success shows the cancelled order from the response; 409 (shipped meanwhile, or cancelled in another tab) shows
   "The order can no longer be cancelled." and keeps the page.
-- The heading is "Thank you for your order!" with `?placed=true` (set by the checkout), otherwise `Order #N`.
+- The heading is "Thank you for your order!" with `?placed=true` (set by the checkout), otherwise `Order #N`; a
+  `Rejected` order gets no thanks.
+- `Pending` (#76): a note "We are checking that everything is in stock", and the page asks `GET /api/orders/{id}` every
+  2 s (`exhaustMap`: a slow answer is not cancelled), at most 15 times; it stops on any other status, on a cancel from the
+  page and when the page is left. After the limit: "Checking the stock takes longer than usual"; an error: "Could not
+  check the status".
+- `Rejected`: a warning with a link to the cart, which still holds the products.
+- `Confirmed` seen after `Pending`, or on a fresh `?placed=true` page: the cart counter is read again 3 s later, once
+  `order.confirmed` has left OrderApi's outbox (polled every 2 s) and ShoppingCart has emptied the cart.
 
 ## Account
 

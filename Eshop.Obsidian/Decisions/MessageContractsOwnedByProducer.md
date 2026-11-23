@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-19
+verified: 2026-11-23
 issue: 50
 ---
 
@@ -23,9 +23,12 @@ depends on every event, and no one owns them).
 - Since #45 a second producer: `EShop.CustomerApi.Contracts` with `GuestAccountReady` and `CustomerEventTypes`.
   OrderApi and CustomerApi reference each other's contracts project, never each other's service project.
 - Since #75 a third producer: `EShop.ProductApi.Contracts` with `ProductChanged`, `ProductDeleted` and
-  `ProductEventTypes`; ShoppingCart references it.
-- Events carry the data their consumers need (event-carried state transfer): the email is built from `OrderPlaced`
-  alone, without calling OrderApi back.
+  `ProductEventTypes`; ShoppingCart and OrderApi reference it. Since #76 it also holds `StockReserved` and
+  `StockRejected`, and ProductApi and ShoppingCart reference `EShop.OrderApi.Contracts` (they consume order events).
+- Events carry the data their consumers need (event-carried state transfer): the email is built from `OrderConfirmed`
+  alone (`OrderPlaced` until #76), without calling OrderApi back.
+- Added in #76: `OrderPlacedItem.ProductId` with the default `0`; a message written before reads as 0, a line ProductApi
+  cannot reserve.
 - Fields are only added (nullable), never renamed, removed or retyped.
 - Serialized with `JsonSerializerOptions.Web` (camelCase) on both sides.
 

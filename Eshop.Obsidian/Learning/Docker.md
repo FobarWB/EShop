@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-02
+verified: 2026-11-23
 issue: 47
 ---
 
@@ -157,6 +157,9 @@ eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
   run `docker compose --profile app up -d --wait`.
 - **The environment**: the API containers get `ASPNETCORE_ENVIRONMENT=Development`; the worker runs as `Production`
   and reads only `appsettings.json`.
+- **A new project reference needs COPY lines in every Dockerfile that builds the project**: the migrator builds
+  ProductApi (its startup project), so `EShop.OrderApi.Contracts` belonged in `src/EShop.Data/Dockerfile` too. Missed in
+  #75 and #76: after a new reference, run `docker compose --profile app build` before the commit.
 
 ## Open questions
 

@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-10-28
+verified: 2026-11-23
 issue: 42
 ---
 
@@ -40,3 +40,6 @@ Considered:
 - Orders carry the same token since #43: two concurrent status changes of one order cannot both be saved
   ([OrderLifecycle](OrderLifecycle.md)).
 - Carts have no token: two concurrent changes of one cart still end as "last write wins" (see [EfCore](../Learning/EfCore.md)).
+- Since #76 the checkout no longer writes `products`: ProductApi reserves the stock under `SELECT … FOR UPDATE`, the
+  pessimistic option above, chosen there because buyers of the last units conflict often and should wait, not retry.
+  `xmin` still guards admin edits against reservations, and orders against concurrent status changes.
