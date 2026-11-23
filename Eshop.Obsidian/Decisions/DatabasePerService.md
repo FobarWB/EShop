@@ -91,4 +91,4 @@ rests on one transaction over three services' data.
   decided within 14 ms; a cancel returned the stock once (`Released`); a guest order was confirmed with `userId: null`;
   all DLQs empty.
 - Open: sign-in for the account created at a guest checkout, and whether such an order waits for the email confirmation
-  (a separate issue).
+  ([#83](https://github.com/FobarWB/EShop/issues/83)).

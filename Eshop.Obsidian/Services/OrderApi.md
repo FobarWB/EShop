@@ -210,5 +210,6 @@ down); the rate limit with its own factory (2 per minute); `KeycloakAccountDirec
 - Freight is a fixed 5; delivery options are not modelled.
 - Stock changes are not journaled per product (why the stock changed): [#64](https://github.com/FobarWB/EShop/issues/64).
 - `total` keeps the scale of the `numeric` product (`23.00000000`); the JSON number is the same.
-- A guest does not see the order's status: the result comes by email (sign-in for guest accounts: a separate issue).
+- A guest does not see the order's status: the result comes by email (sign-in for guest accounts:
+  [#83](https://github.com/FobarWB/EShop/issues/83)).
 - The page of a rejected order does not name the short lines: they are only in `order.rejected` (the email).

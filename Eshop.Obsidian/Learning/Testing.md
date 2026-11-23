@@ -114,7 +114,7 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
   and every following test waits 30 s in its reset. Found by a deliberate breakage.
 - **Client: a throwing `afterEach` poisons the run.** `httpTesting.verify()` that throws stops the hooks after it,
   so Angular's TestBed reset does not run, and the following specs (also other files) fail with "Cannot configure the
-  test module". One real failure shows as many. Open: reset in the test setup even after a failed hook.
+  test module". One real failure shows as many. Open: [#82](https://github.com/FobarWB/EShop/issues/82).
 - **Polling with `vi.useFakeTimers()`** and `advanceTimersByTime`. `timer(0)` also waits for an advance, so "delay 0" is
   no breakage the tests can see; break by calling directly.
 - **`HasDefaultValue` and null again**: a product seeded without a price got 0 and was reserved (see [EfCore](EfCore.md)).
