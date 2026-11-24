@@ -1,6 +1,6 @@
 using System.Text.Json;
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.Catalog.Data;
+using EShop.Catalog.Data.Entities;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
@@ -268,7 +268,7 @@ public class OrderEventsHandlerTests : IAsyncLifetime
     }
 
     private sealed record Handling(
-        EShopDbContext Db,
+        CatalogDbContext Db,
         IDbContextTransaction Transaction,
         HandleResult Result
     ) : IAsyncDisposable

@@ -1,5 +1,6 @@
+using EShop.Catalog.Data;
 using EShop.CategoryApi.Repositories;
-using EShop.Data;
+using EShop.DataService;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.HttpLogging;
 using Scalar.AspNetCore;
@@ -21,8 +22,8 @@ builder.Services.AddCors(options =>
     )
 );
 
-builder.Services.AddEShopDbContext(builder.Configuration);
-builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
+builder.Services.AddServiceDbContext<CatalogDbContext>(builder.Configuration);
+builder.Services.AddHealthChecks().AddDbContextCheck<CatalogDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 

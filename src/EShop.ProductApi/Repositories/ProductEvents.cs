@@ -1,5 +1,5 @@
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.Catalog.Data;
+using EShop.Catalog.Data.Entities;
 using EShop.Messaging.Outbox;
 using EShop.ProductApi.Contracts;
 
@@ -10,7 +10,7 @@ namespace EShop.ProductApi.Repositories;
 public static class ProductEvents
 {
     // The product is tracked; its ProductId must be known (after the INSERT for a new product).
-    public static void AddChanged(EShopDbContext db, Product product, DateTime changedAt)
+    public static void AddChanged(CatalogDbContext db, Product product, DateTime changedAt)
     {
         product.Revision++;
         db.OutboxMessages.Add(
@@ -23,7 +23,7 @@ public static class ProductEvents
         );
     }
 
-    public static void AddDeleted(EShopDbContext db, Product product, DateTime deletedAt) =>
+    public static void AddDeleted(CatalogDbContext db, Product product, DateTime deletedAt) =>
         db.OutboxMessages.Add(
             OutboxMessageFactory.Create(
                 ProductApiOutbox.Producer,
@@ -34,7 +34,7 @@ public static class ProductEvents
         );
 
     // The current state again, without a new revision: for the republish, consumers that have it ignore it.
-    public static void AddSnapshot(EShopDbContext db, Product product, DateTime at) =>
+    public static void AddSnapshot(CatalogDbContext db, Product product, DateTime at) =>
         db.OutboxMessages.Add(
             OutboxMessageFactory.Create(
                 ProductApiOutbox.Producer,

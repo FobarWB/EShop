@@ -1,4 +1,6 @@
+using EShop.Catalog.Data;
 using EShop.Tests.Common;
+using Microsoft.EntityFrameworkCore;
 
 [assembly: AssemblyFixture(typeof(EShop.CategoryApi.Tests.Integration.CategoryApiDatabase))]
 // All tests of this project share one database and empty it before each test, so they must not run in parallel.
@@ -6,8 +8,11 @@ using EShop.Tests.Common;
 
 namespace EShop.CategoryApi.Tests.Integration;
 
-public sealed class CategoryApiDatabase : TestDatabase
+public sealed class CategoryApiDatabase : TestDatabase<CatalogDbContext>
 {
     public CategoryApiDatabase()
         : base("categoryapi") { }
+
+    protected override CatalogDbContext NewContext(DbContextOptions<CatalogDbContext> options) =>
+        new(options);
 }

@@ -1,4 +1,5 @@
-using EShop.Data;
+using EShop.Catalog.Data;
+using EShop.DataService;
 using EShop.Messaging;
 using EShop.ProductApi;
 using EShop.ProductApi.Repositories;
@@ -24,17 +25,17 @@ builder.Services.AddCors(options =>
     )
 );
 
-builder.Services.AddEShopDbContext(builder.Configuration);
+builder.Services.AddServiceDbContext<CatalogDbContext>(builder.Configuration);
 
 // Product changes write events to the outbox (#75); the publisher sends them to RabbitMQ.
 builder.Services.AddEShopMessaging(builder.Configuration);
-builder.Services.AddOutboxPublisher<EShopDbContext>(ProductApiOutbox.Producer);
+builder.Services.AddOutboxPublisher<CatalogDbContext>(ProductApiOutbox.Producer);
 
 // The stock of placed orders (#76): reserved on order.placed, returned on order.cancelled.
-builder.Services.AddMessageConsumer<OrderEventsHandler, EShopDbContext>(
+builder.Services.AddMessageConsumer<OrderEventsHandler, CatalogDbContext>(
     OrderEventsQueue.Definition
 );
-builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
+builder.Services.AddHealthChecks().AddDbContextCheck<CatalogDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 

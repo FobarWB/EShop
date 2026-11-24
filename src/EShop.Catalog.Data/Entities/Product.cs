@@ -1,0 +1,49 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace EShop.Catalog.Data.Entities;
+
+[Index("CategoryId")]
+[Index("ProductName")]
+[Index("SupplierId")]
+public partial class Product
+{
+    [Key]
+    public int ProductId { get; set; }
+
+    [StringLength(40)]
+    public string ProductName { get; set; } = null!;
+    public int? SupplierId { get; set; }
+    public int? CategoryId { get; set; }
+
+    [StringLength(20)]
+    public string? QuantityPerUnit { get; set; }
+
+    [Precision(19, 4)]
+    public decimal? UnitPrice { get; set; }
+    public short UnitsInStock { get; set; }
+    public short? UnitsOnOrder { get; set; }
+    public short? ReorderLevel { get; set; }
+    public bool Discontinued { get; set; }
+
+    // Mapped to PostgreSQL's system column xmin, which changes on every update of the row:
+    // EF Core adds "WHERE xmin = <read value>" to UPDATE and throws on a concurrent change.
+    [Timestamp]
+    public uint Version { get; set; }
+
+    // The number of the last change, sent with the product events (#75): consumers keep a copy only if it is newer.
+    // Not xmin: that one changes with every UPDATE of the row and wraps around at 2^32.
+    public long Revision { get; set; }
+
+    [ForeignKey("CategoryId")]
+    [InverseProperty("Products")]
+    public virtual Category? Category { get; set; }
+
+    [ForeignKey("SupplierId")]
+    [InverseProperty("Products")]
+    public virtual Supplier? Supplier { get; set; }
+
+    // No CartItems or OrderDetails (#75): carts and orders keep their own copies and reference the product by id
+    // only, in their own schemas.
+}
