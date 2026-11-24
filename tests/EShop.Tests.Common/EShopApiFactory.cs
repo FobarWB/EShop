@@ -1,4 +1,5 @@
 using EShop.Data;
+using EShop.DataService;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using Microsoft.AspNetCore.Authentication;
@@ -15,12 +16,13 @@ namespace EShop.Tests.Common;
 /// <summary>
 /// Runs an API in memory (TestServer) with its connection string pointed at the test database.
 /// </summary>
-public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
+public class EShopApiFactory<TEntryPoint, TContext> : WebApplicationFactory<TEntryPoint>
     where TEntryPoint : class
+    where TContext : DbContext, IServiceDbContext
 {
-    private readonly TestDatabase _database;
+    private readonly TestDatabase<TContext> _database;
 
-    public EShopApiFactory(TestDatabase database)
+    public EShopApiFactory(TestDatabase<TContext> database)
     {
         _database = database;
     }
@@ -28,7 +30,7 @@ public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting(
-            $"ConnectionStrings:{EShopDbContextExtensions.ConnectionStringName}",
+            $"ConnectionStrings:{ServiceDbContextExtensions.ConnectionStringName}",
             _database.ConnectionString
         );
         // Tests never reach Keycloak: the test scheme becomes the default one instead of JwtBearer.
@@ -66,7 +68,7 @@ public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
 
         // The API must never write to the development database: check what it really uses.
         using var scope = host.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<EShopDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<TContext>();
         var database = new NpgsqlConnectionStringBuilder(
             db.Database.GetConnectionString()
         ).Database;
@@ -81,3 +83,8 @@ public class EShopApiFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
         return host;
     }
 }
+
+/// <summary>An API on the shared EShopDbContext, until every API uses its service's context (#77).</summary>
+public class EShopApiFactory<TEntryPoint>(TestDatabase database)
+    : EShopApiFactory<TEntryPoint, EShopDbContext>(database)
+    where TEntryPoint : class;

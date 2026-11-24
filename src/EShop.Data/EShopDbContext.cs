@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using EShop.Data.Entities;
+using EShop.DataService;
 using EShop.Messaging;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
@@ -9,8 +10,11 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace EShop.Data
 {
-    public partial class EShopDbContext : DbContext
+    // IServiceDbContext with the schema public: the shared context fits the new test helpers until it is removed (#77).
+    public partial class EShopDbContext : DbContext, IServiceDbContext
     {
+        public static string Schema => "public";
+
         public EShopDbContext(DbContextOptions<EShopDbContext> options)
             : base(options) { }
 

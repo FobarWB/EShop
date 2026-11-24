@@ -1,6 +1,5 @@
 using System.Text.Json;
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.DataService;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.Messaging.RabbitMq;
@@ -47,11 +46,11 @@ public class MessageConsumerTests : IAsyncLifetime
 
         _services = new ServiceCollection()
             .AddLogging()
-            .AddDbContext<EShopDbContext>(options =>
-                options.UseNpgsql(_database.ConnectionString).UseSnakeCaseNamingConvention()
+            .AddDbContext<MessagingTestDbContext>(options =>
+                options.UseServiceNpgsql<MessagingTestDbContext>(_database.ConnectionString)
             )
             .AddSingleton(_broker.Connection)
-            .AddMessageConsumer<TestHandler, EShopDbContext>(Definition)
+            .AddMessageConsumer<TestHandler, MessagingTestDbContext>(Definition)
             .BuildServiceProvider();
         _consumer = _services.GetServices<IHostedService>().ShouldHaveSingleItem();
         await _consumer.StartAsync(_cancellationToken);
@@ -87,19 +86,19 @@ public class MessageConsumerTests : IAsyncLifetime
     [Fact]
     public async Task HandlerThrowsAfterAnUpdate_RollsBackTheUpdateAndRetries()
     {
-        var product = await _database.SeedProductAsync(10, _cancellationToken);
+        var counter = await _database.SeedAsync(new TestCounter { Value = 10 }, _cancellationToken);
         var messageId = Guid.CreateVersion7();
 
-        await PublishAsync(UpdatedThenFailed, new { number = product }, messageId);
+        await PublishAsync(UpdatedThenFailed, new { number = counter.Id }, messageId);
 
         // The copy waits in retry.1 (30 s): taken out before it comes back.
         var copy = (
             await _broker.WaitForMessageAsync(Topology.RetryQueue(Queue, 1), _cancellationToken)
         ).ShouldNotBeNull("no copy in the retry queue");
         copy.BasicProperties.MessageId.ShouldBe(messageId.ToString());
-        (await _database.FindAsync<Product>(product, _cancellationToken))
+        (await _database.FindAsync<TestCounter>(counter.Id, _cancellationToken))
             .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)10);
+            .Value.ShouldBe(10);
         (await InboxContainsAsync(messageId)).ShouldBeFalse();
     }
 
@@ -208,7 +207,7 @@ public class MessageConsumerTests : IAsyncLifetime
     private sealed record TestPayload(int Number);
 
     // What a service's handler does, by message type: a tracked change, a statement and a failure, a rejection.
-    private sealed class TestHandler(EShopDbContext db) : IMessageHandler
+    private sealed class TestHandler(MessagingTestDbContext db) : IMessageHandler
     {
         public async Task<HandleResult> HandleAsync(
             ReceivedMessage message,
@@ -232,11 +231,8 @@ public class MessageConsumerTests : IAsyncLifetime
                 case UpdatedThenFailed:
                     // Runs at once, inside the consumer's transaction; the exception must undo it.
                     await db
-                        .Products.Where(p => p.ProductId == payload.Number)
-                        .ExecuteUpdateAsync(
-                            s => s.SetProperty(p => p.UnitsInStock, (short)0),
-                            cancellationToken
-                        );
+                        .Counters.Where(c => c.Id == payload.Number)
+                        .ExecuteUpdateAsync(s => s.SetProperty(c => c.Value, 0), cancellationToken);
                     throw new InvalidOperationException("The handler failed after its update.");
                 default:
                     return HandleResult.Reject("rejected by the test handler");

@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\EShop.Data\EShop.Data.csproj" />
+    <ProjectReference Include="..\..\src\EShop.DataService\EShop.DataService.csproj" />
     <ProjectReference Include="..\..\src\EShop.Messaging\EShop.Messaging.csproj" />
     <ProjectReference Include="..\..\src\EShop.ServiceDefaults\EShop.ServiceDefaults.csproj" />
   </ItemGroup>
