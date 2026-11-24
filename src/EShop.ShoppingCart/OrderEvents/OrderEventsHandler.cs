@@ -1,6 +1,6 @@
-using EShop.Data;
 using EShop.Messaging.Consumers;
 using EShop.OrderApi.Contracts;
+using EShop.ShoppingCart.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.ShoppingCart.OrderEvents;
@@ -11,10 +11,10 @@ namespace EShop.ShoppingCart.OrderEvents;
 // They run inside the consumer's transaction, together with the inbox row, which stops a redelivery.
 public sealed class OrderEventsHandler : IMessageHandler
 {
-    private readonly EShopDbContext _db;
+    private readonly CartDbContext _db;
     private readonly ILogger<OrderEventsHandler> _logger;
 
-    public OrderEventsHandler(EShopDbContext db, ILogger<OrderEventsHandler> logger)
+    public OrderEventsHandler(CartDbContext db, ILogger<OrderEventsHandler> logger)
     {
         _db = db;
         _logger = logger;

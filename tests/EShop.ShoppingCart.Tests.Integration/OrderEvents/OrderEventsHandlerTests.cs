@@ -1,7 +1,7 @@
 using System.Text.Json;
-using EShop.Data.Entities;
 using EShop.Messaging.Consumers;
 using EShop.OrderApi.Contracts;
+using EShop.ShoppingCart.Data.Entities;
 using EShop.ShoppingCart.OrderEvents;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -24,7 +24,24 @@ public class OrderEventsHandlerTests : IAsyncLifetime
         _database = database;
     }
 
-    public async ValueTask InitializeAsync() => await _database.ResetAsync(_cancellationToken);
+    // The items reference the cart's product copies (a foreign key), so the copies come first.
+    public async ValueTask InitializeAsync()
+    {
+        await _database.ResetAsync(_cancellationToken);
+        foreach (var productId in new[] { ChaiId, SyrupId, TofuId })
+        {
+            await _database.SeedAsync(
+                new CartProduct
+                {
+                    ProductId = productId,
+                    ProductName = "Test product",
+                    UnitsInStock = 10,
+                    Revision = 1,
+                },
+                _cancellationToken
+            );
+        }
+    }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

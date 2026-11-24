@@ -1,6 +1,6 @@
-using EShop.Data;
 using EShop.Messaging.Consumers;
 using EShop.ProductApi.Contracts;
+using EShop.ShoppingCart.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.ShoppingCart.ProductEvents;
@@ -13,10 +13,10 @@ namespace EShop.ShoppingCart.ProductEvents;
 // EF Core has no upsert, hence SQL; the {…} values become parameters.
 public sealed class ProductEventsHandler : IMessageHandler
 {
-    private readonly EShopDbContext _db;
+    private readonly CartDbContext _db;
     private readonly ILogger<ProductEventsHandler> _logger;
 
-    public ProductEventsHandler(EShopDbContext db, ILogger<ProductEventsHandler> logger)
+    public ProductEventsHandler(CartDbContext db, ILogger<ProductEventsHandler> logger)
     {
         _db = db;
         _logger = logger;
