@@ -34,13 +34,13 @@ Checkout must not wait for, or fail because of, the broker.
   order 11084 placed with the broker stopped, `attempts = 1`, published after the restart).
 - Events reach the broker up to ~2 s after the commit; consumers must expect duplicates.
 - `outbox_messages` and `inbox_messages` grow: no cleanup job yet.
-- One table for all producers (shared database): the column `producer` keeps each `OutboxPublisher` to its own rows,
-  so their events stay in order. Two publishers sharing the rows through `SKIP LOCKED` would publish none twice, but
-  one could send a later event of an order before the other sent the earlier one (#45). With a database per service
-  (#51) the column is not needed.
+- One table for all producers while the services shared a database: the column `producer` kept each `OutboxPublisher`
+  to its own rows, so their events stayed in order. Two publishers sharing the rows through `SKIP LOCKED` would publish
+  none twice, but one could send a later event of an order before the other sent the earlier one (#45). Since #77 each
+  schema has its own `outbox_messages` and one publisher: the column separates nothing and stays until #78.
 - Since #74 the outbox and inbox belong to `EShop.Messaging` (`modelBuilder.AddOutbox()` / `AddInbox()`), and
   `OutboxPublisher<TContext>` and `MessageConsumer<THandler, TContext>` work on the service's own DbContext; the
-  publisher reads the table name from the model, so a service schema (#77) needs no change here.
+  publisher reads the table name and schema from the model, so the schemas of #77 needed no change here.
 - Compared: Microsoft's eShop (`IntegrationEventLogEF`) publishes right after the commit and marks failures, with no
   background retry; MassTransit's bus outbox uses the same table + polling delivery service + inbox design, inside the
   library. Ours is the explicit version of the latter (see [UseRabbitMqClient](UseRabbitMqClient.md)).

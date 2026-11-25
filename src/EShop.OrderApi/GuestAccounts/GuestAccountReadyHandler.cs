@@ -1,6 +1,6 @@
 using EShop.CustomerApi.Contracts;
-using EShop.Data;
 using EShop.Messaging.Consumers;
+using EShop.OrderApi.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.OrderApi.GuestAccounts;
@@ -10,10 +10,10 @@ namespace EShop.OrderApi.GuestAccounts;
 // being created. It runs inside the consumer's transaction, so it is stored together with the inbox row or not at all.
 public sealed class GuestAccountReadyHandler : IMessageHandler
 {
-    private readonly EShopDbContext _db;
+    private readonly OrderingDbContext _db;
     private readonly ILogger<GuestAccountReadyHandler> _logger;
 
-    public GuestAccountReadyHandler(EShopDbContext db, ILogger<GuestAccountReadyHandler> logger)
+    public GuestAccountReadyHandler(OrderingDbContext db, ILogger<GuestAccountReadyHandler> logger)
     {
         _db = db;
         _logger = logger;

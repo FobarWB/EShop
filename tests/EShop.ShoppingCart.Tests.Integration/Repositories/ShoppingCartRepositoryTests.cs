@@ -1,4 +1,4 @@
-using EShop.Data.Entities;
+using EShop.ShoppingCart.Data.Entities;
 using EShop.ShoppingCart.Dtos;
 using EShop.ShoppingCart.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -110,6 +110,17 @@ public class ShoppingCartRepositoryTests : IAsyncLifetime
 
         await Should.ThrowAsync<DbUpdateException>(
             _database.SeedAsync(new Cart { UserId = UserId }, _cancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task CartItem_UnknownProduct_IsRejectedByForeignKey()
+    {
+        await Should.ThrowAsync<DbUpdateException>(
+            _database.SeedAsync(
+                new Cart { UserId = UserId, CartItems = [Item(999, 1)] },
+                _cancellationToken
+            )
         );
     }
 

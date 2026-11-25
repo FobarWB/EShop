@@ -1,6 +1,6 @@
 using EShop.CustomerApi.Accounts;
 using EShop.CustomerApi.Contracts;
-using EShop.Data;
+using EShop.CustomerApi.Data;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
@@ -13,12 +13,12 @@ namespace EShop.CustomerApi.GuestOrders;
 public sealed class GuestOrderPlacedHandler : IMessageHandler
 {
     private readonly IAccountProvisioner _accounts;
-    private readonly EShopDbContext _db;
+    private readonly CustomerDbContext _db;
     private readonly ILogger<GuestOrderPlacedHandler> _logger;
 
     public GuestOrderPlacedHandler(
         IAccountProvisioner accounts,
-        EShopDbContext db,
+        CustomerDbContext db,
         ILogger<GuestOrderPlacedHandler> logger
     )
     {

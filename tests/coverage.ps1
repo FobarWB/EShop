@@ -16,7 +16,7 @@ dotnet tool run reportgenerator `
     "-targetdir:TestResults/coverage-report" `
     "-reporttypes:Html;TextSummary" `
     "-assemblyfilters:+EShop.*;-EShop.*.Tests.*;-EShop.Tests.Common" `
-    "-classfilters:-EShop.Data.Migrations.*;-Microsoft.AspNetCore.OpenApi.Generated*;-System.Runtime.CompilerServices*"
+    "-classfilters:-*.Migrations.*;-Microsoft.AspNetCore.OpenApi.Generated*;-System.Runtime.CompilerServices*"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Get-Content TestResults/coverage-report/Summary.txt -TotalCount 16

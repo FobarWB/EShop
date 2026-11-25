@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The catalog's DbContext, entities and migrations: one bounded context, used by ProductApi and CategoryApi. -->
+  <ItemGroup>
+    <!-- dotnet ef uses this project as its startup project too (CatalogDbContextFactory). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EShop.Persistence\EShop.Persistence.csproj" />
+    <!-- The outbox and inbox tables of the catalog's schema. -->
+    <ProjectReference Include="..\EShop.Messaging\EShop.Messaging.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,4 +1,4 @@
-using EShop.Data.Entities;
+using EShop.CustomerApi.Data.Entities;
 
 namespace EShop.CustomerApi.Dtos;
 

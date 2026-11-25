@@ -1,4 +1,5 @@
 using EShop.CustomerApi.Accounts;
+using EShop.CustomerApi.Data;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 
@@ -7,7 +8,7 @@ namespace EShop.CustomerApi.Tests.Integration;
 // A class fixture: one in-memory API per test class, using this project's test database.
 // The API tests do not reach Keycloak; the provisioner is tested in KeycloakAccountProvisionerTests.
 public sealed class CustomerApiFactory(CustomerApiDatabase database)
-    : EShopApiFactory<Program>(database)
+    : EShopApiFactory<Program, CustomerDbContext>(database)
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

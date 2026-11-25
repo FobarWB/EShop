@@ -1,6 +1,7 @@
-using EShop.Data;
 using EShop.Messaging;
+using EShop.Persistence;
 using EShop.ServiceDefaults;
+using EShop.ShoppingCart.Data;
 using EShop.ShoppingCart.OrderEvents;
 using EShop.ShoppingCart.ProductEvents;
 using EShop.ShoppingCart.Repositories;
@@ -23,19 +24,17 @@ builder.Services.AddCors(options =>
     )
 );
 
-builder.Services.AddEShopDbContext(builder.Configuration);
+builder.Services.AddServiceDbContext<CartDbContext>(builder.Configuration);
 
 // ProductApi's events keep cart_products up to date (#75).
 builder.Services.AddEShopMessaging(builder.Configuration);
-builder.Services.AddMessageConsumer<ProductEventsHandler, EShopDbContext>(
+builder.Services.AddMessageConsumer<ProductEventsHandler, CartDbContext>(
     ProductEventsQueue.Definition
 );
 
 // A confirmed order leaves the buyer's cart (#76).
-builder.Services.AddMessageConsumer<OrderEventsHandler, EShopDbContext>(
-    OrderEventsQueue.Definition
-);
-builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
+builder.Services.AddMessageConsumer<OrderEventsHandler, CartDbContext>(OrderEventsQueue.Definition);
+builder.Services.AddHealthChecks().AddDbContextCheck<CartDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 

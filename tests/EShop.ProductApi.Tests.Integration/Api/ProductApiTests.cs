@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.Catalog.Data;
+using EShop.Catalog.Data.Entities;
 using EShop.Messaging.Outbox;
 using EShop.ProductApi.Contracts;
 using EShop.ProductApi.Dtos;
@@ -370,63 +370,6 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Delete_ProductInCart_Returns204AndKeepsTheCartItem()
-    {
-        // No check of carts (#75): the cart drops the item when ProductDeleted reaches it.
-        var chai = await SeedProductAsync("Chai");
-        await _database.SeedAsync(
-            new Cart
-            {
-                UserId = "user-1",
-                CartItems = [new CartItem { ProductId = chai.ProductId, Quantity = 1 }],
-            },
-            _cancellationToken
-        );
-
-        var response = await _admin.DeleteAsync(
-            $"api/products/{chai.ProductId}",
-            _cancellationToken
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        (await _database.FindAsync<Product>(chai.ProductId, _cancellationToken)).ShouldBeNull();
-        await using var db = _database.CreateContext();
-        (await db.CartItems.SingleAsync(_cancellationToken)).ProductId.ShouldBe(chai.ProductId);
-    }
-
-    [Fact]
-    public async Task Delete_ProductInOrder_Returns204AndKeepsTheOrderDetail()
-    {
-        // The order keeps its copy of name and price (#75).
-        var chai = await SeedProductAsync("Chai");
-        await _database.SeedAsync(
-            new Order
-            {
-                OrderDetails =
-                [
-                    new OrderDetail
-                    {
-                        ProductId = chai.ProductId,
-                        ProductName = "Chai",
-                        UnitPrice = 18,
-                        Quantity = 1,
-                    },
-                ],
-            },
-            _cancellationToken
-        );
-
-        var response = await _admin.DeleteAsync(
-            $"api/products/{chai.ProductId}",
-            _cancellationToken
-        );
-
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await using var db = _database.CreateContext();
-        (await db.OrderDetails.SingleAsync(_cancellationToken)).ProductName.ShouldBe("Chai");
-    }
-
-    [Fact]
     public async Task Create_StoresProductChangedWithRevision1()
     {
         var response = await _admin.PostAsJsonAsync(
@@ -672,7 +615,7 @@ public class ProductApiTests : IClassFixture<ProductApiFactory>, IAsyncLifetime
         _factory
             .WithWebHostBuilder(builder =>
                 builder.ConfigureTestServices(services =>
-                    services.ConfigureDbContext<EShopDbContext>(options =>
+                    services.ConfigureDbContext<CatalogDbContext>(options =>
                         options.AddInterceptors(new BeforeSaveChangesInterceptor(write))
                     )
                 )

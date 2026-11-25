@@ -1,5 +1,4 @@
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
@@ -13,29 +12,17 @@ namespace EShop.Tests.Common;
 /// By default it lives on a throwaway PostgreSQL container of the project (Testcontainers), removed afterwards;
 /// the environment variable ConnectionStrings__EShopTests points the tests at another server instead.
 /// </summary>
-public abstract class TestDatabase : IAsyncLifetime
+public abstract class TestDatabase<TContext> : IAsyncLifetime
+    where TContext : DbContext, IServiceDbContext
 {
     // Only an environment variable, not user-secrets: a forgotten secret must not silently replace the container.
     public const string OverrideVariable = "ConnectionStrings__EShopTests";
-
-    // Empties every table except the migrations history. CASCADE follows foreign keys,
-    // RESTART IDENTITY resets the id sequences.
-    private const string ResetSql = """
-        DO $$
-        DECLARE tables text;
-        BEGIN
-            SELECT string_agg(format('%I', tablename), ', ') INTO tables
-            FROM pg_tables
-            WHERE schemaname = 'public' AND tablename <> '__EFMigrationsHistory';
-            EXECUTE 'TRUNCATE ' || tables || ' RESTART IDENTITY CASCADE';
-        END $$;
-        """;
 
     private readonly string _suffix;
     private PostgreSqlContainer? _container;
     private string? _databaseName;
     private string? _connectionString;
-    private DbContextOptions<EShopDbContext>? _options;
+    private DbContextOptions<TContext>? _options;
 
     /// <param name="suffix">Appended to the server's database name, e.g. eshop_test_shoppingcart.</param>
     protected TestDatabase(string suffix)
@@ -48,14 +35,21 @@ public abstract class TestDatabase : IAsyncLifetime
     public string ConnectionString => _connectionString ?? throw NotInitialized();
 
     // Interceptors let a test act in the middle of SaveChanges (see BeforeSaveChangesInterceptor).
-    public EShopDbContext CreateContext(params IInterceptor[] interceptors) =>
-        new(
-            new DbContextOptionsBuilder<EShopDbContext>(_options ?? throw NotInitialized())
+    public TContext CreateContext(params IInterceptor[] interceptors) =>
+        NewContext(
+            new DbContextOptionsBuilder<TContext>(_options ?? throw NotInitialized())
                 .AddInterceptors(interceptors)
                 .Options
         );
 
-    // Starts the container (unless overridden), creates the project's database and applies the migrations.
+    // The context's constructor: the helper cannot call it with a generic type.
+    protected abstract TContext NewContext(DbContextOptions<TContext> options);
+
+    // The schema of a service's context comes from its migrations.
+    protected virtual Task CreateSchemaAsync(TContext db, CancellationToken cancellationToken) =>
+        db.Database.MigrateAsync(cancellationToken);
+
+    // Starts the container (unless overridden), creates the project's database and its schema.
     public async ValueTask InitializeAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -78,29 +72,37 @@ public abstract class TestDatabase : IAsyncLifetime
 
         _databaseName = builder.Database;
         _connectionString = builder.ConnectionString;
-        // Same provider settings as AddEShopDbContext.
-        _options = new DbContextOptionsBuilder<EShopDbContext>()
-            .UseNpgsql(_connectionString)
-            .UseSnakeCaseNamingConvention()
-            .Options;
+        // The service's provider settings, so the tests run on the same model and migrations history.
+        var options = new DbContextOptionsBuilder<TContext>();
+        options.UseServiceNpgsql<TContext>(_connectionString);
+        _options = options.Options;
 
         await using var db = CreateContext();
-        await db.Database.MigrateAsync(cancellationToken);
+        await CreateSchemaAsync(db, cancellationToken);
     }
 
+    // Empties the tables of the context's schema, except its migrations history. CASCADE follows foreign keys,
+    // RESTART IDENTITY resets the id sequences.
     public async Task ResetAsync(CancellationToken cancellationToken)
     {
         await using var db = CreateContext();
-        await db.Database.ExecuteSqlRawAsync(ResetSql, cancellationToken);
-    }
+        var tables = await db
+            .Database.SqlQuery<string>(
+                $"""
+                SELECT format('%I.%I', schemaname, tablename) AS "Value"
+                FROM pg_tables
+                WHERE schemaname = {TContext.Schema} AND tablename <> '__EFMigrationsHistory'
+                """
+            )
+            .ToListAsync(cancellationToken);
+        if (tables.Count == 0)
+        {
+            return;
+        }
 
-    public async Task<int> SeedProductAsync(short unitsInStock, CancellationToken cancellationToken)
-    {
-        await using var db = CreateContext();
-        var product = new Product { ProductName = "Test product", UnitsInStock = unitsInStock };
-        db.Products.Add(product);
-        await db.SaveChangesAsync(cancellationToken);
-        return product.ProductId;
+        // Not a parameter: TRUNCATE takes identifiers, and format('%I') has quoted them.
+        var truncate = $"TRUNCATE {string.Join(", ", tables)} RESTART IDENTITY CASCADE";
+        await db.Database.ExecuteSqlRawAsync(truncate, cancellationToken);
     }
 
     public async Task<T> SeedAsync<T>(T entity, CancellationToken cancellationToken)

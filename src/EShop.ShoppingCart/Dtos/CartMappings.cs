@@ -1,4 +1,4 @@
-using EShop.Data.Entities;
+using EShop.ShoppingCart.Data.Entities;
 
 namespace EShop.ShoppingCart.Dtos;
 
@@ -6,7 +6,7 @@ public static class CartMappings
 {
     // Extends the query, not the entity: EF Core translates the projection, the join with the cart's product copies
     // included, to one SQL query. An inner join on rows that are not deleted: ProductDeleted removes the item from
-    // the carts anyway, and an item without a copy (added before the first republish) is not shown.
+    // the carts anyway.
     public static IQueryable<CartResponse> ToResponse(
         this IQueryable<Cart> query,
         IQueryable<CartProduct> products

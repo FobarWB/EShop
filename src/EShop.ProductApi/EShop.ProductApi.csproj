@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <!-- Shared by all APIs: they use the same database. -->
+    <!-- Shared by all APIs: one database (a schema per service) until #78. -->
     <UserSecretsId>eshop</UserSecretsId>
   </PropertyGroup>
 
@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
+    <ProjectReference Include="..\EShop.Catalog.Data\EShop.Catalog.Data.csproj" />
     <ProjectReference Include="..\EShop.Messaging\EShop.Messaging.csproj" />
     <ProjectReference Include="..\EShop.OrderApi.Contracts\EShop.OrderApi.Contracts.csproj" />
     <ProjectReference Include="..\EShop.ProductApi.Contracts\EShop.ProductApi.Contracts.csproj" />

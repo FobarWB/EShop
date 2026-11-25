@@ -37,9 +37,11 @@ Every endpoint needs a signed-in user and works on that user's data: the id is t
 
 ## Data
 
-`customer_profiles` (`user_id` = `sub` as primary key, `phone`, `created_at`, `updated_at`) and `customer_addresses`
-(`address_id`, `user_id` with a cascading foreign key to the profile, the address, `is_default`, `created_at`).
-The Northwind `customers` table (5-character ids, required `company_name`) is not used.
+In the schema `customer` (`CustomerDbContext` in [Data/](../../src/EShop.CustomerApi/Data/), #77, with its outbox and
+inbox): `customer_profiles` (`user_id` = `sub` as primary key, `phone`, `created_at`, `updated_at`) and
+`customer_addresses` (`address_id`, `user_id` with a cascading foreign key to the profile, the address, `is_default`,
+`created_at`). The Northwind `customers` table (5-character ids, required `company_name`, in the schema `ordering`) is
+not used.
 
 - The profile is created just-in-time on the user's first write (PUT of the profile, first address). Two concurrent
   first writes: the second insert fails on `pk_customer_profiles` (23505) and reads the row the first committed.
@@ -69,7 +71,7 @@ Keycloak cannot join the transaction: a crash after the email and before the com
 
 ## Dependencies
 
-Shared DbContext (`EShopDbContext` in `EShop.Data`); JWT validation, `User.GetUserId()`, `GetUserEmail()`,
+`CustomerDbContext`, registered with `AddServiceDbContext` from `EShop.Persistence`; JWT validation, `User.GetUserId()`, `GetUserEmail()`,
 `GetGivenName()`, `GetFamilyName()`, error handling and the Keycloak Admin API client (section
 `KeycloakAdmin:CustomerApi`, secret in user-secrets and `CUSTOMERAPI_KEYCLOAK_SECRET`) from `EShop.ServiceDefaults`;
 outbox, consumer and RabbitMQ from `EShop.Messaging` (in compose it waits for a healthy RabbitMQ); contracts of

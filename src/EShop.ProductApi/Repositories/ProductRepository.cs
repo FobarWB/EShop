@@ -1,5 +1,5 @@
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.Catalog.Data;
+using EShop.Catalog.Data.Entities;
 using EShop.ProductApi.Dtos;
 using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
@@ -8,9 +8,9 @@ namespace EShop.ProductApi.Repositories;
 
 public class ProductRepository : IProductRepository
 {
-    private readonly EShopDbContext _db;
+    private readonly CatalogDbContext _db;
 
-    public ProductRepository(EShopDbContext db)
+    public ProductRepository(CatalogDbContext db)
     {
         _db = db;
     }

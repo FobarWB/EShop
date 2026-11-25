@@ -19,7 +19,8 @@ Replace SQL Server with PostgreSQL (Npgsql EF Core provider) after the .NET 10 /
 ## Consequences
 
 - Code-first: the schema comes from EF Core migrations (one `InitialCreate` replaces the SQL Server migrations);
-  Northwind rows are loaded from [db/northwind-data.sql](../../db/northwind-data.sql), generated from the archived dump.
+  Northwind rows are loaded from SQL files generated from the archived dump, one per schema since #77
+  ([db/northwind-catalog.sql](../../db/northwind-catalog.sql), [db/northwind-ordering.sql](../../db/northwind-ordering.sql)).
 - Npgsql provider with `EFCore.NamingConventions`: tables, columns, keys and indexes are snake_case.
 - Type mapping: `money` → `numeric(19,4)`, `datetime` → `timestamp without time zone`, `ntext` → `text`,
   `image` → `bytea`, `nchar` → `varchar`; `Cart.CreatedAt` is `timestamptz` (a UTC instant).

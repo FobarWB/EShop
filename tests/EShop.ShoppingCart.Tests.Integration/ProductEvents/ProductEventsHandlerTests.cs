@@ -1,7 +1,7 @@
 using System.Text.Json;
-using EShop.Data.Entities;
 using EShop.Messaging.Consumers;
 using EShop.ProductApi.Contracts;
+using EShop.ShoppingCart.Data.Entities;
 using EShop.ShoppingCart.ProductEvents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;

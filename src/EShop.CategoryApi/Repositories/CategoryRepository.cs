@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
+using EShop.Catalog.Data;
+using EShop.Catalog.Data.Entities;
 using EShop.CategoryApi.Dtos;
-using EShop.Data;
-using EShop.Data.Entities;
 using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,9 +9,9 @@ namespace EShop.CategoryApi.Repositories;
 
 public class CategoryRepository : ICategoryRepository
 {
-    private readonly EShopDbContext _db;
+    private readonly CatalogDbContext _db;
 
-    public CategoryRepository(EShopDbContext db)
+    public CategoryRepository(CatalogDbContext db)
     {
         _db = db;
     }

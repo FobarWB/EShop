@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-23
+verified: 2026-11-25
 issue: 14
 ---
 
@@ -75,8 +75,9 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 
 - PostgreSQL runs in Docker since #47 ([Docker](Docker.md)); the data of the former Windows service was moved with
   `pg_dump -Fc` → `pg_restore`.
-- Schema from EF Core migrations, data from [db/northwind-data.sql](../../db/northwind-data.sql), loaded with `psql -f`.
-  The script sets `\set ON_ERROR_STOP on`, `client_encoding = 'UTF8'` and runs in one transaction.
+- Schemas from the EF Core migrations of each service, data from [db/northwind-catalog.sql](../../db/northwind-catalog.sql)
+  and [db/northwind-ordering.sql](../../db/northwind-ordering.sql), loaded with `psql -f`. Each script sets
+  `\set ON_ERROR_STOP on`, `client_encoding = 'UTF8'` and runs in one transaction.
 - `orders` dates are `timestamptz` since #43; `migrationBuilder.Sql` adds the `USING` and the backfills to the
   generated migration.
 - EF Core takes an advisory lock (`pg_advisory_lock`) while applying migrations, so parallel app instances do not
@@ -84,8 +85,8 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
   expected, the table does not exist yet.
 - `psql` on Windows: the console code page (866) differs from 1251, so non-ASCII input may break; `chcp 1251` helps.
   The prompt ends with `#` for a superuser and `>` otherwise; `-#` means an unfinished statement (`\r` clears it).
-- Useful `psql` commands: `\l`, `\dt`, `\d <table>`, `\du`, `\password`, `\q`. GUI: pgAdmin 4
-  (eshop → Schemas → public → Tables; Tools → Query Tool).
+- Useful `psql` commands: `\l`, `\dn`, `\dt <schema>.*`, `\d <schema>.<table>`, `\du`, `\password`, `\q`. GUI: pgAdmin 4
+  (eshop → Schemas → catalog, cart, … → Tables; Tools → Query Tool).
 
 ## Outbox (#50)
 
@@ -109,6 +110,21 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 - **`SELECT *` leaves out system columns**: an entity that maps `xmin` needs `SELECT p.*, p.xmin`.
 - **Two INSERTs of one primary key**: the second waits for the first transaction, then fails with 23505; a natural
   "first decision wins" for two first deliveries of one order.
+
+## A schema per service (#77)
+
+- **A schema is a namespace inside one database**: two schemas can hold tables of the same name
+  (`catalog.inbox_messages`, `cart.inbox_messages`), and a foreign key may still cross schemas, so the separation is a
+  convention until the services get their own roles or databases (#78).
+- **`search_path`** decides where an unqualified name is looked up (default `"$user", public`). `Search Path` in the
+  Npgsql connection string sets it per connection, so a service's raw SQL finds its own tables; EF Core's own SQL is
+  always schema-qualified.
+- **Scripts name the schema** (`INSERT INTO catalog.products`): `psql` connects without the services' search path.
+  `pg_get_serial_sequence('catalog.products', 'product_id')` takes the qualified table name.
+- **A data script for the current model**: columns that migrations once backfilled (`NOT NULL` without a default) must
+  be in the INSERTs once the schema is created in its final form; the old `northwind-data.sql` failed on four of them.
+- **`CREATE SCHEMA` needs the `CREATE` privilege on the database**; the role `eshop` owns `eshop`, so the migrator creates
+  the schemas itself (`EnsureSchema` in each `InitialCreate`).
 
 ## Open questions
 

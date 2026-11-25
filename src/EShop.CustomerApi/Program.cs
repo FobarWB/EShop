@@ -1,9 +1,10 @@
 using EShop.CustomerApi;
 using EShop.CustomerApi.Accounts;
+using EShop.CustomerApi.Data;
 using EShop.CustomerApi.GuestOrders;
 using EShop.CustomerApi.Repositories;
-using EShop.Data;
 using EShop.Messaging;
+using EShop.Persistence;
 using EShop.ServiceDefaults;
 using EShop.ServiceDefaults.Keycloak;
 using Microsoft.AspNetCore.HttpLogging;
@@ -25,15 +26,15 @@ builder.Services.AddCors(options =>
     )
 );
 
-builder.Services.AddEShopDbContext(builder.Configuration);
-builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
+builder.Services.AddServiceDbContext<CustomerDbContext>(builder.Configuration);
+builder.Services.AddHealthChecks().AddDbContextCheck<CustomerDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 
 // Guest orders (#45): the consumer creates the account in Keycloak and reports it through the outbox.
 builder.Services.AddEShopMessaging(builder.Configuration);
-builder.Services.AddOutboxPublisher<EShopDbContext>(CustomerApiOutbox.Producer);
-builder.Services.AddMessageConsumer<GuestOrderPlacedHandler, EShopDbContext>(
+builder.Services.AddOutboxPublisher<CustomerDbContext>(CustomerApiOutbox.Producer);
+builder.Services.AddMessageConsumer<GuestOrderPlacedHandler, CustomerDbContext>(
     GuestOrdersQueue.Definition
 );
 builder

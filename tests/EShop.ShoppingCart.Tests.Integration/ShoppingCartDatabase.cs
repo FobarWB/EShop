@@ -1,4 +1,5 @@
-using EShop.Data.Entities;
+using EShop.ShoppingCart.Data;
+using EShop.ShoppingCart.Data.Entities;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,12 +9,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EShop.ShoppingCart.Tests.Integration;
 
-public sealed class ShoppingCartDatabase : TestDatabase
+public sealed class ShoppingCartDatabase : TestDatabase<CartDbContext>
 {
     private int _lastProductId;
 
     public ShoppingCartDatabase()
         : base("shoppingcart") { }
+
+    protected override CartDbContext NewContext(DbContextOptions<CartDbContext> options) =>
+        new(options);
 
     // The cart's copy of a product, as ProductApi's events would store it (#75). The ids come from the events, not
     // from a sequence: a counter keeps them unique within the run.

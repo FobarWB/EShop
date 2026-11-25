@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using EShop.OrderApi.Accounts;
+using EShop.OrderApi.Data;
 using EShop.ServiceDefaults.Keycloak;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
@@ -10,7 +11,8 @@ namespace EShop.OrderApi.Tests.Integration;
 
 // A class fixture: one in-memory API per test class, using this project's test database.
 // Keycloak is replaced by FakeAccountDirectory; the real client is tested in KeycloakAccountDirectoryTests.
-public class OrderApiFactory(OrderApiDatabase database) : EShopApiFactory<Program>(database)
+public class OrderApiFactory(OrderApiDatabase database)
+    : EShopApiFactory<Program, OrderingDbContext>(database)
 {
     public FakeAccountDirectory Accounts { get; } = new();
 

@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-11-23
-issue: 76
+verified: 2026-11-25
+issue: 77
 ---
 
 # NotificationService
@@ -57,7 +57,8 @@ is unavailable (until #45 a `TopologyInitializer` did it at start and stopped th
 
 ## Data
 
-`inbox_messages` (`consumer`, `message_id` primary key, `processed_at`) in the shared database; reads nothing else.
+`inbox_messages` (`consumer`, `message_id` primary key, `processed_at`) in the schema `notification`
+(`NotificationDbContext` in [Data/](../../src/EShop.NotificationService/Data/), #77); reads nothing else.
 
 ## Configuration
 
@@ -68,7 +69,7 @@ runs as `Production`; SQL commands are logged at `Warning` only.
 ## Dependencies
 
 RabbitMQ (connection, topology and the consumer from [EShop.Messaging](../../src/EShop.Messaging/)), PostgreSQL
-(inbox), Mailpit.
+(inbox; `AddServiceDbContext` from `EShop.Persistence`), Mailpit.
 In compose it waits for the migrator, a healthy RabbitMQ and a healthy Mailpit.
 
 ## Tests

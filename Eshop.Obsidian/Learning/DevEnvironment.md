@@ -45,6 +45,8 @@ For people and agents alike: a command that "succeeded" is checked by reading th
   XL `db339eb2`), Estimate `PVTF_lAHOBYkLH84AqeOSzghtsxA`, Start date `PVTF_lAHOBYkLH84AqeOSzghtsxE`,
   End date `PVTF_lAHOBYkLH84AqeOSzghtsxI`. A new issue's item id: GraphQL `issue(number:N){projectItems{nodes{id}}}`
   (from Git Bash); `gh project item-list` shows only 30 items and lags behind.
+- Git Bash turns arguments that look like POSIX paths into Windows paths, also inside commands for a container:
+  `docker exec … psql -f /tmp/x.sql` looked for `C:/Users/…/Temp/x.sql`. `MSYS_NO_PATHCONV=1` turns it off.
 
 ## Open questions
 

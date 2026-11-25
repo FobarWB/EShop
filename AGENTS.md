@@ -16,8 +16,8 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `src/EShop.OrderApi/` | Orders REST API: checkout with the client's lines priced from its product replica (`order_products`), guest checkout with an email; confirms or rejects orders on the stock answer; consumes `customer.guest-account-ready` | https://localhost:5005 |
 | `src/EShop.CustomerApi/` | Customer REST API: the signed-in user's phone and saved shipping addresses; creates the Keycloak accounts of guest orders (consumes `order.guest-placed`) | https://localhost:5006 |
 | `src/EShop.ClientApp/` | Angular 22 SPA; `nginx.conf` and `Dockerfile` of the client container | http://localhost:4200 (`ng serve`), http://localhost:8080 (compose profile `app`) |
-| `src/EShop.Data/` | EF Core `EShopDbContext`, `AddEShopDbContext()`, migrations (namespace `EShop.Data`); `Dockerfile` of the migrator | — |
-| `src/EShop.Data.Entities/` | EF Core entities (namespace `EShop.Data.Entities`) | — |
+| `src/EShop.Catalog.Data/` | The catalog's EF Core `CatalogDbContext` (schema `catalog`), its entities and migrations: one bounded context, used by ProductApi and CategoryApi | — |
+| `src/EShop.Persistence/` | The EF Core setup of a service's DbContext: `AddServiceDbContext<TContext>()`, `UseServiceNpgsql` (its schema, migrations history and search path), `IServiceDbContext` | — |
 | `src/EShop.NotificationService/` | Worker: consumes order events from RabbitMQ, sends emails through Mailpit (SMTP localhost:1025); `Dockerfile` of the worker container | — |
 | `src/EShop.Messaging/` | Shared event infrastructure for all services: publishing through the transactional outbox (one producer name per service), consuming with inbox, retries and DLQ (`MessageConsumer` + one `IMessageHandler` per service), RabbitMQ connection and topology | — |
 | `src/EShop.OrderApi.Contracts/` | Events published by OrderApi (`OrderPlaced`, `OrderConfirmed`, `OrderRejected`, `OrderCancelled`, `GuestOrderPlaced`): the contract its consumers deserialize | — |
@@ -27,11 +27,13 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `tests/` | xUnit unit and integration tests per service, shared helpers `EShop.Tests.Common`, `coverage.ps1` | — |
 | `docker-compose.yml` | Local environment: PostgreSQL 18, pgAdmin, Keycloak, RabbitMQ and Mailpit; with the profile `app` also the migrator, the five APIs, the notification service and the client (settings in `.env`, template `.env.example`) | pgAdmin: http://localhost:5050, Keycloak: http://localhost:8180, RabbitMQ: http://localhost:15672, Mailpit: http://localhost:8025 |
 | `keycloak/realms/` | Realm `eshop`, imported on Keycloak's first start: clients, role `admin`, development users `admin`/`admin1234` and `customer`/`customer1234` (local only, never on a server) | — |
-| `db/` | Northwind data for PostgreSQL (`northwind-data.sql`) and its generator `convert-northwind.ps1`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
+| `db/` | Northwind data for PostgreSQL, one file per schema (`northwind-catalog.sql`, `northwind-ordering.sql`), and their generator `convert-northwind.ps1`; the migrator `db/migrator/`; container init script `db/init/`, pgAdmin server list `db/pgadmin/` | — |
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 
-- All APIs share one database through the common DbContext.
+- One database, a schema per service (`catalog`, `cart`, `ordering`, `customer`, `notification`), each with its own
+  DbContext and migrations (#77); separate databases follow in #78. A service's DbContext, entities and migrations
+  live in its `Data/` folder, the catalog's in `src/EShop.Catalog.Data/`.
 - The Angular services call relative URLs (`/api/products`); the server that delivered the page forwards them:
   `ng serve` through `src/EShop.ClientApp/proxy.conf.json`, the client container through `nginx.conf`.
 - API ports are set by `applicationUrl` in each project's `Properties/launchSettings.json` and duplicated
@@ -114,8 +116,19 @@ Test rules: `.claude/rules/testing.md`. After a change, build and test the affec
 
 ## Database
 
-The schema is owned by EF Core migrations in `src/EShop.Data/Migrations`; Northwind data is loaded separately.
-`dotnet ef` needs `--startup-project`: the DbContext is configured in the API's `Program.cs`.
+Each schema is owned by the EF Core migrations of its DbContext; Northwind data is loaded separately.
+
+| DbContext | Project (`--project`) | Schema | Migrations |
+|---|---|---|---|
+| `CatalogDbContext` | `src/EShop.Catalog.Data` | `catalog` | `Migrations/` |
+| `CartDbContext` | `src/EShop.ShoppingCart` | `cart` | `Data/Migrations/` |
+| `OrderingDbContext` | `src/EShop.OrderApi` | `ordering` | `Data/Migrations/` |
+| `CustomerDbContext` | `src/EShop.CustomerApi` | `customer` | `Data/Migrations/` |
+| `NotificationDbContext` | `src/EShop.NotificationService` | `notification` | `Data/Migrations/` |
+
+`dotnet ef` needs no `--startup-project`: each project has an `IDesignTimeDbContextFactory`, so no service starts.
+Commands that connect (`database update`) need `--connection '<connection string>'`; without it the factory uses
+`Host=localhost;Database=eshop` with no password.
 
 First-time setup (the first `docker compose up` creates the role `eshop` with `CREATEDB` and the database `eshop`,
 and the role and database `keycloak`, see `db/init/`):
@@ -125,12 +138,14 @@ Copy-Item .env.example .env          # set the passwords; ESHOP_DB_PASSWORD is t
 docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose ps shows them as "healthy"
 dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
 dotnet user-secrets set "RabbitMq:Password" '<RABBITMQ_PASSWORD from .env>' --project src/EShop.ProductApi
-dotnet ef database update --project src/EShop.Data --startup-project src/EShop.ProductApi
-docker compose cp db/northwind-data.sql postgres:/tmp/northwind-data.sql                                   # empty database only
-docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-data.sql
+docker compose run --rm --build migrator                                                                   # the five schemas
+docker compose cp db/northwind-catalog.sql postgres:/tmp/northwind-catalog.sql                             # empty schemas only
+docker compose cp db/northwind-ordering.sql postgres:/tmp/northwind-ordering.sql
+docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-catalog.sql
+docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-ordering.sql
 ```
 
-The data is loaded with the container's `psql` (no local PostgreSQL needed); copying the file avoids piping it through
+The data is loaded with the container's `psql` (no local PostgreSQL needed); copying the files avoids piping them through
 PowerShell 5.1, which would change the encoding of non-ASCII Northwind names.
 
 The product replicas (`cart_products`, `order_products`) are filled by events, not by the SQL file: once ShoppingCart and
@@ -143,18 +158,23 @@ OrderApi have run (they declare their queues), call `POST /api/products/events/r
   `docker compose up -d postgres; docker compose exec postgres bash /docker-entrypoint-initdb.d/02-create-keycloak.sh`.
 - Keycloak keeps its state in the database `keycloak`: the realm file is imported only when the realm does not exist,
   so later changes in the admin console stay, and changes of the file need the realm deleted (or `down -v`).
-- Model change → `dotnet ef migrations add <Name> --project src/EShop.Data --startup-project src/EShop.ProductApi`.
-- In the profile `app` the one-off service `migrator` (an EF Core migrations bundle, `src/EShop.Data/Dockerfile`)
-  applies pending migrations before the APIs start; it runs on every `up`. Migrations are compiled into its image:
-  after a new migration use `--build`. Northwind data is still loaded manually (above).
-- `db/northwind-data.sql` is generated from `archive/Northwind4SQLServer.sql`; do not edit it by hand:
-  `powershell -ExecutionPolicy Bypass -File db/convert-northwind.ps1`.
+- Model change → `dotnet ef migrations add <Name> --project <project>`, with `--output-dir Data/Migrations` for the
+  services (table above). One context on the local database:
+  `dotnet ef database update --project <project> --connection '<connection string>'`.
+- In the profile `app` the one-off service `migrator` (`db/migrator/`: one EF Core migrations bundle per DbContext,
+  run in turn by `migrate.sh`) applies pending migrations before the APIs start; it runs on every `up` and stops at the
+  first failing schema. Migrations are compiled into its image: after a new migration use `--build`.
+  Northwind data is still loaded manually (above).
+- `db/northwind-catalog.sql` and `db/northwind-ordering.sql` are generated from `archive/Northwind4SQLServer.sql`;
+  do not edit them by hand: `powershell -ExecutionPolicy Bypass -File db/convert-northwind.ps1`. Columns the dump does
+  not have get the values the migrations of the shared database gave the loaded rows (`status` `Delivered`,
+  `revision` 0, `product_name` from the products).
 
 ### Test databases
 
 Each integration test project starts its own throwaway `postgres:18` container (Testcontainers, `TestDatabase`),
-creates and migrates its database there, `eshop_test_<project>` (e.g. `eshop_test_shoppingcart`), and empties it
-before each test. The container is removed after the run; no test database or user-secret is needed, locally or in CI.
+creates its database there, `eshop_test_<project>` (e.g. `eshop_test_shoppingcart`), applies its service's
+migrations (`TestDatabase<TContext>`) and empties the tables of that schema before each test. The container is removed after the run; no test database or user-secret is needed, locally or in CI.
 
 Fallback for a machine without Docker, or a quick loop on one project: the environment variable
 `ConnectionStrings__EShopTests` points the tests at another server instead (on compose the role `eshop` has `CREATEDB`, `db/init/`).

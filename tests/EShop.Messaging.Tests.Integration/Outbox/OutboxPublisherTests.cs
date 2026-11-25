@@ -1,7 +1,7 @@
 using System.Text.Json;
-using EShop.Data;
 using EShop.Messaging.Outbox;
 using EShop.Messaging.RabbitMq;
+using EShop.Persistence;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,8 +38,8 @@ public class OutboxPublisherTests : IAsyncLifetime
 
         // The scope factory the publisher gets in a service: one DbContext per pass, on the test database.
         _services = new ServiceCollection()
-            .AddDbContext<EShopDbContext>(options =>
-                options.UseNpgsql(_database.ConnectionString).UseSnakeCaseNamingConvention()
+            .AddDbContext<MessagingTestDbContext>(options =>
+                options.UseServiceNpgsql<MessagingTestDbContext>(_database.ConnectionString)
             )
             .BuildServiceProvider();
 
@@ -142,11 +142,11 @@ public class OutboxPublisherTests : IAsyncLifetime
     // Starts the publisher, waits until the rows are marked processed, stops it.
     private async Task RunPublisherUntilProcessedAsync(params Guid[] ids)
     {
-        var publisher = new OutboxPublisher<EShopDbContext>(
+        var publisher = new OutboxPublisher<MessagingTestDbContext>(
             _services.ShouldNotBeNull().GetRequiredService<IServiceScopeFactory>(),
             _broker.Connection,
             new OutboxProducer(Producer),
-            NullLogger<OutboxPublisher<EShopDbContext>>.Instance
+            NullLogger<OutboxPublisher<MessagingTestDbContext>>.Instance
         );
         await publisher.StartAsync(_cancellationToken);
         try

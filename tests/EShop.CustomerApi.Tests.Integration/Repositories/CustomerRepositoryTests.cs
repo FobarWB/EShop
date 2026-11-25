@@ -1,6 +1,6 @@
+using EShop.CustomerApi.Data.Entities;
 using EShop.CustomerApi.Dtos;
 using EShop.CustomerApi.Repositories;
-using EShop.Data.Entities;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 

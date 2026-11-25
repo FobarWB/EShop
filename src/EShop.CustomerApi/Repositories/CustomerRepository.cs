@@ -1,6 +1,6 @@
+using EShop.CustomerApi.Data;
+using EShop.CustomerApi.Data.Entities;
 using EShop.CustomerApi.Dtos;
-using EShop.Data;
-using EShop.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -13,9 +13,9 @@ public class CustomerRepository : ICustomerRepository
     private const string ProfilePrimaryKey = "pk_customer_profiles";
     private const string DefaultAddressIndex = "ix_customer_addresses_user_id_default";
 
-    private readonly EShopDbContext _db;
+    private readonly CustomerDbContext _db;
 
-    public CustomerRepository(EShopDbContext db)
+    public CustomerRepository(CustomerDbContext db)
     {
         _db = db;
     }

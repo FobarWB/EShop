@@ -1,4 +1,6 @@
+using EShop.NotificationService.Data;
 using EShop.Tests.Common;
+using Microsoft.EntityFrameworkCore;
 
 [assembly: AssemblyFixture(
     typeof(EShop.NotificationService.Tests.Integration.NotificationServiceDatabase)
@@ -9,8 +11,12 @@ using EShop.Tests.Common;
 
 namespace EShop.NotificationService.Tests.Integration;
 
-public sealed class NotificationServiceDatabase : TestDatabase
+public sealed class NotificationServiceDatabase : TestDatabase<NotificationDbContext>
 {
     public NotificationServiceDatabase()
         : base("notificationservice") { }
+
+    protected override NotificationDbContext NewContext(
+        DbContextOptions<NotificationDbContext> options
+    ) => new(options);
 }

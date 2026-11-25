@@ -1,5 +1,5 @@
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.ShoppingCart.Data;
+using EShop.ShoppingCart.Data.Entities;
 using EShop.ShoppingCart.Dtos;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,9 +7,9 @@ namespace EShop.ShoppingCart.Repositories;
 
 public class ShoppingCartRepository : IShoppingCartRepository
 {
-    private readonly EShopDbContext _db;
+    private readonly CartDbContext _db;
 
-    public ShoppingCartRepository(EShopDbContext db)
+    public ShoppingCartRepository(CartDbContext db)
     {
         _db = db;
     }

@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-23
+verified: 2026-11-25
 issue: 47
 ---
 
@@ -103,7 +103,7 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
 - **SPA has no server of its own.** `ng serve` / Vite are development tools; in production a static server serves
   the build. A Node server appears only with server-side rendering (Next.js, Angular SSR).
 
-Applied: `src/EShop.*/Dockerfile` (five APIs, `EShop.Data` = migrator, `EShop.ClientApp` = nginx), `.dockerignore`,
+Applied: `src/EShop.*/Dockerfile` (five APIs, `EShop.ClientApp` = nginx), `db/migrator/Dockerfile` (#77), `.dockerignore`,
 services `migrator`, `productapi`, `categoryapi`, `shoppingcart`, `orderapi`, `client` in [docker-compose.yml](../../docker-compose.yml)
 (`restart: unless-stopped` for the shop services). Manual cycle:
 `docker build -f src/EShop.ProductApi/Dockerfile -t eshop-productapi:dev .`, `docker history`, `docker run --network
@@ -161,7 +161,19 @@ eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
   ProductApi (its startup project), so `EShop.OrderApi.Contracts` belonged in `src/EShop.Data/Dockerfile` too. Missed in
   #75 and #76: after a new reference, run `docker compose --profile app build` before the commit.
 
+## Migrator per schema (#77)
+
+- **One image, five bundles**: each `dotnet ef migrations bundle` builds its project; the runtime image is `aspnet`
+  because three of the bundled projects are ASP.NET apps. `migrate.sh` (`set -eu`) runs them in turn and stops at the
+  first failure; `${ConnectionStrings__EShop:?…}` stops with a message instead of a bundle trying `localhost`.
+- **An exception in `.dockerignore`**: `db/` stays out of the build context (the Northwind files), `!db/migrator/migrate.sh`
+  lets the script in.
+- **`COPY --chmod=755`** (BuildKit) makes the script executable without a `RUN chmod` layer; `*.sh text eol=lf` in
+  `.gitattributes` keeps CRLF out of it.
+- **A throwaway check**: a `postgres:18` container on its own network, the migrator run twice against it (the second
+  run applies nothing), then `docker rm -f`, `docker network rm`, `docker rmi`.
+
 ## Open questions
 
 - Pin exact image versions (`postgres:18.x`) or follow the major tag; who updates them (Dependabot can).
-- Separate roles: the migrator as the schema owner, the APIs with data rights only.
+- Separate roles: the migrator as the schema owner, the APIs with data rights only (#78).

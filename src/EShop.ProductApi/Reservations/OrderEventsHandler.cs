@@ -1,5 +1,5 @@
-using EShop.Data;
-using EShop.Data.Entities;
+using EShop.Catalog.Data;
+using EShop.Catalog.Data.Entities;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
@@ -17,10 +17,10 @@ namespace EShop.ProductApi.Reservations;
 // inbox row are committed together.
 public sealed class OrderEventsHandler : IMessageHandler
 {
-    private readonly EShopDbContext _db;
+    private readonly CatalogDbContext _db;
     private readonly ILogger<OrderEventsHandler> _logger;
 
-    public OrderEventsHandler(EShopDbContext db, ILogger<OrderEventsHandler> logger)
+    public OrderEventsHandler(CatalogDbContext db, ILogger<OrderEventsHandler> logger)
     {
         _db = db;
         _logger = logger;

@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using EShop.Catalog.Data;
+using EShop.Catalog.Data.Entities;
 using EShop.CategoryApi.Dtos;
-using EShop.Data;
-using EShop.Data.Entities;
 using EShop.ServiceDefaults;
 using EShop.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
@@ -408,7 +408,7 @@ public class CategoryApiTests : IClassFixture<CategoryApiFactory>, IAsyncLifetim
         _factory
             .WithWebHostBuilder(builder =>
                 builder.ConfigureTestServices(services =>
-                    services.ConfigureDbContext<EShopDbContext>(options =>
+                    services.ConfigureDbContext<CatalogDbContext>(options =>
                         options.AddInterceptors(new BeforeSaveChangesInterceptor(write))
                     )
                 )
