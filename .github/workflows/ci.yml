@@ -51,7 +51,7 @@ jobs:
             "-targetdir:TestResults/coverage-report" \
             "-reporttypes:Html;MarkdownSummaryGithub" \
             "-assemblyfilters:+EShop.*;-EShop.*.Tests.*;-EShop.Tests.Common" \
-            "-classfilters:-EShop.Data.Migrations.*;-Microsoft.AspNetCore.OpenApi.Generated*;-System.Runtime.CompilerServices*"
+            "-classfilters:-*.Migrations.*;-Microsoft.AspNetCore.OpenApi.Generated*;-System.Runtime.CompilerServices*"
           cat TestResults/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v5

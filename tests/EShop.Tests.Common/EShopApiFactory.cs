@@ -1,4 +1,3 @@
-using EShop.Data;
 using EShop.DataService;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
@@ -83,8 +82,3 @@ public class EShopApiFactory<TEntryPoint, TContext> : WebApplicationFactory<TEnt
         return host;
     }
 }
-
-/// <summary>An API on the shared EShopDbContext, until every API uses its service's context (#77).</summary>
-public class EShopApiFactory<TEntryPoint>(TestDatabase database)
-    : EShopApiFactory<TEntryPoint, EShopDbContext>(database)
-    where TEntryPoint : class;

@@ -1,4 +1,3 @@
-using EShop.Data;
 using EShop.DataService;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -141,14 +140,4 @@ public abstract class TestDatabase<TContext> : IAsyncLifetime
 
     private static InvalidOperationException NotInitialized() =>
         new("The test database has not been initialized.");
-}
-
-/// <summary>The shared EShopDbContext, until every test project uses its service's context (#77).</summary>
-public abstract class TestDatabase : TestDatabase<EShopDbContext>
-{
-    protected TestDatabase(string suffix)
-        : base(suffix) { }
-
-    protected override EShopDbContext NewContext(DbContextOptions<EShopDbContext> options) =>
-        new(options);
 }

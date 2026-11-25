@@ -3,7 +3,8 @@ paths:
   - "**/*Context*.cs"
   - "**/Repositories/**/*.cs"
   - "**/Migrations/**/*.cs"
-  - "**/EShop.Data*/**/*.cs"
+  - "**/Data/**/*.cs"
+  - "**/EShop.*Data*/**/*.cs"
 ---
 
 # EF Core

@@ -13,8 +13,8 @@ Architecture and reasons: `Eshop.Obsidian/Learning/Testing.md`.
 - Controller logic (status codes from repository results): unit test in `tests/EShop.<Service>.Tests.Unit`,
   repository mocked with NSubstitute.
 - Repository behavior (queries, `Include`, constraints, cascades): integration test against PostgreSQL.
-  Never mock `EShopDbContext`, never use the EF Core InMemory provider.
-- HTTP behavior (routing, `[ApiController]` validation, JSON, headers): API test with `EShopApiFactory<Program>`
+  Never mock a service's DbContext, never use the EF Core InMemory provider.
+- HTTP behavior (routing, `[ApiController]` validation, JSON, headers): API test with `EShopApiFactory<Program, TContext>`
   in `tests/EShop.<Service>.Tests.Integration/Api`.
 - Mock our own interfaces, not infrastructure (`DbContext`, `HttpClient`).
 
