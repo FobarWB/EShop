@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-23
+verified: 2026-11-25
 issue: 43
 ---
 
@@ -16,10 +16,10 @@ A real shop also needs the order to stay a document: what the buyer saw at check
 
 - **Statuses** `Pending → Confirmed → Paid → Shipped → Delivered`, `Pending → Rejected` (#76: ProductApi could not
   reserve the stock), `Pending, Confirmed, Paid → Cancelled`. The transitions live in one place,
-  `Order.TryChangeStatus` ([Order.Lifecycle.cs](../../src/EShop.Data.Entities/Order.Lifecycle.cs)); `Status` has a
+  `Order.TryChangeStatus` ([Order.Lifecycle.cs](../../src/EShop.OrderApi/Data/Entities/Order.Lifecycle.cs)); `Status` has a
   private setter. A forbidden transition returns `false` (the API answers 409), not an exception.
 - **Stored as text** (`orders.status varchar(20)`) with `CHECK (status IN (...))`, the list built from the enum
-  (`EShopDbContext.OrderStatusValues`), so a new status shows up in the next migration. Considered:
+  (`OrderingDbContext.OrderStatusValues`), so a new status shows up in the next migration. Considered:
   an `int` (unreadable in psql and pgAdmin) and a PostgreSQL enum type (`CREATE TYPE`: values cannot be removed or
   renamed without recreating the type, and Npgsql needs it mapped).
 - **Journal** `order_status_changes`: one row per change (`from_status`, `to_status`, `changed_at`, `changed_by` = token

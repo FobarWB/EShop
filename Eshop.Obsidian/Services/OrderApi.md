@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-11-23
-issue: 76
+verified: 2026-11-25
+issue: 77
 ---
 
 # OrderApi
@@ -125,7 +125,7 @@ redelivery updates 0 rows.
 ## Events
 
 Published to the topic exchange `eshop.events` by `OutboxPublisher` (a `BackgroundService` from `EShop.Messaging`,
-registered with `AddOutboxPublisher<EShopDbContext>()`): routing key = `Type`, `MessageId` = outbox row id, persistent, publisher
+registered with `AddOutboxPublisher<OrderingDbContext>()`): routing key = `Type`, `MessageId` = outbox row id, persistent, publisher
 confirms, up to ~2 s after the commit, in the order they occurred. Contracts in
 [EShop.OrderApi.Contracts](../../src/EShop.OrderApi.Contracts/), see
 [MessageContractsOwnedByProducer](../Decisions/MessageContractsOwnedByProducer.md).
@@ -147,8 +147,10 @@ automatic recovery reconnects when the broker is back. Consumers: [NotificationS
 
 ## Data
 
-Writes `orders`, `order_details`, `order_status_changes`, `outbox_messages` and its replica `order_products`; reads no
-other service's table (#76).
+Writes `orders`, `order_details`, `order_status_changes`, `outbox_messages`, `inbox_messages` and its replica
+`order_products` in the schema `ordering` (`OrderingDbContext` in [Data/](../../src/EShop.OrderApi/Data/), #77), next to
+the Northwind tables only orders reference (`customers`, `customer_demographics`, `customer_customer_demo`, `employees`,
+`employee_territories`, `territories`, `regions`, `shippers`); reads no other service's table (#76).
 
 - `order_products` (#76): `product_id` (the key from the events), name, price, stock (a hint for checkout),
   `discontinued`, `deleted` (tombstone), `revision`; no category. No foreign key to `products`.
@@ -157,7 +159,7 @@ other service's table (#76).
   address): a copy of the buyer's address at checkout, like the prices.
 - `outbox_messages`: `id` (UUIDv7 from code: the `MessageId`, known before the insert, appended at the end of the
   key index), `type`, `payload` (`jsonb`), `occurred_at`, `processed_at` (null = pending), `attempts`, `last_error`;
-  partial index `ix_outbox_messages_occurred_at … WHERE processed_at IS NULL`.
+  partial index `ix_outbox_messages_producer_occurred_at … WHERE processed_at IS NULL`.
 
 - `orders.user_id` (`varchar(50)`, null for the Northwind orders) and `orders.idempotency_key` (`uuid`), with a unique
   index on both. PostgreSQL treats NULLs as distinct in a unique index, so the 830 Northwind rows do not collide.
@@ -165,20 +167,20 @@ other service's table (#76).
 - `orders.status` (`varchar(20)`, CHECK `ck_orders_status`) and `orders.xmin` as the concurrency token.
 - `order_date`, `required_date` and `shipped_date` are `timestamptz`: Npgsql reads and writes `DateTime` of kind `Utc`.
 - `order_status_changes`: the journal, see [OrderLifecycle](../Decisions/OrderLifecycle.md).
-- `orders.placed_as_guest` (#45, migration `AddGuestOrders`): a guest order; `user_id` is null until the account is
+- `orders.placed_as_guest` (#45): a guest order; `user_id` is null until the account is
   attached. `ix_orders_guest_idempotency_key` (unique, `WHERE placed_as_guest`) makes a guest's retry return its order,
   also after `user_id` was set; `ix_orders_guest_customer_email` (`WHERE placed_as_guest AND user_id IS NULL`) serves
   the attach.
-- `outbox_messages.producer` (migration `AddOutboxProducer`; existing rows got `orderapi`, the column has no default).
-- Migration `AddOrderLifecycle`: the Northwind rows got `Delivered`, orders placed through the API before it `Pending`;
-  `product_name` was copied from `products`.
+- `outbox_messages.producer` (`orderapi`, no default). The table is OrderApi's own since #77; the column stays until #78.
+- The Northwind rows come with `status` `Delivered`, `placed_as_guest` false and `product_name` from the products: the
+  values the old migrations (`AddOrderLifecycle`, `AddGuestOrders`) gave them, written by `db/convert-northwind.ps1`.
 - `customer_id` (Northwind `char(5)`) stays null for new orders.
 - `order_details.product_id` has no foreign key since #75: a product can be deleted, the order keeps its copy of name
-  and price.
+  and price. None to `order_products` either (#77): the Northwind lines are loaded before the replica is filled.
 
 ## Dependencies
 
-Shared DbContext (`EShopDbContext` in `EShop.Data`); reads no other service's table: the products of
+`OrderingDbContext`, registered with `AddServiceDbContext` from `EShop.Persistence`; reads no other service's table: the products of
 [ProductApi](ProductApi.md) through `order_products` (events), the cart's lines from the client (#76).
 JWT validation, `User.GetUserId()`, `User.GetUserEmail()`, error handling (`ConcurrencyConflictHandler`) and the
 Keycloak Admin API client (`AddKeycloakAdminClient`, section `KeycloakAdmin:OrderApi`, secret in user-secrets and

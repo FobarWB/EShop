@@ -8,8 +8,8 @@ public class OutboxMessage
     [Key]
     public Guid Id { get; set; }
 
-    // The service that wrote the row; its OutboxPublisher publishes only these. The table is shared by all producers
-    // (one database for all services), and one publisher per producer keeps that producer's events in order.
+    // The service that wrote the row; its OutboxPublisher publishes only these. The column kept the producers apart
+    // while they shared one table; since #77 each service has its own, and the column stays until it is removed (#78).
     [StringLength(50)]
     public string Producer { get; set; } = null!;
 

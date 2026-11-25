@@ -1,13 +1,14 @@
 ---
 type: index
-verified: 2026-11-23
+verified: 2026-11-25
 ---
 
 # Services
 
 [Home](../Home.md)
 
-All backend services share one PostgreSQL database (`eshop`) through the common DbContext.
+All backend services use one PostgreSQL database (`eshop`), each its own schema through its own DbContext (#77):
+`catalog` (ProductApi and CategoryApi), `cart`, `ordering`, `customer`, `notification`. Separate databases follow in #78.
 Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 
 - [ProductApi](ProductApi.md): products CRUD; owns the stock (reservation, #76).

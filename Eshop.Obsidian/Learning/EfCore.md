@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-23
+verified: 2026-11-25
 issue: 33
 ---
 
@@ -75,11 +75,30 @@ Rules for EF Core code: [.claude/rules/ef-core.md](../../.claude/rules/ef-core.m
   Npgsql 9+ also generates UUIDv7 for `Guid` keys by default.
 - **`FromSql($"… {value} …")`** turns the interpolated values into SQL parameters (`LIMIT @p0`): no injection. Used for
   `FOR UPDATE SKIP LOCKED`, which LINQ cannot express.
-- **Captive dependency.** A hosted service is a singleton; `EShopDbContext` is scoped. Injected into the constructor, one
+- **Captive dependency.** A hosted service is a singleton; a service's DbContext is scoped. Injected into the constructor, one
   DbContext would live for hours (growing change tracker, broken after a lost connection), and DI validation refuses it
   in Development. Background work creates a scope per pass with `IServiceScopeFactory`.
 - **Composite key by attribute**: `[PrimaryKey(nameof(Consumer), nameof(MessageId))]` (`InboxMessage`); a filtered
   index needs the fluent API (`HasIndex(…).HasFilter("processed_at IS NULL")`, raw SQL names in snake_case).
+
+## A DbContext per service (#77)
+
+- **`HasDefaultSchema(schema)`** puts the model's tables, indexes and sequences into the schema, but not EF Core's own
+  `__EFMigrationsHistory`: that needs `MigrationsHistoryTable(HistoryRepository.DefaultTableName, schema)` in the
+  provider options. Without it the five contexts would write their history into one `public.__EFMigrationsHistory`,
+  outside their schemas.
+- **A static abstract interface member** (C# 11), `IServiceDbContext.Schema`: the generic `UseServiceNpgsql<TContext>`
+  reads `TContext.Schema` before any context instance exists.
+- **`IDesignTimeDbContextFactory<TContext>`**: `dotnet ef` uses it instead of starting the startup project's host, so no
+  service starts at design time, and a class library (`EShop.Catalog.Data`) can be its own startup project. Commands
+  that connect get the connection string through `--connection`.
+- **A migrations bundle per context**: `dotnet ef migrations bundle --project <project>` builds one executable that
+  applies that context's migrations (`--connection` at run time).
+- **A new context starts with `InitialCreate`** of the full model. The old hand-written `migrationBuilder.Sql` (type
+  changes with `USING`, backfills) served existing rows; with a fresh schema, the data scripts have to supply what the
+  backfills did (see [PostgreSql](PostgreSql.md)).
+- **`Copy-Item` keeps the source's modification time**: a file restored from a copy looked older than the build output,
+  and an incremental build kept the stale assembly; `--no-incremental` (or touching the file) rebuilt it.
 
 ## Open questions
 

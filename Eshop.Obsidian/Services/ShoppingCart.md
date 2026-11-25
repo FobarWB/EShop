@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-11-23
-issue: 76
+verified: 2026-11-25
+issue: 77
 ---
 
 # ShoppingCart
@@ -44,12 +44,13 @@ requested every product and its category (1 + 2N requests); from #33 to #75 the 
 
 ## Data
 
-`Cart` (unique `UserId`) and `CartItem` (key `CartId` + `ProductId`, `Quantity`) in the shared PostgreSQL database `eshop` (Northwind data).
-Deleting a cart deletes its items; `cart_items.product_id` has no foreign key since #75 (index
-`ix_cart_items_product_id` stays).
+`Cart` (unique `UserId`), `CartItem` (key `CartId` + `ProductId`, `Quantity`), `cart_products` and `inbox_messages` in
+the schema `cart` (`CartDbContext` in [Data/](../../src/EShop.ShoppingCart/Data/), #77). Deleting a cart deletes its items.
 `cart_products` (#75): `product_id` (the key from the events, not generated), name, `category_id`, price, stock,
-`discontinued`, `deleted` (tombstone), `revision`. No foreign key to `products`, and none from `cart_items` to it yet
-(#77, when the cart has its own DbContext).
+`discontinued`, `deleted` (tombstone), `revision`. No foreign key to `products` (another service's schema).
+`cart_items.product_id` references `cart_products` (#77, `Restrict`): an item needs the cart's copy of its product. The
+copies are never deleted (a deleted product stays as a tombstone), and `ProductDeleted` removes the items itself; the
+index `ix_cart_items_product_id` serves both the key and that removal.
 Changes load the tracked cart with its items and save it without `db.Update`, so only changed columns are written;
 an empty cart cleared or an unchanged quantity writes no rows and still succeeds.
 
@@ -75,7 +76,7 @@ consumer's transaction, so a quantity changed through the API at the same time i
 
 ## Dependencies
 
-Shared DbContext (`EShopDbContext` in `EShop.Data`); reads no other service's table since #75. RabbitMQ from
+`CartDbContext`, registered with `AddServiceDbContext` from `EShop.Persistence`; reads no other service's table since #75. RabbitMQ from
 `EShop.Messaging`, contracts of `EShop.ProductApi.Contracts` and `EShop.OrderApi.Contracts`; in compose it waits for a
 healthy RabbitMQ. [OrderApi](OrderApi.md) no longer reads the cart (#76): the client sends the cart's lines with the
 order, and the cart is emptied on `order.confirmed`.

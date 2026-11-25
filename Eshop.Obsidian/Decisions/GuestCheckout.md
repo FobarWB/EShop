@@ -41,5 +41,6 @@ data. Keycloak cannot join a database transaction. The issue asked not to reveal
   last name (required in the realm's user profile). `VERIFY_EMAIL` in the link marks the email verified: with
   `UPDATE_PASSWORD` alone Keycloak sent a second "Verify email" at the first sign-in (checked on compose).
 - A crash between Keycloak's email and the commit sends the email again; a duplicate beats a guest without an account.
-- The outbox table is shared by producers: `outbox_messages.producer` keeps each publisher to its own rows and order.
+- The outbox table was shared by producers: `outbox_messages.producer` kept each publisher to its own rows and order.
+  Since #77 OrderApi and CustomerApi each have their own (schemas `ordering`, `customer`).
 - Open: Keycloak's email texts are its defaults ("Update Your Account"); a theme can change them (#59).

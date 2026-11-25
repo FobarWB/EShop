@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-23
+verified: 2026-11-25
 issue: 9
 ---
 
@@ -33,15 +33,16 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
 ## Applied in this project
 
 - `tests/EShop.<Service>.Tests.Unit` and `tests/EShop.<Service>.Tests.Integration`; shared helpers in
-  `tests/EShop.Tests.Common`: `TestDatabase` (PostgreSQL container or override, `_test` guard, migrations, reset, seeding)
-  and `EShopApiFactory` (in-memory API that is checked to use the test database).
+  `tests/EShop.Tests.Common`: `TestDatabase<TContext>` (PostgreSQL container or override, `_test` guard, the migrations
+  of its context, reset of its schema, seeding) and `EShopApiFactory<TEntryPoint, TContext>` (in-memory API that is
+  checked to use the test database).
 - An API test changes a service of the in-memory API with `factory.WithWebHostBuilder(... ConfigureTestServices ...)`,
-  e.g. `services.ConfigureDbContext<EShopDbContext>(o => o.AddInterceptors(...))` for the race tests.
+  e.g. `services.ConfigureDbContext<CatalogDbContext>(o => o.AddInterceptors(...))` for the race tests.
 - API tests sign in without Keycloak: `EShopApiFactory` makes `TestAuthHandler` the default scheme; a test client
   becomes a user with `client.AsUser(id, roles)` or `client.AsAdmin()` (headers `X-Test-User` / `X-Test-Roles`),
   a client without them stays anonymous (#41).
 - Lifetimes: database fixture once per test project (assembly fixture: starts the container, runs `MigrateAsync`),
-  API factory once per test class (class fixture), `TRUNCATE` of all tables before each test. Test projects run in
+  API factory once per test class (class fixture), `TRUNCATE` of the tables of its schema before each test. Test projects run in
   parallel on separate containers; tests inside a project run sequentially.
 - xUnit v3 and Vitest run on their current platforms: Microsoft.Testing.Platform (`global.json`) and
   `@angular/build:unit-test`. Coverage: `Microsoft.Testing.Extensions.CodeCoverage` + ReportGenerator (`tests/coverage.ps1`).
@@ -118,3 +119,16 @@ Rules for writing tests: [.claude/rules/testing.md](../../.claude/rules/testing.
 - **Polling with `vi.useFakeTimers()`** and `advanceTimersByTime`. `timer(0)` also waits for an advance, so "delay 0" is
   no breakage the tests can see; break by calling directly.
 - **`HasDefaultValue` and null again**: a product seeded without a price got 0 and was reserved (see [EfCore](EfCore.md)).
+
+## A DbContext per test project (#77)
+
+- **Generic fixtures**: `TestDatabase<TContext>` builds its options with `UseServiceNpgsql<TContext>`, as the service
+  does, and creates the schema with `MigrateAsync`; the messaging tests override it with `EnsureCreated` for their
+  test-only model.
+- **Reset by schema**: the tables come from `pg_tables WHERE schemaname = <schema>` (without `__EFMigrationsHistory`),
+  quoted with `format('%I.%I')` and emptied in one `TRUNCATE … RESTART IDENTITY CASCADE`.
+- **Tests across services went with the shared model**: what another service does with its copy is that service's test.
+- **A key is seen failing in the migration, not in the model**: the test database comes from `MigrateAsync`, so
+  removing the key from `OnModelCreating` changes nothing. The check removed it from `InitialCreate` and restored the file.
+- **A new key changes other tests' seeds**: `cart_items → cart_products` made the order-event tests seed the product
+  copies first.

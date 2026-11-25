@@ -1,7 +1,7 @@
 ---
 type: service
-verified: 2026-11-23
-issue: 76
+verified: 2026-11-25
+issue: 77
 ---
 
 # ProductApi
@@ -44,7 +44,9 @@ reservation changed the stock): the change is not stored, see [OptimisticConcurr
 
 ## Data
 
-`Product` in the shared PostgreSQL database `eshop` (Northwind data), accessed through `IProductRepository`.
+`Product`, `stock_reservations`, `outbox_messages` and `inbox_messages` in the schema `catalog` (`CatalogDbContext` in
+[EShop.Catalog.Data](../../src/EShop.Catalog.Data/), shared with CategoryApi, #77; Northwind data), accessed through
+`IProductRepository`.
 Filtering by category runs in SQL. Reads go straight to PostgreSQL (no cache); a distributed cache is planned in #30.
 `UnitsInStock` is required (`smallint NOT NULL DEFAULT 0`); a PUT with `"unitsInStock": null` returns 400,
 an omitted value is stored as 0 (#31).
@@ -93,11 +95,11 @@ Published through the outbox (producer `productapi`, `ProductApiOutbox.Producer`
 
 ## Dependencies
 
-Shared DbContext (`EShopDbContext` in `EShop.Data`); outbox and RabbitMQ from `EShop.Messaging` (`RabbitMq:Password`
-from user-secrets; in compose it waits for a healthy RabbitMQ); contracts of `EShop.OrderApi.Contracts` (the migrator's
-Dockerfile copies them too: it builds ProductApi). Called by [ClientApp](ClientApp.md).
+`CatalogDbContext`, registered with `AddServiceDbContext` from `EShop.Persistence`; outbox and RabbitMQ from `EShop.Messaging` (`RabbitMq:Password`
+from user-secrets; in compose it waits for a healthy RabbitMQ); contracts of `EShop.OrderApi.Contracts`.
+Called by [ClientApp](ClientApp.md).
 Paging and error handling from `EShop.ServiceDefaults` (see [Services](Services.md)).
-Startup project of the EF Core tools and of the migrations bundle: building the migrator runs its `Program.cs`.
+No longer the startup project of the EF Core tools (#77): each context has a design-time factory.
 
 ## Tests
 
