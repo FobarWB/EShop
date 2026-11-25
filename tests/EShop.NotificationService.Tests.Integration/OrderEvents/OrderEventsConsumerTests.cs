@@ -1,7 +1,8 @@
 using System.Text.Json;
-using EShop.Data;
+using EShop.DataService;
 using EShop.Messaging;
 using EShop.Messaging.RabbitMq;
+using EShop.NotificationService.Data;
 using EShop.NotificationService.Email;
 using EShop.NotificationService.OrderEvents;
 using EShop.OrderApi.Contracts;
@@ -51,12 +52,14 @@ public class OrderEventsConsumerTests : IAsyncLifetime
         // The registration of Program.cs, with the test database, the test broker and the fake sender.
         _services = new ServiceCollection()
             .AddLogging()
-            .AddDbContext<EShopDbContext>(options =>
-                options.UseNpgsql(_database.ConnectionString).UseSnakeCaseNamingConvention()
+            .AddDbContext<NotificationDbContext>(options =>
+                options.UseServiceNpgsql<NotificationDbContext>(_database.ConnectionString)
             )
             .AddSingleton(_broker.Connection)
             .AddSingleton<IEmailSender>(_sender)
-            .AddMessageConsumer<OrderEmailHandler, EShopDbContext>(OrderEventsQueue.Definition)
+            .AddMessageConsumer<OrderEmailHandler, NotificationDbContext>(
+                OrderEventsQueue.Definition
+            )
             .BuildServiceProvider();
         _consumer = _services.GetServices<IHostedService>().ShouldHaveSingleItem();
         await _consumer.StartAsync(_cancellationToken);

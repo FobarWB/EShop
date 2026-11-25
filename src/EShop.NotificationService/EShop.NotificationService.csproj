@@ -7,10 +7,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="MailKit" />
+    <!-- dotnet ef: NotificationDbContextFactory creates the context, the worker does not start. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <!-- The inbox lives in the shared EShopDbContext, until the service has its own DbContext (#77). -->
-    <ProjectReference Include="..\EShop.Data\EShop.Data.csproj" />
+    <ProjectReference Include="..\EShop.DataService\EShop.DataService.csproj" />
     <ProjectReference Include="..\EShop.Messaging\EShop.Messaging.csproj" />
     <ProjectReference Include="..\EShop.OrderApi.Contracts\EShop.OrderApi.Contracts.csproj" />
   </ItemGroup>
