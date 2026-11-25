@@ -1,5 +1,5 @@
-using EShop.Data.Entities;
 using EShop.OrderApi.Accounts;
+using EShop.OrderApi.Data.Entities;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;

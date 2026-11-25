@@ -1,7 +1,7 @@
-using EShop.Data;
-using EShop.Data.Entities;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
+using EShop.OrderApi.Data;
+using EShop.OrderApi.Data.Entities;
 using EShop.OrderApi.Dtos;
 using EShop.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
@@ -20,9 +20,9 @@ public class OrderRepository : IOrderRepository
     // ChangedBy of a guest order's first journal row: there is no user yet.
     private const string GuestChangedBy = "guest";
 
-    private readonly EShopDbContext _db;
+    private readonly OrderingDbContext _db;
 
-    public OrderRepository(EShopDbContext db)
+    public OrderRepository(OrderingDbContext db)
     {
         _db = db;
     }

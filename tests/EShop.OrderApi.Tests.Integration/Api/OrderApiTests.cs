@@ -3,8 +3,8 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using EShop.Data.Entities;
 using EShop.OrderApi.Controllers;
+using EShop.OrderApi.Data.Entities;
 using EShop.OrderApi.Dtos;
 using EShop.Tests.Common;
 

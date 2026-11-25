@@ -1,7 +1,7 @@
 using System.Text.Json;
-using EShop.Data.Entities;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
+using EShop.OrderApi.Data.Entities;
 using EShop.OrderApi.Dtos;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
@@ -94,43 +94,6 @@ public class OrderRepositoryTests : IAsyncLifetime
                 [(chai.ProductId, "Chai", 2, 18m), (chang.ProductId, "Chang", 1, 19m)],
                 ignoreOrder: true
             );
-    }
-
-    [Fact]
-    public async Task PlaceOrder_Items_TakesNoStockAndLeavesTheCart()
-    {
-        // The stock is ProductApi's and the cart ShoppingCart's (#76): checkout writes neither.
-        var product = await _database.SeedAsync(
-            new Product
-            {
-                ProductName = "Chai",
-                UnitPrice = 18m,
-                UnitsInStock = 10,
-            },
-            _cancellationToken
-        );
-        await _database.SeedAsync(
-            new OrderProduct
-            {
-                ProductId = product.ProductId,
-                ProductName = "Chai",
-                UnitPrice = 18m,
-                UnitsInStock = 10,
-                Revision = 1,
-            },
-            _cancellationToken
-        );
-        await _database.SeedCartAsync(UserId, product.ProductId, 3, _cancellationToken);
-
-        (await PlaceOrderAsync((product.ProductId, 3))).Status.ShouldBe(PlaceOrderStatus.Placed);
-
-        (await _database.FindAsync<Product>(product.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)10);
-        (await _database.LoadCartAsync(UserId, _cancellationToken))
-            .ShouldNotBeNull()
-            .CartItems.ShouldHaveSingleItem()
-            .Quantity.ShouldBe(3);
     }
 
     [Fact]
@@ -301,31 +264,19 @@ public class OrderRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ChangeStatus_CancelPending_RecordsChangeAndLeavesTheStockToProductApi()
+    public async Task ChangeStatus_CancelPending_RecordsChange()
     {
-        var product = await _database.SeedAsync(
-            new Product
-            {
-                ProductName = "Chai",
-                UnitPrice = 18m,
-                UnitsInStock = 10,
-            },
-            _cancellationToken
-        );
+        // The line's product id only: ProductApi returns what it reserved, on order.cancelled (#76).
         var seeded = await _database.SeedOrderAsync(
             UserId,
             OrderStatus.Pending,
             _cancellationToken,
-            (product.ProductId, 2)
+            (ProductId: 1, Quantity: 2)
         );
 
         var result = await CancelAsync(seeded.OrderId);
 
         result.ShouldBe(ChangeOrderStatusResult.Changed);
-        // ProductApi returns what it reserved, on order.cancelled (#76).
-        (await _database.FindAsync<Product>(product.ProductId, _cancellationToken))
-            .ShouldNotBeNull()
-            .UnitsInStock.ShouldBe((short)10);
         var order = await _database.LoadOrderAsync(seeded.OrderId, _cancellationToken);
         order.Status.ShouldBe(OrderStatus.Cancelled);
         var change = order.StatusChanges.ShouldHaveSingleItem();

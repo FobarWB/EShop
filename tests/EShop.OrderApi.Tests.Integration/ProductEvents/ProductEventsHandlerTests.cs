@@ -1,6 +1,6 @@
 using System.Text.Json;
-using EShop.Data.Entities;
 using EShop.Messaging.Consumers;
+using EShop.OrderApi.Data.Entities;
 using EShop.OrderApi.ProductEvents;
 using EShop.ProductApi.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;

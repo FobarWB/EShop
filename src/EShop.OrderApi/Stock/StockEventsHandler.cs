@@ -1,8 +1,8 @@
-using EShop.Data;
-using EShop.Data.Entities;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Contracts;
+using EShop.OrderApi.Data;
+using EShop.OrderApi.Data.Entities;
 using EShop.ProductApi.Contracts;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,10 +19,10 @@ public sealed class StockEventsHandler : IMessageHandler
     // ChangedBy in the status journal: the catalog decided, not a person.
     public const string ChangedBy = "productapi";
 
-    private readonly EShopDbContext _db;
+    private readonly OrderingDbContext _db;
     private readonly ILogger<StockEventsHandler> _logger;
 
-    public StockEventsHandler(EShopDbContext db, ILogger<StockEventsHandler> logger)
+    public StockEventsHandler(OrderingDbContext db, ILogger<StockEventsHandler> logger)
     {
         _db = db;
         _logger = logger;

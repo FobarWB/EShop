@@ -1,4 +1,4 @@
-using EShop.Data.Entities;
+using EShop.OrderApi.Data.Entities;
 using EShop.OrderApi.Dtos;
 using EShop.ServiceDefaults;
 

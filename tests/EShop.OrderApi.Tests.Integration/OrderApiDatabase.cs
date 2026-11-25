@@ -1,5 +1,6 @@
-using EShop.Data.Entities;
 using EShop.Messaging.Outbox;
+using EShop.OrderApi.Data;
+using EShop.OrderApi.Data.Entities;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,12 +10,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EShop.OrderApi.Tests.Integration;
 
-public sealed class OrderApiDatabase : TestDatabase
+public sealed class OrderApiDatabase : TestDatabase<OrderingDbContext>
 {
     private int _lastProductId;
 
     public OrderApiDatabase()
         : base("orderapi") { }
+
+    protected override OrderingDbContext NewContext(DbContextOptions<OrderingDbContext> options) =>
+        new(options);
 
     // OrderApi's copy of a product, as ProductApi's events would store it (#76). The ids come from the events, not
     // from a sequence: a counter keeps them unique within the run.
@@ -36,22 +40,6 @@ public sealed class OrderApiDatabase : TestDatabase
                 Discontinued = discontinued,
                 Deleted = deleted,
                 Revision = 1,
-            },
-            cancellationToken
-        );
-
-    // Since #76 checkout never touches carts: only the test that proves it seeds one.
-    public Task<Cart> SeedCartAsync(
-        string userId,
-        int productId,
-        int quantity,
-        CancellationToken cancellationToken
-    ) =>
-        SeedAsync(
-            new Cart
-            {
-                UserId = userId,
-                CartItems = [new CartItem { ProductId = productId, Quantity = quantity }],
             },
             cancellationToken
         );
@@ -149,14 +137,5 @@ public sealed class OrderApiDatabase : TestDatabase
             .OutboxMessages.AsNoTracking()
             .OrderBy(m => m.OccurredAt)
             .ToListAsync(cancellationToken);
-    }
-
-    public async Task<Cart?> LoadCartAsync(string userId, CancellationToken cancellationToken)
-    {
-        await using var db = CreateContext();
-        return await db
-            .Carts.AsNoTracking()
-            .Include(c => c.CartItems)
-            .SingleOrDefaultAsync(c => c.UserId == userId, cancellationToken);
     }
 }

@@ -6,8 +6,6 @@ WORKDIR /src
 
 # Restore first, from the project files only: this layer is reused until a .csproj or a package version changes.
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props ./
-COPY src/EShop.Data.Entities/EShop.Data.Entities.csproj src/EShop.Data.Entities/
-COPY src/EShop.Data/EShop.Data.csproj src/EShop.Data/
 COPY src/EShop.DataService/EShop.DataService.csproj src/EShop.DataService/
 COPY src/EShop.ServiceDefaults/EShop.ServiceDefaults.csproj src/EShop.ServiceDefaults/
 COPY src/EShop.Messaging/EShop.Messaging.csproj src/EShop.Messaging/
@@ -18,8 +16,6 @@ COPY src/EShop.OrderApi/EShop.OrderApi.csproj src/EShop.OrderApi/
 RUN dotnet restore src/EShop.OrderApi/EShop.OrderApi.csproj
 
 # Then the code: a code change only rebuilds from here.
-COPY src/EShop.Data.Entities/ src/EShop.Data.Entities/
-COPY src/EShop.Data/ src/EShop.Data/
 COPY src/EShop.DataService/ src/EShop.DataService/
 COPY src/EShop.ServiceDefaults/ src/EShop.ServiceDefaults/
 COPY src/EShop.Messaging/ src/EShop.Messaging/

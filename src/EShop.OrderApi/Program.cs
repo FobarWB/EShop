@@ -1,9 +1,10 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using EShop.Data;
+using EShop.DataService;
 using EShop.Messaging;
 using EShop.OrderApi;
 using EShop.OrderApi.Accounts;
+using EShop.OrderApi.Data;
 using EShop.OrderApi.GuestAccounts;
 using EShop.OrderApi.ProductEvents;
 using EShop.OrderApi.Repositories;
@@ -27,28 +28,28 @@ builder.Services.AddCors(options =>
     )
 );
 
-builder.Services.AddEShopDbContext(builder.Configuration);
+builder.Services.AddServiceDbContext<OrderingDbContext>(builder.Configuration);
 
 // The checkout and the cancellation write events to the outbox; the publisher sends them to RabbitMQ.
 builder.Services.AddEShopMessaging(builder.Configuration);
-builder.Services.AddOutboxPublisher<EShopDbContext>(OrderApiOutbox.Producer);
+builder.Services.AddOutboxPublisher<OrderingDbContext>(OrderApiOutbox.Producer);
 
 // Guest orders (#45): attaches them to the account CustomerApi created.
-builder.Services.AddMessageConsumer<GuestAccountReadyHandler, EShopDbContext>(
+builder.Services.AddMessageConsumer<GuestAccountReadyHandler, OrderingDbContext>(
     GuestAccountsQueue.Definition
 );
 
 // The product replica (#76): checkout reads order_products, not ProductApi's products.
-builder.Services.AddMessageConsumer<ProductEventsHandler, EShopDbContext>(
+builder.Services.AddMessageConsumer<ProductEventsHandler, OrderingDbContext>(
     ProductEventsQueue.Definition
 );
 
 // ProductApi's answers to order.placed (#76): the Pending order becomes Confirmed or Rejected.
-builder.Services.AddMessageConsumer<StockEventsHandler, EShopDbContext>(
+builder.Services.AddMessageConsumer<StockEventsHandler, OrderingDbContext>(
     StockEventsQueue.Definition
 );
 
-builder.Services.AddHealthChecks().AddDbContextCheck<EShopDbContext>();
+builder.Services.AddHealthChecks().AddDbContextCheck<OrderingDbContext>();
 builder.Services.AddEShopAuthentication(builder.Configuration);
 builder.Services.AddEShopProblemDetails();
 

@@ -1,8 +1,8 @@
 using System.Text.Json;
 using EShop.CustomerApi.Contracts;
-using EShop.Data.Entities;
 using EShop.Messaging.Consumers;
 using EShop.OrderApi.Contracts;
+using EShop.OrderApi.Data.Entities;
 using EShop.OrderApi.GuestAccounts;
 using EShop.OrderApi.Repositories;
 using EShop.ServiceDefaults;
