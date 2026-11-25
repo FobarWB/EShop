@@ -1,4 +1,5 @@
-using EShop.Data.Entities;
+using EShop.CustomerApi.Data;
+using EShop.CustomerApi.Data.Entities;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,10 +9,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EShop.CustomerApi.Tests.Integration;
 
-public sealed class CustomerApiDatabase : TestDatabase
+public sealed class CustomerApiDatabase : TestDatabase<CustomerDbContext>
 {
     public CustomerApiDatabase()
         : base("customerapi") { }
+
+    protected override CustomerDbContext NewContext(DbContextOptions<CustomerDbContext> options) =>
+        new(options);
 
     public static CustomerProfile NewProfile(string userId) =>
         new()
