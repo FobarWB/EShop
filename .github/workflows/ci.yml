@@ -109,7 +109,7 @@ jobs:
           - name: client
             dockerfile: src/EShop.ClientApp/Dockerfile
           - name: migrator
-            dockerfile: src/EShop.Data/Dockerfile
+            dockerfile: db/migrator/Dockerfile
 
     env:
       PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
