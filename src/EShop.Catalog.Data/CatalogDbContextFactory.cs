@@ -1,4 +1,4 @@
-using EShop.DataService;
+using EShop.Persistence;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace EShop.Catalog.Data;

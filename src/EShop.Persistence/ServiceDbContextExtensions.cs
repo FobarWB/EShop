@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
-namespace EShop.DataService;
+namespace EShop.Persistence;
 
 public static class ServiceDbContextExtensions
 {

@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using EShop.DataService;
 using EShop.Messaging;
 using EShop.OrderApi;
 using EShop.OrderApi.Accounts;
@@ -9,6 +8,7 @@ using EShop.OrderApi.GuestAccounts;
 using EShop.OrderApi.ProductEvents;
 using EShop.OrderApi.Repositories;
 using EShop.OrderApi.Stock;
+using EShop.Persistence;
 using EShop.ServiceDefaults;
 using EShop.ServiceDefaults.Keycloak;
 using Microsoft.AspNetCore.HttpLogging;

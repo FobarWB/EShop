@@ -57,7 +57,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EShop.CustomerApi.Contracts
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EShop.ProductApi.Contracts", "src\EShop.ProductApi.Contracts\EShop.ProductApi.Contracts.csproj", "{50F4677C-F3BC-44FA-8FD1-69E659E09492}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EShop.DataService", "src\EShop.DataService\EShop.DataService.csproj", "{AF8271B0-73F0-4DBF-9389-FCC53FACB1B8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EShop.Persistence", "src\EShop.Persistence\EShop.Persistence.csproj", "{AF8271B0-73F0-4DBF-9389-FCC53FACB1B8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EShop.Catalog.Data", "src\EShop.Catalog.Data\EShop.Catalog.Data.csproj", "{3CB83828-6272-42C2-AFE1-48885E3AFA71}"
 EndProject

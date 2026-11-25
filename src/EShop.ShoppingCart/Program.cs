@@ -1,5 +1,5 @@
-using EShop.DataService;
 using EShop.Messaging;
+using EShop.Persistence;
 using EShop.ServiceDefaults;
 using EShop.ShoppingCart.Data;
 using EShop.ShoppingCart.OrderEvents;

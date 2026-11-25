@@ -1,6 +1,6 @@
 using EShop.Catalog.Data;
-using EShop.DataService;
 using EShop.Messaging;
+using EShop.Persistence;
 using EShop.ProductApi;
 using EShop.ProductApi.Repositories;
 using EShop.ProductApi.Reservations;

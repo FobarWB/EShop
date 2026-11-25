@@ -1,7 +1,7 @@
 using System.Text.Json;
-using EShop.DataService;
 using EShop.Messaging.Outbox;
 using EShop.Messaging.RabbitMq;
+using EShop.Persistence;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

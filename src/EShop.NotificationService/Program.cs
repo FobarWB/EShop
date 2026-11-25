@@ -1,8 +1,8 @@
-using EShop.DataService;
 using EShop.Messaging;
 using EShop.NotificationService.Data;
 using EShop.NotificationService.Email;
 using EShop.NotificationService.OrderEvents;
+using EShop.Persistence;
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -1,6 +1,6 @@
-using EShop.DataService;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
+using EShop.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.Messaging.Tests.Integration;

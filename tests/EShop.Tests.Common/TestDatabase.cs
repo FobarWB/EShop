@@ -1,4 +1,4 @@
-using EShop.DataService;
+using EShop.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;

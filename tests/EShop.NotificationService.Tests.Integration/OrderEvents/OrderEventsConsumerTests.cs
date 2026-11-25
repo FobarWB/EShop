@@ -1,11 +1,11 @@
 using System.Text.Json;
-using EShop.DataService;
 using EShop.Messaging;
 using EShop.Messaging.RabbitMq;
 using EShop.NotificationService.Data;
 using EShop.NotificationService.Email;
 using EShop.NotificationService.OrderEvents;
 using EShop.OrderApi.Contracts;
+using EShop.Persistence;
 using EShop.Tests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

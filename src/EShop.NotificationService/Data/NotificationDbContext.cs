@@ -1,6 +1,6 @@
-using EShop.DataService;
 using EShop.Messaging;
 using EShop.Messaging.Consumers;
+using EShop.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.NotificationService.Data;

@@ -1,8 +1,8 @@
-using EShop.DataService;
 using EShop.Messaging;
 using EShop.Messaging.Consumers;
 using EShop.Messaging.Outbox;
 using EShop.OrderApi.Data.Entities;
+using EShop.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.OrderApi.Data;

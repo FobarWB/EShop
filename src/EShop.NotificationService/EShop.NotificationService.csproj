@@ -14,7 +14,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\EShop.DataService\EShop.DataService.csproj" />
+    <ProjectReference Include="..\EShop.Persistence\EShop.Persistence.csproj" />
     <ProjectReference Include="..\EShop.Messaging\EShop.Messaging.csproj" />
     <ProjectReference Include="..\EShop.OrderApi.Contracts\EShop.OrderApi.Contracts.csproj" />
   </ItemGroup>

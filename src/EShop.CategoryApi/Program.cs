@@ -1,6 +1,6 @@
 using EShop.Catalog.Data;
 using EShop.CategoryApi.Repositories;
-using EShop.DataService;
+using EShop.Persistence;
 using EShop.ServiceDefaults;
 using Microsoft.AspNetCore.HttpLogging;
 using Scalar.AspNetCore;
