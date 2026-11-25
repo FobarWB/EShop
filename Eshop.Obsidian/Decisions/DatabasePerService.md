@@ -125,6 +125,10 @@ rests on one transaction over three services' data.
   separates nothing; removing it is a model change in three contexts.
 - Checked: `has-pending-model-changes` for every context, 457 tests, the migrator twice on an empty database (the
   second run applies nothing), both Northwind files loaded with the sequences past the loaded ids.
+- Checked on compose after `down -v`: `docker compose run --rm --build migrator` created the five schemas and nothing in
+  `public`; Northwind loaded; republish filled both replicas (77 rows each); an order of 2 × Chai was confirmed 3.7 s
+  after the checkout, the stock went 39 → 37, the ordered line left the cart and the other line stayed, the email
+  arrived; the cancel returned the stock once (`Released`, 39 again); all dead letter queues empty.
 - Sources: [dotnet/eShop](https://github.com/dotnet/eShop),
   [Database per service](https://microservices.io/patterns/data/database-per-service.html) (schema per service as a
   step towards a database per service).
