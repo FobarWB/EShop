@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-10
+verified: 2026-11-26
 issue: 44
 ---
 
@@ -37,10 +37,10 @@ Every endpoint needs a signed-in user and works on that user's data: the id is t
 
 ## Data
 
-In the schema `customer` (`CustomerDbContext` in [Data/](../../src/EShop.CustomerApi/Data/), #77, with its outbox and
+In the database and schema `customer` (`CustomerDbContext` in [Data/](../../src/EShop.CustomerApi/Data/), #77, #78, with its outbox and
 inbox): `customer_profiles` (`user_id` = `sub` as primary key, `phone`, `created_at`, `updated_at`) and
 `customer_addresses` (`address_id`, `user_id` with a cascading foreign key to the profile, the address, `is_default`,
-`created_at`). The Northwind `customers` table (5-character ids, required `company_name`, in the schema `ordering`) is
+`created_at`). The Northwind `customers` table (5-character ids, required `company_name`, in the database `ordering`) is
 not used.
 
 - The profile is created just-in-time on the user's first write (PUT of the profile, first address). Two concurrent

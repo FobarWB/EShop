@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-verified: 2026-11-25
+verified: 2026-11-26
 issue: 77
 ---
 
@@ -121,7 +121,7 @@ rests on one transaction over three services' data.
   single file no longer loaded into a database created from the current model: `products.revision`, `orders.status`,
   `orders.placed_as_guest` and `order_details.product_name` had been filled by the old migrations. The generator now
   writes the same values.
-- **Open for #78**: `outbox_messages.producer`. Each schema has its own outbox table and one publisher, so the column
+- **Open for #78** (moved to [#85](https://github.com/FobarWB/EShop/issues/85)): `outbox_messages.producer`. Each schema has its own outbox table and one publisher, so the column
   separates nothing; removing it is a model change in three contexts.
 - Checked: `has-pending-model-changes` for every context, 457 tests, the migrator twice on an empty database (the
   second run applies nothing), both Northwind files loaded with the sequences past the loaded ids.
@@ -132,3 +132,25 @@ rests on one transaction over three services' data.
 - Sources: [dotnet/eShop](https://github.com/dotnet/eShop),
   [Database per service](https://microservices.io/patterns/data/database-per-service.html) (schema per service as a
   step towards a database per service).
+
+## Refined in #78
+
+- **A database and a role per bounded context**, created by `db/init/01-create-service-databases.sh`: the role owns its
+  database (and `public`, owned by `pg_database_owner` since PostgreSQL 15), `REVOKE CONNECT … FROM PUBLIC` keeps every
+  other role out. No role has `CREATEDB` or superuser; only `eshop_test` (fallback test server) has `CREATEDB`.
+- **The schemas stay inside the databases** (`catalog.catalog.products`): no model change and no new migration; the
+  Northwind files keep their schema-qualified names. The database is the boundary: PostgreSQL has no queries across
+  databases without `dblink`/`postgres_fdw`. Considered: tables in `public` (five new `InitialCreate`, regenerated data).
+- **A connection string per database**, not per service: `IServiceDbContext.ConnectionStringName`; `catalog` is shared by
+  ProductApi and CategoryApi. One password per role: with a shared password a service's connection string would open
+  every database by changing the user name.
+- **Compose**: `x-databases` anchors; each container gets only its string, the migrator all five, and each bundle runs as
+  its database's owner.
+- Not in #78: the services connect as the owner of their database (DDL and data with one role); a role with data rights
+  only, the migrator as the owner, follows in [#86](https://github.com/FobarWB/EShop/issues/86).
+  `outbox_messages.producer` moved to [#85](https://github.com/FobarWB/EShop/issues/85).
+- Checked: init script on a throwaway `postgres:18` (`cart` → `catalog`: `permission denied … CONNECT`, a password with a
+  quote); 457 tests; on compose after `down -v`: five databases, no table in `public`, the migrator's second run applied
+  nothing, each database held connections of its own role only, republish filled both replicas (77 rows each); order
+  11078 of 2 × Chai confirmed, the email arrived, the cancel returned the stock once (`Released`, 39); outboxes empty,
+  all eight DLQs empty.

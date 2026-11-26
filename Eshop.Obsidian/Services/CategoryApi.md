@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-25
+verified: 2026-11-26
 ---
 
 # CategoryApi
@@ -42,8 +42,8 @@ and the `DELETE` is rejected by PostgreSQL and also ends as 409 (#33).
 
 ## Data
 
-`Category` in the schema `catalog` (`CatalogDbContext` in [EShop.Catalog.Data](../../src/EShop.Catalog.Data/), shared
-with ProductApi, #77; Northwind data).
+`Category` in the database and schema `catalog` (`CatalogDbContext` in [EShop.Catalog.Data](../../src/EShop.Catalog.Data/), shared
+with ProductApi, #77, #78; Northwind data).
 Reads go straight to PostgreSQL (no cache); a distributed cache is planned in #30.
 
 ## Dependencies

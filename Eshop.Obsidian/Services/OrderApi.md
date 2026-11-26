@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-25
+verified: 2026-11-26
 issue: 77
 ---
 
@@ -148,7 +148,7 @@ automatic recovery reconnects when the broker is back. Consumers: [NotificationS
 ## Data
 
 Writes `orders`, `order_details`, `order_status_changes`, `outbox_messages`, `inbox_messages` and its replica
-`order_products` in the schema `ordering` (`OrderingDbContext` in [Data/](../../src/EShop.OrderApi/Data/), #77), next to
+`order_products` in the database and schema `ordering` (`OrderingDbContext` in [Data/](../../src/EShop.OrderApi/Data/), #77, #78), next to
 the Northwind tables only orders reference (`customers`, `customer_demographics`, `customer_customer_demo`, `employees`,
 `employee_territories`, `territories`, `regions`, `shippers`); reads no other service's table (#76).
 
@@ -171,7 +171,7 @@ the Northwind tables only orders reference (`customers`, `customer_demographics`
   attached. `ix_orders_guest_idempotency_key` (unique, `WHERE placed_as_guest`) makes a guest's retry return its order,
   also after `user_id` was set; `ix_orders_guest_customer_email` (`WHERE placed_as_guest AND user_id IS NULL`) serves
   the attach.
-- `outbox_messages.producer` (`orderapi`, no default). The table is OrderApi's own since #77; the column stays until #78.
+- `outbox_messages.producer` (`orderapi`, no default). The table is OrderApi's own since #77; whether the column stays is [#85](https://github.com/FobarWB/EShop/issues/85).
 - The Northwind rows come with `status` `Delivered`, `placed_as_guest` false and `product_name` from the products: the
   values the old migrations (`AddOrderLifecycle`, `AddGuestOrders`) gave them, written by `db/convert-northwind.ps1`.
 - `customer_id` (Northwind `char(5)`) stays null for new orders.

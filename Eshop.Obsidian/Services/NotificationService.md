@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-25
+verified: 2026-11-26
 issue: 77
 ---
 
@@ -57,12 +57,12 @@ is unavailable (until #45 a `TopologyInitializer` did it at start and stopped th
 
 ## Data
 
-`inbox_messages` (`consumer`, `message_id` primary key, `processed_at`) in the schema `notification`
-(`NotificationDbContext` in [Data/](../../src/EShop.NotificationService/Data/), #77); reads nothing else.
+`inbox_messages` (`consumer`, `message_id` primary key, `processed_at`) in the database and schema `notification`
+(`NotificationDbContext` in [Data/](../../src/EShop.NotificationService/Data/), #77, #78); reads nothing else.
 
 ## Configuration
 
-`ConnectionStrings:EShop`, `RabbitMq:Password` (user-secrets `eshop` locally; in compose from `.env`), `RabbitMq:Host`,
+`ConnectionStrings:Notification`, `RabbitMq:Password` (user-secrets `eshop` locally; in compose from `.env`), `RabbitMq:Host`,
 `Smtp:Host`/`Port`/`FromAddress`/`FromName` (`appsettings.json`: `localhost:1025`, `shop@eshop.local`). The container
 runs as `Production`; SQL commands are logged at `Warning` only.
 

@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-25
+verified: 2026-11-26
 issue: 47
 ---
 
@@ -42,9 +42,10 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
 - [docker-compose.yml](../../docker-compose.yml): `postgres:18` (volume `eshop_postgres-data` mounted at
   `/var/lib/postgresql`: since version 18 the data lives in a version subfolder, so a future major version can sit
   next to it for `pg_upgrade`) and `dpage/pgadmin4` on http://localhost:5050, both bound to `127.0.0.1`.
-- [db/init/01-create-eshop.sh](../../db/init/01-create-eshop.sh) creates the role `eshop` (`LOGIN CREATEDB`) and the
-  database `eshop`. The password comes from the environment and is passed as a psql variable (`:'eshop_password'`),
-  so psql quotes it as a literal instead of the shell pasting it into SQL.
+- [db/init/01-create-service-databases.sh](../../db/init/01-create-service-databases.sh) creates a role and a database per
+  bounded context (`catalog`, `cart`, `ordering`, `customer`, `notification`, #78) and the role `eshop_test`
+  (`CREATEDB`). The passwords come from the environment (`<NAME>_DB_PASSWORD`) and are passed as psql variables
+  (`:'password'`, the name as `:"name"`), so psql quotes them instead of the shell pasting them into SQL.
 - [db/pgadmin/servers.json](../../db/pgadmin/servers.json) registers the server in pgAdmin on first start.
 - `postgres` and `keycloak` publish their ports on `127.0.0.1` and `[::1]` (#41). On Windows `localhost` resolves to
   `::1` first; with only an IPv4 binding a refused IPv6 connection costs about 2 s before the fallback to `127.0.0.1`.
@@ -61,7 +62,7 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
 - Northwind data is loaded with the container's `psql` (`docker compose cp` + `exec psql -f`), so a new developer needs
   no local PostgreSQL.
 - Useful commands: `docker compose up -d`, `ps`, `logs -f postgres`, `stop`/`start`, `down`, `down -v`,
-  `exec postgres psql -U eshop -d eshop`, `pull`.
+  `exec postgres psql -U catalog -d catalog`, `pull`.
 
 ## Own images (#48)
 
@@ -85,7 +86,7 @@ Related: [PostgreSql](PostgreSql.md), [Testing](Testing.md), [Services](../Servi
   connection string (`RUN VAR=value cmd` sets it for that command only; `ENV` would store it in the image).
   The real one comes from the environment at run time.
 - **Profiles.** Services with `profiles: [app]` start only with `--profile app`; `docker compose up -d` still starts
-  only the infrastructure. Both modes share one postgres container and one database.
+  only the infrastructure. Both modes share one postgres container with the five databases.
 - **Reverse proxy.** nginx serves the Angular files and forwards `/api/...` by prefix to the API containers; the SPA
   fallback (`try_files ... /index.html`) returns `index.html` for client routes. With a plain host name in
   `proxy_pass` nginx resolves it once at start: a recreated API with a new IP gives 502, and a missing API stops nginx.
@@ -107,7 +108,7 @@ Applied: `src/EShop.*/Dockerfile` (five APIs, `EShop.ClientApp` = nginx), `db/mi
 services `migrator`, `productapi`, `categoryapi`, `shoppingcart`, `orderapi`, `client` in [docker-compose.yml](../../docker-compose.yml)
 (`restart: unless-stopped` for the shop services). Manual cycle:
 `docker build -f src/EShop.ProductApi/Dockerfile -t eshop-productapi:dev .`, `docker history`, `docker run --network
-eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
+eshop_default -e ConnectionStrings__Catalog=...`, `docker exec -it <name> bash`.
 
 ## Registry and CD (#36)
 
@@ -165,7 +166,8 @@ eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
 
 - **One image, five bundles**: each `dotnet ef migrations bundle` builds its project; the runtime image is `aspnet`
   because three of the bundled projects are ASP.NET apps. `migrate.sh` (`set -eu`) runs them in turn and stops at the
-  first failure; `${ConnectionStrings__EShop:?…}` stops with a message instead of a bundle trying `localhost`.
+  first failure; `${ConnectionStrings__Catalog:?…}` (one per database since #78) stops with a message instead of a
+  bundle trying `localhost`.
 - **An exception in `.dockerignore`**: `db/` stays out of the build context (the Northwind files), `!db/migrator/migrate.sh`
   lets the script in.
 - **`COPY --chmod=755`** (BuildKit) makes the script executable without a `RUN chmod` layer; `*.sh text eol=lf` in
@@ -173,7 +175,19 @@ eshop_default -e ConnectionStrings__EShop=...`, `docker exec -it <name> bash`.
 - **A throwaway check**: a `postgres:18` container on its own network, the migrator run twice against it (the second
   run applies nothing), then `docker rm -f`, `docker network rm`, `docker rmi`.
 
+## A database per service (#78)
+
+- **Anchors on scalars**: `x-databases` holds the five connection strings once (`catalog: &catalog-db Host=…`), and
+  services refer to them (`ConnectionStrings__Catalog: *catalog-db`). `${…}` inside them is interpolated as anywhere in
+  the file. Each container gets only its own string, the migrator all five.
+- **`environment` of a service replaces the anchor's**, it is not merged: every API repeats `<<: *api-environment` and
+  adds its database. `docker compose --env-file <file> --profile app config` shows the result without starting anything.
+- **Init scripts run only on an empty volume**: changing `db/init/` needs `down -v` (or running the script by hand).
+- **Profiles after `down -v`**: `docker compose up -d` brings back only the infrastructure; the APIs need
+  `--profile app up`, and `--build` after a change of the shared libraries (the old images read `ConnectionStrings__EShop`).
+
 ## Open questions
 
 - Pin exact image versions (`postgres:18.x`) or follow the major tag; who updates them (Dependabot can).
-- Separate roles: the migrator as the schema owner, the APIs with data rights only (#78).
+- Separate roles: the migrator as the database owner, the APIs with data rights only
+  ([#86](https://github.com/FobarWB/EShop/issues/86); #78 gave each database its own owner role).
