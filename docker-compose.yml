@@ -8,13 +8,20 @@
 #   docker compose --profile app down            stop everything (data stays in the named volumes)
 name: eshop
 
+# One database and role per bounded context (#78): the migrator gets all five, each service only its own.
+# Host "postgres" is the service name on the compose network. GSSAPI is off: the .NET images have no Kerberos library.
+x-databases:
+  catalog: &catalog-db Host=postgres;Port=5432;Database=catalog;Username=catalog;Password=${CATALOG_DB_PASSWORD};GssEncryptionMode=Disable
+  cart: &cart-db Host=postgres;Port=5432;Database=cart;Username=cart;Password=${CART_DB_PASSWORD};GssEncryptionMode=Disable
+  ordering: &ordering-db Host=postgres;Port=5432;Database=ordering;Username=ordering;Password=${ORDERING_DB_PASSWORD};GssEncryptionMode=Disable
+  customer: &customer-db Host=postgres;Port=5432;Database=customer;Username=customer;Password=${CUSTOMER_DB_PASSWORD};GssEncryptionMode=Disable
+  notification: &notification-db Host=postgres;Port=5432;Database=notification;Username=notification;Password=${NOTIFICATION_DB_PASSWORD};GssEncryptionMode=Disable
+
 # Shared settings of the API containers (YAML anchor, merged with <<: below).
 x-api: &api
   profiles: [app]
   environment: &api-environment
     ASPNETCORE_ENVIRONMENT: Development
-    # Host "postgres" is the service name on the compose network. GSSAPI is off: the .NET images have no Kerberos library.
-    ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
     # Tokens are issued for http://localhost:8180 (Authority in appsettings.json), but inside the network
     # Keycloak is keycloak:8080: the signing keys are read through the internal address.
     Authentication__MetadataAddress: http://keycloak:8080/realms/eshop/.well-known/openid-configuration
@@ -40,7 +47,13 @@ services:
     image: postgres:18
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      ESHOP_DB_PASSWORD: ${ESHOP_DB_PASSWORD:?Set ESHOP_DB_PASSWORD in .env}
+      # Read by db/init/ on the first start: one role per database.
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?Set CATALOG_DB_PASSWORD in .env}
+      CART_DB_PASSWORD: ${CART_DB_PASSWORD:?Set CART_DB_PASSWORD in .env}
+      ORDERING_DB_PASSWORD: ${ORDERING_DB_PASSWORD:?Set ORDERING_DB_PASSWORD in .env}
+      CUSTOMER_DB_PASSWORD: ${CUSTOMER_DB_PASSWORD:?Set CUSTOMER_DB_PASSWORD in .env}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD in .env}
+      ESHOP_TEST_DB_PASSWORD: ${ESHOP_TEST_DB_PASSWORD:?Set ESHOP_TEST_DB_PASSWORD in .env}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
     ports:
       # Also on ::1: on Windows "localhost" tries ::1 first, and a refused connection costs ~2 s before the
@@ -54,7 +67,7 @@ services:
       # Runs once, on the first start with an empty volume.
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d eshop"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -158,13 +171,22 @@ services:
       context: .
       dockerfile: db/migrator/Dockerfile
     environment:
-      ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+      # Each bundle connects as the owner of its database.
+      ConnectionStrings__Catalog: *catalog-db
+      ConnectionStrings__Cart: *cart-db
+      ConnectionStrings__Ordering: *ordering-db
+      ConnectionStrings__Customer: *customer-db
+      ConnectionStrings__Notification: *notification-db
     depends_on:
       postgres:
         condition: service_healthy
 
   productapi:
     <<: *api
+    environment:
+      # The anchor's environment is replaced, not merged: repeated in full, plus the service's database.
+      <<: *api-environment
+      ConnectionStrings__Catalog: *catalog-db
     # The anchor's depends_on is replaced, not merged: repeated in full, plus the broker of the outbox publisher.
     depends_on:
       migrator:
@@ -180,6 +202,10 @@ services:
 
   categoryapi:
     <<: *api
+    environment:
+      # The same database as productapi: one bounded context, two services.
+      <<: *api-environment
+      ConnectionStrings__Catalog: *catalog-db
     image: ghcr.io/fobarwb/eshop-categoryapi:${ESHOP_TAG:-local}
     build:
       context: .
@@ -187,6 +213,9 @@ services:
 
   shoppingcart:
     <<: *api
+    environment:
+      <<: *api-environment
+      ConnectionStrings__Cart: *cart-db
     # Repeated in full as for productapi, plus the broker of the product-event consumer.
     depends_on:
       migrator:
@@ -203,8 +232,9 @@ services:
   orderapi:
     <<: *api
     environment:
-      # The anchor's environment is replaced, not merged: repeated in full, plus the Keycloak Admin API.
+      # The anchor's environment is replaced, not merged: repeated in full, plus the database and the Keycloak Admin API.
       <<: *api-environment
+      ConnectionStrings__Ordering: *ordering-db
       KeycloakAdmin__OrderApi__BaseUrl: http://keycloak:8080
       KeycloakAdmin__OrderApi__ClientSecret: ${ORDERAPI_KEYCLOAK_SECRET}
     # The anchor's depends_on is replaced, not merged: repeated in full, plus the broker of the outbox publisher.
@@ -223,8 +253,9 @@ services:
   customerapi:
     <<: *api
     environment:
-      # The anchor's environment is replaced, not merged: repeated in full, plus the Keycloak Admin API.
+      # The anchor's environment is replaced, not merged: repeated in full, plus the database and the Keycloak Admin API.
       <<: *api-environment
+      ConnectionStrings__Customer: *customer-db
       KeycloakAdmin__CustomerApi__BaseUrl: http://keycloak:8080
       KeycloakAdmin__CustomerApi__ClientSecret: ${CUSTOMERAPI_KEYCLOAK_SECRET}
     # Repeated in full as for orderapi, plus the broker of the guest-order consumer and the outbox publisher.
@@ -249,7 +280,7 @@ services:
       dockerfile: src/EShop.NotificationService/Dockerfile
     environment:
       # Not the x-api anchor: no Keycloak and no /health endpoint for the HTTP health check.
-      ConnectionStrings__EShop: Host=postgres;Port=5432;Database=eshop;Username=eshop;Password=${ESHOP_DB_PASSWORD};GssEncryptionMode=Disable
+      ConnectionStrings__Notification: *notification-db
       RabbitMq__Host: rabbitmq
       RabbitMq__Password: ${RABBITMQ_PASSWORD}
       Smtp__Host: mailpit

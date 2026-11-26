@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-25
+verified: 2026-11-26
 issue: 77
 ---
 
@@ -44,8 +44,8 @@ reservation changed the stock): the change is not stored, see [OptimisticConcurr
 
 ## Data
 
-`Product`, `stock_reservations`, `outbox_messages` and `inbox_messages` in the schema `catalog` (`CatalogDbContext` in
-[EShop.Catalog.Data](../../src/EShop.Catalog.Data/), shared with CategoryApi, #77; Northwind data), accessed through
+`Product`, `stock_reservations`, `outbox_messages` and `inbox_messages` in the database and schema `catalog` (`CatalogDbContext` in
+[EShop.Catalog.Data](../../src/EShop.Catalog.Data/), shared with CategoryApi, #77, #78; Northwind data), accessed through
 `IProductRepository`.
 Filtering by category runs in SQL. Reads go straight to PostgreSQL (no cache); a distributed cache is planned in #30.
 `UnitsInStock` is required (`smallint NOT NULL DEFAULT 0`); a PUT with `"unitsInStock": null` returns 400,

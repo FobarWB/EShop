@@ -1,6 +1,6 @@
 ---
 type: service
-verified: 2026-11-25
+verified: 2026-11-26
 issue: 77
 ---
 
@@ -45,7 +45,7 @@ requested every product and its category (1 + 2N requests); from #33 to #75 the 
 ## Data
 
 `Cart` (unique `UserId`), `CartItem` (key `CartId` + `ProductId`, `Quantity`), `cart_products` and `inbox_messages` in
-the schema `cart` (`CartDbContext` in [Data/](../../src/EShop.ShoppingCart/Data/), #77). Deleting a cart deletes its items.
+the database and schema `cart` (`CartDbContext` in [Data/](../../src/EShop.ShoppingCart/Data/), #77, #78). Deleting a cart deletes its items.
 `cart_products` (#75): `product_id` (the key from the events, not generated), name, `category_id`, price, stock,
 `discontinued`, `deleted` (tombstone), `revision`. No foreign key to `products` (another service's schema).
 `cart_items.product_id` references `cart_products` (#77, `Restrict`): an item needs the cart's copy of its product. The

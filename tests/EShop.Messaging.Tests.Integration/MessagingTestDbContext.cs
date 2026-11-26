@@ -13,6 +13,9 @@ public sealed class MessagingTestDbContext(DbContextOptions<MessagingTestDbConte
 {
     public static string Schema => "messaging";
 
+    // Not read: the tests build the options from the test database's connection string.
+    public static string ConnectionStringName => "Messaging";
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<TestCounter> Counters => Set<TestCounter>();

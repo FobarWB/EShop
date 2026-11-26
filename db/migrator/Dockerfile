@@ -54,6 +54,7 @@ COPY --from=build /app/ .
 COPY --chmod=755 db/migrator/migrate.sh .
 
 USER $APP_UID
-# Reads ConnectionStrings__EShop from the environment, applies the pending migrations of each schema and exits
+# Reads ConnectionStrings__Catalog, __Cart, __Ordering, __Customer and __Notification from the environment, applies the
+# pending migrations of each database and exits
 # (0 = all applied; the first failing bundle stops the rest).
 ENTRYPOINT ["./migrate.sh"]

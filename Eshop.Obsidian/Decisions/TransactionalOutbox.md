@@ -37,7 +37,7 @@ Checkout must not wait for, or fail because of, the broker.
 - One table for all producers while the services shared a database: the column `producer` kept each `OutboxPublisher`
   to its own rows, so their events stayed in order. Two publishers sharing the rows through `SKIP LOCKED` would publish
   none twice, but one could send a later event of an order before the other sent the earlier one (#45). Since #77 each
-  schema has its own `outbox_messages` and one publisher: the column separates nothing and stays until #78.
+  schema has its own `outbox_messages` and one publisher: the column separates nothing; whether it stays is [#85](https://github.com/FobarWB/EShop/issues/85).
 - Since #74 the outbox and inbox belong to `EShop.Messaging` (`modelBuilder.AddOutbox()` / `AddInbox()`), and
   `OutboxPublisher<TContext>` and `MessageConsumer<THandler, TContext>` work on the service's own DbContext; the
   publisher reads the table name and schema from the model, so the schemas of #77 needed no change here.

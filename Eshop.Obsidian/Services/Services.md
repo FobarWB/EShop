@@ -1,14 +1,15 @@
 ---
 type: index
-verified: 2026-11-25
+verified: 2026-11-26
 ---
 
 # Services
 
 [Home](../Home.md)
 
-All backend services use one PostgreSQL database (`eshop`), each its own schema through its own DbContext (#77):
-`catalog` (ProductApi and CategoryApi), `cart`, `ordering`, `customer`, `notification`. Separate databases follow in #78.
+Each bounded context has its own PostgreSQL database, role and schema of the same name, with its own DbContext
+(#77, #78): `catalog` (ProductApi and CategoryApi), `cart`, `ordering`, `customer`, `notification`; no role may connect
+to another's database ([DatabasePerService](../Decisions/DatabasePerService.md)).
 Ports and database setup are in [AGENTS.md](../../AGENTS.md).
 
 - [ProductApi](ProductApi.md): products CRUD; owns the stock (reservation, #76).

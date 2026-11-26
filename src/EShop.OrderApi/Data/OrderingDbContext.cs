@@ -14,6 +14,7 @@ public class OrderingDbContext(DbContextOptions<OrderingDbContext> options)
         IServiceDbContext
 {
     public static string Schema => "ordering";
+    public static string ConnectionStringName => "Ordering";
 
     // 'Pending', 'Paid', ...: the CHECK constraints follow the enum, so a new status shows up in the next migration.
     private static readonly string OrderStatusValues = string.Join(

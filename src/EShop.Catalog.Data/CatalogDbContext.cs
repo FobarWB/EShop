@@ -14,6 +14,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
         IServiceDbContext
 {
     public static string Schema => "catalog";
+    public static string ConnectionStringName => "Catalog";
 
     // 'Reserved', 'Rejected', ...: the CHECK constraint follows the enum, so a new status shows up in the next migration.
     private static readonly string StockReservationStatusValues = string.Join(

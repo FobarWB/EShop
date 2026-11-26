@@ -29,7 +29,7 @@ public class EShopApiFactory<TEntryPoint, TContext> : WebApplicationFactory<TEnt
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting(
-            $"ConnectionStrings:{ServiceDbContextExtensions.ConnectionStringName}",
+            $"ConnectionStrings:{TContext.ConnectionStringName}",
             _database.ConnectionString
         );
         // Tests never reach Keycloak: the test scheme becomes the default one instead of JwtBearer.

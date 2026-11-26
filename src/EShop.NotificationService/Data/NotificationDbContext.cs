@@ -12,6 +12,7 @@ public class NotificationDbContext(DbContextOptions<NotificationDbContext> optio
         IServiceDbContext
 {
     public static string Schema => "notification";
+    public static string ConnectionStringName => "Notification";
 
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
 

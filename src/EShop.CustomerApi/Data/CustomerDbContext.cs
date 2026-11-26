@@ -13,6 +13,7 @@ public class CustomerDbContext(DbContextOptions<CustomerDbContext> options)
         IServiceDbContext
 {
     public static string Schema => "customer";
+    public static string ConnectionStringName => "Customer";
 
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
     public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();

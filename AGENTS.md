@@ -31,8 +31,9 @@ Roadmap: issue #17. Planning: GitHub Project "Eshop" (owner `FobarWB`).
 | `archive/` | **Archived** SQL Server-era code: `Northwind.Mvc` (not in `EShop.sln`, not built) and `Northwind4SQLServer.sql`. Do not change; see `archive/README.md`. | — |
 | `Eshop.Obsidian/` | Obsidian knowledge vault: service notes, decisions, learning notes | — |
 
-- One database, a schema per service (`catalog`, `cart`, `ordering`, `customer`, `notification`), each with its own
-  DbContext and migrations (#77); separate databases follow in #78. A service's DbContext, entities and migrations
+- A database and a role per bounded context (`catalog`, `cart`, `ordering`, `customer`, `notification`, #78), each with
+  its own DbContext, migrations and a schema of the same name (#77); only the owner role may connect to its database.
+  ProductApi and CategoryApi share `catalog`. A service's DbContext, entities and migrations
   live in its `Data/` folder, the catalog's in `src/EShop.Catalog.Data/`.
 - The Angular services call relative URLs (`/api/products`); the server that delivered the page forwards them:
   `ng serve` through `src/EShop.ClientApp/proxy.conf.json`, the client container through `nginx.conf`.
@@ -71,8 +72,10 @@ GitHub is the source of truth for progress; do not copy task status into files.
 - Database: PostgreSQL 18 in Docker (`docker-compose.yml`, see Database). The Windows service `postgresql-x64-18`
   is stopped (startup type Manual); its client tools (`psql`, `pg_dump`) in `C:\Program Files\PostgreSQL\18\bin`
   (not on `PATH`) still work against the container.
-- The APIs read `ConnectionStrings:EShop` from configuration. Locally it comes from user-secrets
-  (`UserSecretsId` `eshop`, shared by the five APIs and NotificationService); it is never committed.
+- Each service reads the connection string of its database, `ConnectionStrings:<Catalog|Cart|Ordering|Customer|Notification>`
+  (`IServiceDbContext.ConnectionStringName`). Locally they come from user-secrets (`UserSecretsId` `eshop`, shared by the
+  five APIs and NotificationService, so every service sees all five locally; compose gives each container only its own);
+  they are never committed. The passwords are `<NAME>_DB_PASSWORD` in `.env`.
   The same user-secrets hold `RabbitMq:Password` (the value of `RABBITMQ_PASSWORD` in `.env`) for ProductApi, ShoppingCart, OrderApi, CustomerApi and NotificationService,
   and the Keycloak client secrets `KeycloakAdmin:OrderApi:ClientSecret` and `KeycloakAdmin:CustomerApi:ClientSecret`
   (the values of `ORDERAPI_KEYCLOAK_SECRET` and `CUSTOMERAPI_KEYCLOAK_SECRET` in `.env`; Keycloak reads them on realm import).
@@ -128,24 +131,31 @@ Each schema is owned by the EF Core migrations of its DbContext; Northwind data 
 
 `dotnet ef` needs no `--startup-project`: each project has an `IDesignTimeDbContextFactory`, so no service starts.
 Commands that connect (`database update`) need `--connection '<connection string>'`; without it the factory uses
-`Host=localhost;Database=eshop` with no password.
+`Host=localhost;Database=<schema>` with no password.
 
-First-time setup (the first `docker compose up` creates the role `eshop` with `CREATEDB` and the database `eshop`,
-and the role and database `keycloak`, see `db/init/`):
+First-time setup (the first `docker compose up` creates a role and a database per bounded context, the role `eshop_test`
+with `CREATEDB`, and the role and database `keycloak`, see `db/init/`):
 
 ```powershell
-Copy-Item .env.example .env          # set the passwords; ESHOP_DB_PASSWORD is the password of the role eshop
+Copy-Item .env.example .env          # set the passwords; <NAME>_DB_PASSWORD is the password of the role <name>
 docker compose up -d                 # PostgreSQL + pgAdmin + Keycloak + RabbitMQ + Mailpit; docker compose ps shows them as "healthy"
-dotnet user-secrets set "ConnectionStrings:EShop" 'Host=localhost;Port=5432;Database=eshop;Username=eshop;Password=<password>' --project src/EShop.ProductApi
+dotnet user-secrets set "ConnectionStrings:Catalog" 'Host=localhost;Port=5432;Database=catalog;Username=catalog;Password=<CATALOG_DB_PASSWORD from .env>' --project src/EShop.ProductApi
+dotnet user-secrets set "ConnectionStrings:Cart" 'Host=localhost;Port=5432;Database=cart;Username=cart;Password=<CART_DB_PASSWORD from .env>' --project src/EShop.ProductApi
+dotnet user-secrets set "ConnectionStrings:Ordering" 'Host=localhost;Port=5432;Database=ordering;Username=ordering;Password=<ORDERING_DB_PASSWORD from .env>' --project src/EShop.ProductApi
+dotnet user-secrets set "ConnectionStrings:Customer" 'Host=localhost;Port=5432;Database=customer;Username=customer;Password=<CUSTOMER_DB_PASSWORD from .env>' --project src/EShop.ProductApi
+dotnet user-secrets set "ConnectionStrings:Notification" 'Host=localhost;Port=5432;Database=notification;Username=notification;Password=<NOTIFICATION_DB_PASSWORD from .env>' --project src/EShop.ProductApi
 dotnet user-secrets set "RabbitMq:Password" '<RABBITMQ_PASSWORD from .env>' --project src/EShop.ProductApi
-docker compose run --rm --build migrator                                                                   # the five schemas
+docker compose run --rm --build migrator                                                                   # the five databases
 docker compose cp db/northwind-catalog.sql postgres:/tmp/northwind-catalog.sql                             # empty schemas only
 docker compose cp db/northwind-ordering.sql postgres:/tmp/northwind-ordering.sql
-docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-catalog.sql
-docker compose exec postgres psql -U eshop -d eshop -v ON_ERROR_STOP=1 -f /tmp/northwind-ordering.sql
+docker compose exec postgres psql -U catalog -d catalog -v ON_ERROR_STOP=1 -f /tmp/northwind-catalog.sql
+docker compose exec postgres psql -U ordering -d ordering -v ON_ERROR_STOP=1 -f /tmp/northwind-ordering.sql
+docker compose --profile app up -d --build --wait                                                          # the APIs and the client
 ```
 
-The data is loaded with the container's `psql` (no local PostgreSQL needed); copying the files avoids piping them through
+The infrastructure starts first, so the schemas exist and hold the Northwind data before the APIs start; `docker compose up -d`
+without `--profile app` starts no API. The data is loaded with the container's `psql` (no local PostgreSQL needed; inside the
+container `psql` connects through the socket without a password); copying the files avoids piping them through
 PowerShell 5.1, which would change the encoding of non-ASCII Northwind names.
 
 The product replicas (`cart_products`, `order_products`) are filled by events, not by the SQL file: once ShoppingCart and
@@ -162,8 +172,10 @@ OrderApi have run (they declare their queues), call `POST /api/products/events/r
   services (table above). One context on the local database:
   `dotnet ef database update --project <project> --connection '<connection string>'`.
 - In the profile `app` the one-off service `migrator` (`db/migrator/`: one EF Core migrations bundle per DbContext,
-  run in turn by `migrate.sh`) applies pending migrations before the APIs start; it runs on every `up` and stops at the
-  first failing schema. Migrations are compiled into its image: after a new migration use `--build`.
+  run in turn by `migrate.sh`, each as the owner of its database) applies pending migrations before the APIs start; it
+  runs on every `up` and stops at the first failing database. Migrations are compiled into its image: after a new
+  migration use `--build`. On an empty database each bundle first logs `Failed executing DbCommand` for
+  `SELECT … FROM <schema>."__EFMigrationsHistory"`: EF Core probes the history table, then creates it; not an error.
   Northwind data is still loaded manually (above).
 - `db/northwind-catalog.sql` and `db/northwind-ordering.sql` are generated from `archive/Northwind4SQLServer.sql`;
   do not edit them by hand: `powershell -ExecutionPolicy Bypass -File db/convert-northwind.ps1`. Columns the dump does
@@ -177,11 +189,11 @@ creates its database there, `eshop_test_<project>` (e.g. `eshop_test_shoppingcar
 migrations (`TestDatabase<TContext>`) and empties the tables of that schema before each test. The container is removed after the run; no test database or user-secret is needed, locally or in CI.
 
 Fallback for a machine without Docker, or a quick loop on one project: the environment variable
-`ConnectionStrings__EShopTests` points the tests at another server instead (on compose the role `eshop` has `CREATEDB`, `db/init/`).
+`ConnectionStrings__EShopTests` points the tests at another server instead (on compose the role `eshop_test` has `CREATEDB`, `db/init/`).
 Only the environment variable is read, not user-secrets, so a forgotten setting cannot silently replace the container:
 
 ```powershell
-$env:ConnectionStrings__EShopTests = 'Host=localhost;Port=5432;Database=eshop_test;Username=eshop;Password=<password>'
+$env:ConnectionStrings__EShopTests = 'Host=localhost;Port=5432;Database=eshop_test;Username=eshop_test;Password=<ESHOP_TEST_DB_PASSWORD from .env>'
 dotnet test --project tests/EShop.CategoryApi.Tests.Integration
 Remove-Item Env:ConnectionStrings__EShopTests
 ```

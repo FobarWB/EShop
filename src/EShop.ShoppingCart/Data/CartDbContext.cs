@@ -12,6 +12,7 @@ public class CartDbContext(DbContextOptions<CartDbContext> options)
         IServiceDbContext
 {
     public static string Schema => "cart";
+    public static string ConnectionStringName => "Cart";
 
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<CartItem> CartItems => Set<CartItem>();

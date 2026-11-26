@@ -1,6 +1,6 @@
 ---
 type: topic
-verified: 2026-11-25
+verified: 2026-11-26
 issue: 14
 ---
 
@@ -10,9 +10,9 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 
 ## Key ideas
 
-- **Roles.** Users and groups are one concept, a role; `LOGIN` lets a role connect. The app uses its own role `eshop`,
-  not the `postgres` superuser. Since PostgreSQL 15 only the database owner (or granted roles) can create tables
-  in `public`, so `eshop` owns the database.
+- **Roles.** Users and groups are one concept, a role; `LOGIN` lets a role connect. Each bounded context has its own
+  role, the owner of its database (`cart` owns `cart`, #78), not the `postgres` superuser. Since PostgreSQL 15 only the
+  database owner (or granted roles) can create tables in `public`.
 - **pg_hba.conf** decides who may connect and how (`scram-sha-256` = password, `trust` = no password).
   A forgotten superuser password is reset by switching localhost to `trust`, setting `\password`,
   restoring the file and reloading (`Restart-Service` or `SELECT pg_reload_conf()`).
@@ -115,7 +115,7 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
 
 - **A schema is a namespace inside one database**: two schemas can hold tables of the same name
   (`catalog.inbox_messages`, `cart.inbox_messages`), and a foreign key may still cross schemas, so the separation is a
-  convention until the services get their own roles or databases (#78).
+  convention; #78 made the database the boundary (below).
 - **`search_path`** decides where an unqualified name is looked up (default `"$user", public`). `Search Path` in the
   Npgsql connection string sets it per connection, so a service's raw SQL finds its own tables; EF Core's own SQL is
   always schema-qualified.
@@ -123,8 +123,23 @@ Related: [UsePostgreSql](../Decisions/UsePostgreSql.md), [Services](../Services/
   `pg_get_serial_sequence('catalog.products', 'product_id')` takes the qualified table name.
 - **A data script for the current model**: columns that migrations once backfilled (`NOT NULL` without a default) must
   be in the INSERTs once the schema is created in its final form; the old `northwind-data.sql` failed on four of them.
-- **`CREATE SCHEMA` needs the `CREATE` privilege on the database**; the role `eshop` owns `eshop`, so the migrator creates
-  the schemas itself (`EnsureSchema` in each `InitialCreate`).
+- **`CREATE SCHEMA` needs the `CREATE` privilege on the database**; each role owns its database (#78), so the migrator,
+  connected as that owner, creates the schema itself (`EnsureSchema` in each `InitialCreate`).
+
+## A database per service (#78)
+
+- **`CONNECT` is a privilege of the database**: a new database grants `CONNECT` and `TEMP` to `PUBLIC` (every role).
+  `REVOKE CONNECT ON DATABASE cart FROM PUBLIC` leaves the ACL `{=T/cart,cart=CTc/cart}`: others keep only `TEMP`
+  (useless without a connection), the owner has `CREATE`, `TEMP` and `CONNECT`. Another role is refused at login:
+  `FATAL: permission denied for database "cart"`, `User does not have CONNECT privilege`.
+- **A database is a hard boundary, a schema is not**: a query sees only the database of its connection; joining across
+  databases needs an extension (`dblink`, `postgres_fdw`). Inside one database a role with rights on two schemas can
+  join them.
+- **psql variables in a script** (`-v name=cart`): `:'password'` is a quoted literal, `:"name"` a quoted identifier, so
+  `CREATE ROLE :"name" LOGIN PASSWORD :'password'` takes any value safely. Variables are not expanded inside a quoted
+  heredoc by bash (`<<'SQL'`), only by psql.
+- **The owner runs both DDL and data** for now; a role with data rights only (`GRANT`, `ALTER DEFAULT PRIVILEGES`) for the
+  services is [#86](https://github.com/FobarWB/EShop/issues/86).
 
 ## Open questions
 
