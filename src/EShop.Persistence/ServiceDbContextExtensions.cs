@@ -8,12 +8,9 @@ namespace EShop.Persistence;
 
 public static class ServiceDbContextExtensions
 {
-    // One database for all services until each gets its own (#78).
-    public const string ConnectionStringName = "EShop";
-
     /// <summary>
     /// Registers a service's DbContext with PostgreSQL, snake_case naming and its own schema.
-    /// The connection string is read from <c>ConnectionStrings:EShop</c>.
+    /// The connection string is read from <c>ConnectionStrings:&lt;TContext.ConnectionStringName&gt;</c>.
     /// </summary>
     public static IServiceCollection AddServiceDbContext<TContext>(
         this IServiceCollection services,
@@ -22,10 +19,10 @@ public static class ServiceDbContextExtensions
         where TContext : DbContext, IServiceDbContext
     {
         var connectionString =
-            configuration.GetConnectionString(ConnectionStringName)
+            configuration.GetConnectionString(TContext.ConnectionStringName)
             ?? throw new InvalidOperationException(
-                $"Connection string '{ConnectionStringName}' is not configured. Set it with "
-                    + "dotnet user-secrets set \"ConnectionStrings:EShop\" \"<value>\" --project <service project>"
+                $"Connection string '{TContext.ConnectionStringName}' is not configured. Set it with "
+                    + $"dotnet user-secrets set \"ConnectionStrings:{TContext.ConnectionStringName}\" \"<value>\" --project <service project>"
             );
 
         services.AddDbContext<TContext>(options =>
@@ -72,8 +69,9 @@ public static class ServiceDbContextExtensions
     {
         // migrations add never connects; the bundle and database update get the real one through --connection.
         var connectionString =
-            Environment.GetEnvironmentVariable($"ConnectionStrings__{ConnectionStringName}")
-            ?? "Host=localhost;Database=eshop";
+            Environment.GetEnvironmentVariable(
+                $"ConnectionStrings__{TContext.ConnectionStringName}"
+            ) ?? $"Host=localhost;Database={TContext.Schema}";
         var options = new DbContextOptionsBuilder<TContext>();
         options.UseServiceNpgsql<TContext>(connectionString);
         return options.Options;
